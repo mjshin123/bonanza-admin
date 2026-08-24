@@ -18,4 +18,11 @@ npm run build
 ```
 
 DB migration은 이 저장소의 `supabase/migrations`에서만 관리합니다.
+
+## API 문서
+
+- [빠른 API 가이드](./API_GUIDE.md): 인증, 조회·저장 RPC, 파일 처리, 오류 코드
+- [상세 API 명세](./kfcpa-api-명세.md)
+- [DB 명세](./KFCPA_DB_명세서_v1.md)
+
 # kfcpa-admin
