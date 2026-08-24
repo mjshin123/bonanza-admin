@@ -12,7 +12,7 @@
 create or replace function public.enforce_created_by()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 begin
@@ -36,7 +36,7 @@ $$;
 create or replace function public.enforce_uploaded_by()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 begin
@@ -867,33 +867,74 @@ create or replace function public.reorder_content_files(
   p_file_ids uuid[]
 )
 returns void language plpgsql security invoker set search_path = '' as $$
-declare expected_count integer;
+declare
+  expected_count integer;
+  related_count integer;
+  seminar_role text;
+  seminar_max_role text;
 begin
+  if p_file_ids is null then
+    raise exception 'file list is required';
+  end if;
+
+  if cardinality(p_file_ids) = 0 then
+    return;
+  end if;
+
   if p_relation = 'post_files' then
     select count(*) into expected_count from public.post_files
       where post_id = p_parent_id and file_id = any(p_file_ids);
-    if expected_count <> cardinality(p_file_ids) then raise exception 'invalid post file list'; end if;
+    select count(*) into related_count from public.post_files
+      where post_id = p_parent_id and file_id is not null;
+    if expected_count <> cardinality(p_file_ids)
+      or related_count <> cardinality(p_file_ids)
+    then
+      raise exception 'invalid post file list';
+    end if;
     update public.post_files pf set sort_order = v.ordinality - 1
       from unnest(p_file_ids) with ordinality v(file_id, ordinality)
       where pf.post_id = p_parent_id and pf.file_id = v.file_id;
   elsif p_relation = 'resource_files' then
     select count(*) into expected_count from public.resource_files
       where resource_id = p_parent_id and file_id = any(p_file_ids);
-    if expected_count <> cardinality(p_file_ids) then raise exception 'invalid resource file list'; end if;
+    select count(*) into related_count from public.resource_files
+      where resource_id = p_parent_id;
+    if expected_count <> cardinality(p_file_ids)
+      or related_count <> cardinality(p_file_ids)
+    then
+      raise exception 'invalid resource file list';
+    end if;
     update public.resource_files rf set sort_order = v.ordinality - 1
       from unnest(p_file_ids) with ordinality v(file_id, ordinality)
       where rf.resource_id = p_parent_id and rf.file_id = v.file_id;
   elsif p_relation = 'seminar_files' then
-    select count(*) into expected_count from public.seminar_files
+    select min(role), max(role), count(*)
+      into seminar_role, seminar_max_role, expected_count
+      from public.seminar_files
       where seminar_id = p_parent_id and file_id = any(p_file_ids);
-    if expected_count <> cardinality(p_file_ids) then raise exception 'invalid seminar file list'; end if;
+    if expected_count <> cardinality(p_file_ids)
+      or seminar_role is distinct from seminar_max_role
+    then
+      raise exception 'invalid seminar file list';
+    end if;
+    select count(*) into related_count from public.seminar_files
+      where seminar_id = p_parent_id and role = seminar_role;
+    if related_count <> cardinality(p_file_ids) then
+      raise exception 'invalid seminar file list';
+    end if;
     update public.seminar_files sf set sort_order = v.ordinality - 1
       from unnest(p_file_ids) with ordinality v(file_id, ordinality)
       where sf.seminar_id = p_parent_id and sf.file_id = v.file_id;
   elsif p_relation = 'gallery_items' then
     select count(*) into expected_count from public.gallery_items
       where gallery_id = p_parent_id and file_id = any(p_file_ids);
-    if expected_count <> cardinality(p_file_ids) then raise exception 'invalid gallery item list'; end if;
+    select count(*) into related_count from public.gallery_items
+      where gallery_id = p_parent_id;
+    if expected_count <> cardinality(p_file_ids)
+      or related_count <> cardinality(p_file_ids)
+    then
+      raise exception 'invalid gallery item list';
+    end if;
     update public.gallery_items gi set sort_order = v.ordinality - 1
       from unnest(p_file_ids) with ordinality v(file_id, ordinality)
       where gi.gallery_id = p_parent_id and gi.file_id = v.file_id;

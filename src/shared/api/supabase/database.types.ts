@@ -415,7 +415,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
-          board_id?: number;
+          board_id: number;
           caption?: string;
           category?: string | null;
           content?: string;
@@ -456,13 +456,6 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "posts_institution_id_fkey";
-            columns: ["institution_id"];
-            isOneToOne: false;
-            referencedRelation: "institutions";
-            referencedColumns: ["id"];
-          },
-          {
             foreignKeyName: "posts_board_id_fkey";
             columns: ["board_id"];
             isOneToOne: false;
@@ -470,60 +463,17 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "posts_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "posts_organization_id_fkey";
             columns: ["organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      seminar_events: {
-        Row: {
-          application_method: string | null;
-          application_url: string | null;
-          capacity: number | null;
-          created_at: string;
-          ends_at: string | null;
-          location: string;
-          post_id: string;
-          registration_deadline: string | null;
-          starts_at: string;
-          topic: string;
-          updated_at: string;
-        };
-        Insert: {
-          application_method?: string | null;
-          application_url?: string | null;
-          capacity?: number | null;
-          created_at?: string;
-          ends_at?: string | null;
-          location: string;
-          post_id: string;
-          registration_deadline?: string | null;
-          starts_at: string;
-          topic: string;
-          updated_at?: string;
-        };
-        Update: {
-          application_method?: string | null;
-          application_url?: string | null;
-          capacity?: number | null;
-          created_at?: string;
-          ends_at?: string | null;
-          location?: string;
-          post_id?: string;
-          registration_deadline?: string | null;
-          starts_at?: string;
-          topic?: string;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "seminar_events_post_id_fkey";
-            columns: ["post_id"];
-            isOneToOne: true;
-            referencedRelation: "posts";
             referencedColumns: ["id"];
           },
         ];
@@ -602,6 +552,56 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      seminar_events: {
+        Row: {
+          application_method: string | null;
+          application_url: string | null;
+          capacity: number | null;
+          created_at: string;
+          ends_at: string | null;
+          location: string;
+          post_id: string;
+          registration_deadline: string | null;
+          starts_at: string;
+          topic: string;
+          updated_at: string;
+        };
+        Insert: {
+          application_method?: string | null;
+          application_url?: string | null;
+          capacity?: number | null;
+          created_at?: string;
+          ends_at?: string | null;
+          location: string;
+          post_id: string;
+          registration_deadline?: string | null;
+          starts_at: string;
+          topic: string;
+          updated_at?: string;
+        };
+        Update: {
+          application_method?: string | null;
+          application_url?: string | null;
+          capacity?: number | null;
+          created_at?: string;
+          ends_at?: string | null;
+          location?: string;
+          post_id?: string;
+          registration_deadline?: string | null;
+          starts_at?: string;
+          topic?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "seminar_events_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: true;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       seminar_files: {
         Row: {
@@ -731,11 +731,10 @@ export type Database = {
         };
         Returns: string;
       };
-      delete_seminar_event: {
-        Args: {
-          p_post_id: string;
-        };
-        Returns: string;
+      delete_seminar_event: { Args: { p_post_id: string }; Returns: string };
+      reorder_content_files: {
+        Args: { p_file_ids: string[]; p_parent_id: string; p_relation: string };
+        Returns: undefined;
       };
       update_seminar_event: {
         Args: {
@@ -758,14 +757,6 @@ export type Database = {
           p_topic: string;
         };
         Returns: string;
-      };
-      reorder_content_files: {
-        Args: {
-          p_file_ids: string[];
-          p_parent_id: string;
-          p_relation: string;
-        };
-        Returns: undefined;
       };
     };
     Enums: {
