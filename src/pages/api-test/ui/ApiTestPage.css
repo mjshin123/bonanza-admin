@@ -152,6 +152,112 @@
   padding: var(--sp-7) var(--gutter-desktop) var(--section-y-desktop);
 }
 
+.api-admin-layout {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  width: min(100%, 1600px);
+  min-height: calc(100svh - 77px);
+  margin: 0 auto;
+}
+
+.api-admin-sidebar {
+  padding: var(--sp-7) var(--sp-4);
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.api-admin-sidebar > p {
+  padding: 0 var(--sp-3) var(--sp-3);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+}
+
+.api-admin-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.api-admin-sidebar button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  gap: var(--sp-3);
+}
+
+.api-admin-sidebar button:hover {
+  background: var(--surface);
+}
+
+.api-admin-sidebar button.is-active {
+  border-color: var(--teal-200);
+  background: var(--teal-50);
+  color: var(--navy-600);
+}
+
+.api-admin-sidebar button > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--teal-700);
+  font-size: var(--text-caption);
+  font-weight: var(--fw-bold);
+}
+
+.api-admin-sidebar button.is-active > span {
+  background: var(--teal-600);
+  color: var(--text-on-dark);
+}
+
+.api-admin-sidebar button > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.api-admin-sidebar strong {
+  font-size: var(--text-body-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.api-admin-sidebar small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-admin-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: var(--sp-8) clamp(var(--sp-5), 4vw, var(--sp-10));
+  background: var(--surface-page);
+  gap: var(--sp-5);
+}
+
+.content-admin-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
 .api-admin-shell {
   display: flex;
   max-width: var(--container-max);
@@ -250,6 +356,35 @@
 
   .api-admin-section {
     padding: var(--sp-7) var(--gutter-mobile) var(--section-y-mobile);
+  }
+
+  .api-admin-layout {
+    display: block;
+  }
+
+  .api-admin-sidebar {
+    padding: var(--sp-3) var(--gutter-mobile);
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .api-admin-sidebar > p,
+  .api-admin-sidebar small {
+    display: none;
+  }
+
+  .api-admin-sidebar nav {
+    flex-direction: row;
+  }
+
+  .api-admin-sidebar button {
+    width: auto;
+    min-width: max-content;
+  }
+
+  .api-admin-content {
+    padding: var(--sp-6) var(--gutter-mobile) var(--section-y-mobile);
   }
 
   .api-admin-category-row,

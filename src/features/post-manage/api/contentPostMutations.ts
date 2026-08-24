@@ -25,7 +25,11 @@ import type {
   TablesUpdate,
 } from "@shared/api/supabase";
 
-export type SavePostFileInput = { fileId: string; role: PostFileRole };
+export type SavePostFileInput = {
+  fileId: string;
+  role: PostFileRole;
+  showInGallery?: boolean;
+};
 
 export type CreateContentPostInput = {
   category: PostCategory;
@@ -48,12 +52,14 @@ export type LinkPostFileInput = {
   postId: string;
   fileId: string;
   role: PostFileRole;
+  showInGallery?: boolean;
   sortOrder?: number;
 };
 export type UpdatePostFileInput = {
   postId: string;
   fileId: string;
   role?: PostFileRole;
+  showInGallery?: boolean;
   sortOrder?: number;
 };
 export type ReorderPostFilesInput = {
@@ -143,6 +149,7 @@ function mapRelation(
   return {
     file: mapFile(row.file),
     role: row.role as PostFileRole,
+    showInGallery: row.show_in_gallery,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
   };
@@ -152,6 +159,7 @@ async function linkPostFile(input: LinkPostFileInput) {
     post_id: requireUuid(input.postId),
     file_id: requireUuid(input.fileId),
     role: input.role,
+    show_in_gallery: input.showInGallery ?? false,
     sort_order: input.sortOrder ?? 0,
   } as TablesInsert<"post_files">;
   const { data, error } = await supabase
@@ -165,6 +173,8 @@ async function linkPostFile(input: LinkPostFileInput) {
 async function updatePostFile(input: UpdatePostFileInput) {
   const patch: TablesUpdate<"post_files"> = {};
   if (input.role !== undefined) patch.role = input.role;
+  if (input.showInGallery !== undefined)
+    patch.show_in_gallery = input.showInGallery;
   if (input.sortOrder !== undefined) patch.sort_order = input.sortOrder;
   const { data, error } = await supabase
     .from("post_files")

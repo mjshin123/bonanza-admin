@@ -20,7 +20,10 @@ import {
 import { supabase } from "@shared/api/supabase";
 import type { Json, Tables } from "@shared/api/supabase";
 
-export type SaveResourceFileInput = { fileId: string };
+export type SaveResourceFileInput = {
+  fileId: string;
+  showInGallery?: boolean;
+};
 
 export type CreateResourceInput = {
   category: ResourceCategory;
@@ -38,6 +41,7 @@ export type UpdateResourceInput = Required<CreateResourceInput> & {
 export type LinkResourceFileInput = {
   resourceId: string;
   fileId: string;
+  showInGallery?: boolean;
   sortOrder?: number;
 };
 export type UpdateResourceFileInput = {
@@ -120,6 +124,7 @@ function mapRelation(
 ): ResourceFileDto {
   return {
     file: mapFile(row.file),
+    showInGallery: row.show_in_gallery,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
   };
@@ -130,6 +135,7 @@ async function linkResourceFile(input: LinkResourceFileInput) {
     .insert({
       resource_id: requireUuid(input.resourceId),
       file_id: requireUuid(input.fileId),
+      show_in_gallery: input.showInGallery ?? false,
       sort_order: input.sortOrder ?? 0,
     })
     .select("*,file:files!inner(*)")

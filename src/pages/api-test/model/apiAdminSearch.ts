@@ -1,21 +1,21 @@
-export type ApiAdminView = "list" | "write";
+export type AdminSection = "institutions" | "posts" | "resources" | "seminars";
 
-export type ApiAdminSearch = {
-  board?: string;
-  postId?: string;
-  view?: ApiAdminView;
-};
+export type ApiAdminSearch = { section?: AdminSection };
+
+const SECTIONS = new Set<AdminSection>([
+  "institutions",
+  "posts",
+  "resources",
+  "seminars",
+]);
 
 export function validateApiAdminSearch(
   search: Record<string, unknown>,
 ): ApiAdminSearch {
-  const board = typeof search.board === "string" ? search.board.trim() : "";
-  const postId =
-    typeof search.postId === "string" ? search.postId.trim() : "";
-
+  const section = typeof search.section === "string" ? search.section : "";
   return {
-    board: board || undefined,
-    postId: postId || undefined,
-    view: search.view === "write" ? "write" : undefined,
+    section: SECTIONS.has(section as AdminSection)
+      ? (section as AdminSection)
+      : undefined,
   };
 }

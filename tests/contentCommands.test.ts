@@ -16,7 +16,7 @@ describe("콘텐츠 command payload", () => {
     const result = buildContentPostCommand({
       category: "member_news",
       content: "본문",
-      files: [{ fileId: FILE_ID, role: "cover" }],
+      files: [{ fileId: FILE_ID, role: "cover", showInGallery: true }],
       institutionId: FILE_ID,
       status: "published",
       title: " 제목 ",
@@ -30,7 +30,9 @@ describe("콘텐츠 command payload", () => {
       }),
     );
     expect(result.command.publishedAt).toEqual(expect.any(String));
-    expect(result.files).toEqual([{ fileId: FILE_ID, role: "cover" }]);
+    expect(result.files).toEqual([
+      { fileId: FILE_ID, role: "cover", showInGallery: true },
+    ]);
   });
 
   it("회원기관 소식의 기관 누락을 차단한다", () => {

@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState, type FormEvent } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import {
@@ -8,44 +7,50 @@ import {
   adminSignOutMutationOptions,
   useAdminSession,
 } from "@features/admin-auth";
-import { boardsQueryOptions, type Board } from "@entities/board";
 import kfcpaLogo from "@shared/assets/logo/kfcpa-logo-horizontal.png";
 import { getErrorMessage } from "@shared/lib";
 import { Button, Card, Input, Notice } from "@shared/ui";
-import { GeneralPostAdmin } from "@widgets/general-post-admin";
+import {
+  InstitutionSection,
+  PostSection,
+  ResourceSection,
+  SeminarSection,
+} from "@widgets/content-admin";
 
+import type { AdminSection } from "../model/apiAdminSearch";
 import "./ApiTestPage.css";
 
-const ADMIN_CATEGORY_OPTIONS = [
-  { code: "association_news", label: "협회소식" },
-  { code: "notice", label: "공지사항" },
-  { code: "gallery", label: "포토갤러리" },
-  { code: "resource", label: "자료실" },
-] as const;
-
-const RESOURCE_BOARD_OPTIONS = [
-  { code: "seminar_resource", label: "세미나 자료" },
-  { code: "policy_resource", label: "법령·정책 자료" },
-] as const;
-
-const DEFAULT_BOARD_CODE = "association_news";
-const RESOURCE_BOARD_CODES = new Set<string>(
-  RESOURCE_BOARD_OPTIONS.map((option) => option.code),
-);
-const ADMIN_BOARD_CODES = new Set<string>([
-  DEFAULT_BOARD_CODE,
-  "notice",
-  "gallery",
-  ...RESOURCE_BOARD_OPTIONS.map((option) => option.code),
-]);
-
-function getDefaultBoardCode(boards: Board[]) {
-  if (boards.some((board) => board.code === DEFAULT_BOARD_CODE)) {
-    return DEFAULT_BOARD_CODE;
-  }
-
-  return boards.find((board) => ADMIN_BOARD_CODES.has(board.code))?.code;
-}
+const NAV_ITEMS: Array<{
+  section: AdminSection;
+  code: string;
+  label: string;
+  description: string;
+}> = [
+  {
+    section: "institutions",
+    code: "A",
+    label: "회원 · 협력기관",
+    description: "기관 및 분류",
+  },
+  {
+    section: "posts",
+    code: "B",
+    label: "소식 게시판",
+    description: "공지 · 협회 · 회원소식",
+  },
+  {
+    section: "resources",
+    code: "C",
+    label: "자료실",
+    description: "자료 · 결산/공시",
+  },
+  {
+    section: "seminars",
+    code: "D",
+    label: "세미나",
+    description: "예정 · 지난 행사",
+  },
+];
 
 function LoginScreen({
   sessionError,
@@ -57,7 +62,6 @@ function LoginScreen({
   const signInMutation = useMutation(adminSignInMutationOptions());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const handleSignIn = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     signInMutation.mutate(
@@ -65,7 +69,6 @@ function LoginScreen({
       { onSuccess: () => setPassword("") },
     );
   };
-
   return (
     <main className="api-admin-login-page">
       <div className="api-admin-login-shell">
@@ -77,7 +80,6 @@ function LoginScreen({
           <h1>관리자 로그인</h1>
           <p>콘텐츠 등록과 수정을 위해 관리자 계정으로 로그인해주세요.</p>
         </div>
-
         <Card className="api-admin-login-card" padding="clamp(22px, 5vw, 32px)">
           {isSessionLoading ? (
             <p className="api-admin-loading">
@@ -112,7 +114,6 @@ function LoginScreen({
               </Button>
             </form>
           )}
-
           {signInMutation.error ? (
             <Notice tone="danger" title="로그인하지 못했습니다.">
               {getErrorMessage(signInMutation.error)}
@@ -129,77 +130,11 @@ function LoginScreen({
   );
 }
 
-function CategorySelector({
-  boards,
-  selectedCode,
-  onSelect,
-}: {
-  boards: Board[];
-  onSelect: (code: string) => void;
-  selectedCode: string;
-}) {
-  const availableBoardCodes = new Set(boards.map((board) => board.code));
-  const selectedCategoryCode = RESOURCE_BOARD_CODES.has(selectedCode)
-    ? "resource"
-    : selectedCode;
-  const availableResourceOptions = RESOURCE_BOARD_OPTIONS.filter((option) =>
-    availableBoardCodes.has(option.code),
-  );
-
-  const handleCategorySelect = (categoryCode: string) => {
-    if (categoryCode !== "resource") {
-      onSelect(categoryCode);
-      return;
-    }
-
-    const nextResourceBoardCode = RESOURCE_BOARD_CODES.has(selectedCode)
-      ? selectedCode
-      : availableResourceOptions[0]?.code;
-
-    if (nextResourceBoardCode) {
-      onSelect(nextResourceBoardCode);
-    }
-  };
-
-  return (
-    <div className="api-admin-category-controls">
-      <div className="api-admin-category-select">
-        <label htmlFor="api-admin-board">카테고리</label>
-        <select
-          id="api-admin-board"
-          value={selectedCategoryCode}
-          onChange={(event) => handleCategorySelect(event.target.value)}
-        >
-          {ADMIN_CATEGORY_OPTIONS.filter((option) =>
-            option.code === "resource"
-              ? availableResourceOptions.length > 0
-              : availableBoardCodes.has(option.code),
-          ).map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {selectedCategoryCode === "resource" ? (
-        <div className="api-admin-category-select">
-          <label htmlFor="api-admin-resource-board">자료 구분</label>
-          <select
-            id="api-admin-resource-board"
-            value={selectedCode}
-            onChange={(event) => onSelect(event.target.value)}
-          >
-            {availableResourceOptions.map((option) => (
-              <option key={option.code} value={option.code}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null}
-    </div>
-  );
+function Workspace({ section }: { section: AdminSection }) {
+  if (section === "institutions") return <InstitutionSection />;
+  if (section === "posts") return <PostSection />;
+  if (section === "resources") return <ResourceSection />;
+  return <SeminarSection />;
 }
 
 export function ApiTestPage() {
@@ -207,78 +142,14 @@ export function ApiTestPage() {
   const search = useSearch({ from: "/" });
   const session = useAdminSession();
   const signOutMutation = useMutation(adminSignOutMutationOptions());
-  const boardsQuery = useQuery({
-    ...boardsQueryOptions(),
-    enabled: Boolean(session.user),
-  });
-  const selectedBoardCode = search.board ?? DEFAULT_BOARD_CODE;
-  const workspaceView = search.view === "write" ? "write" : "list";
-
-  useEffect(() => {
-    if (!boardsQuery.data?.length) {
-      return;
-    }
-
-    const selectedBoardExists =
-      ADMIN_BOARD_CODES.has(selectedBoardCode) &&
-      boardsQuery.data.some((board) => board.code === selectedBoardCode);
-
-    if (!selectedBoardExists) {
-      const defaultBoardCode = getDefaultBoardCode(boardsQuery.data);
-
-      if (!defaultBoardCode) {
-        return;
-      }
-
-      void navigate({
-        replace: true,
-        search: { board: defaultBoardCode },
-      });
-    }
-  }, [boardsQuery.data, navigate, selectedBoardCode]);
-
-  const handleBoardSelect = (board: string) => {
-    void navigate({ search: { board } });
-  };
-
-  const handleOpenEditor = (postId?: string) => {
-    void navigate({
-      search: {
-        board: selectedBoardCode,
-        postId,
-        view: "write",
-      },
-    });
-  };
-
-  const handleReturnToList = () => {
-    void navigate({ search: { board: selectedBoardCode } });
-  };
-
-  if (!session.user) {
+  const section = search.section ?? "institutions";
+  if (!session.user)
     return (
       <LoginScreen
         isSessionLoading={session.isLoading}
         sessionError={session.error}
       />
     );
-  }
-
-  const selectedBoard = boardsQuery.data?.find(
-    (board) =>
-      board.code === selectedBoardCode &&
-      ADMIN_BOARD_CODES.has(board.code),
-  );
-  const categorySelector = boardsQuery.data?.some((board) =>
-    ADMIN_BOARD_CODES.has(board.code),
-  ) ? (
-    <CategorySelector
-      boards={boardsQuery.data}
-      selectedCode={selectedBoardCode}
-      onSelect={handleBoardSelect}
-    />
-  ) : null;
-
   return (
     <main className="api-admin-page">
       <header className="api-admin-topbar">
@@ -303,43 +174,37 @@ export function ApiTestPage() {
           </div>
         </div>
       </header>
-
-      <section className="api-admin-section">
-        <div className="api-admin-shell">
+      <div className="api-admin-layout">
+        <aside className="api-admin-sidebar" aria-label="콘텐츠 관리 메뉴">
+          <p>CONTENT</p>
+          <nav>
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.section}
+                className={section === item.section ? "is-active" : undefined}
+                type="button"
+                onClick={() =>
+                  void navigate({ search: { section: item.section } })
+                }
+              >
+                <span>{item.code}</span>
+                <div>
+                  <strong>{item.label}</strong>
+                  <small>{item.description}</small>
+                </div>
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <div className="api-admin-content">
           {signOutMutation.error ? (
             <Notice tone="danger" title="로그아웃하지 못했습니다.">
               {getErrorMessage(signOutMutation.error)}
             </Notice>
           ) : null}
-
-          {boardsQuery.error ? (
-            <Notice tone="danger" title="카테고리를 불러오지 못했습니다.">
-              {getErrorMessage(boardsQuery.error)}
-            </Notice>
-          ) : null}
-
-          {boardsQuery.isPending ? (
-            <Card className="api-admin-category-loading">
-              게시물 카테고리를 불러오는 중입니다.
-            </Card>
-          ) : null}
-
-          {selectedBoard ? (
-            <section className="api-admin-workspace" aria-live="polite">
-              <GeneralPostAdmin
-                key={selectedBoard.code}
-                board={selectedBoard}
-                editingPostId={search.postId}
-                enabled
-                categoryControl={categorySelector}
-                view={workspaceView}
-                onOpenEditor={handleOpenEditor}
-                onReturnToList={handleReturnToList}
-              />
-            </section>
-          ) : null}
+          <Workspace section={section} />
         </div>
-      </section>
+      </div>
     </main>
   );
 }

@@ -129,6 +129,8 @@ export type Database = {
           event_date: string | null
           id: string
           published_at: string | null
+          source_id: string | null
+          source_type: string | null
           status: string
           title: string
           updated_at: string
@@ -141,6 +143,8 @@ export type Database = {
           event_date?: string | null
           id?: string
           published_at?: string | null
+          source_id?: string | null
+          source_type?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -153,6 +157,8 @@ export type Database = {
           event_date?: string | null
           id?: string
           published_at?: string | null
+          source_id?: string | null
+          source_type?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -360,6 +366,7 @@ export type Database = {
           original_name: string
           post_id: string
           role: string | null
+          show_in_gallery: boolean
           size_bytes: number | null
           sort_order: number
           storage_path: string
@@ -373,6 +380,7 @@ export type Database = {
           original_name: string
           post_id: string
           role?: string | null
+          show_in_gallery?: boolean
           size_bytes?: number | null
           sort_order?: number
           storage_path: string
@@ -386,6 +394,7 @@ export type Database = {
           original_name?: string
           post_id?: string
           role?: string | null
+          show_in_gallery?: boolean
           size_bytes?: number | null
           sort_order?: number
           storage_path?: string
@@ -504,18 +513,21 @@ export type Database = {
           created_at: string
           file_id: string
           resource_id: string
+          show_in_gallery: boolean
           sort_order: number
         }
         Insert: {
           created_at?: string
           file_id: string
           resource_id: string
+          show_in_gallery?: boolean
           sort_order?: number
         }
         Update: {
           created_at?: string
           file_id?: string
           resource_id?: string
+          show_in_gallery?: boolean
           sort_order?: number
         }
         Relationships: [
@@ -637,6 +649,7 @@ export type Database = {
           file_id: string
           role: string
           seminar_id: string
+          show_in_gallery: boolean
           sort_order: number
         }
         Insert: {
@@ -644,6 +657,7 @@ export type Database = {
           file_id: string
           role: string
           seminar_id: string
+          show_in_gallery?: boolean
           sort_order?: number
         }
         Update: {
@@ -651,6 +665,7 @@ export type Database = {
           file_id?: string
           role?: string
           seminar_id?: string
+          show_in_gallery?: boolean
           sort_order?: number
         }
         Relationships: [
