@@ -14,7 +14,11 @@ import {
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
 import type { Json, Tables, TablesUpdate } from "@shared/api/supabase";
-export type SaveSeminarFileInput = { fileId: string; role: SeminarFileRole };
+export type SaveSeminarFileInput = {
+  fileId: string;
+  role: SeminarFileRole;
+  showInGallery?: boolean;
+};
 export type CreateSeminarInput = {
   title: string;
   introduction?: string;
@@ -40,12 +44,14 @@ export type LinkSeminarFileInput = {
   seminarId: string;
   fileId: string;
   role: SeminarFileRole;
+  showInGallery?: boolean;
   sortOrder?: number;
 };
 export type UpdateSeminarFileInput = {
   seminarId: string;
   fileId: string;
   role?: SeminarFileRole;
+  showInGallery?: boolean;
   sortOrder?: number;
 };
 export type ReorderSeminarFilesInput = {
@@ -129,6 +135,7 @@ function mapRelation(
   return {
     file: mapFile(r.file),
     role: r.role as SeminarFileRole,
+    showInGallery: r.show_in_gallery,
     sortOrder: r.sort_order,
     createdAt: r.created_at,
   };
@@ -140,6 +147,7 @@ async function linkSeminarFile(i: LinkSeminarFileInput) {
       seminar_id: requireUuid(i.seminarId),
       file_id: requireUuid(i.fileId),
       role: i.role,
+      show_in_gallery: i.showInGallery ?? false,
       sort_order: i.sortOrder ?? 0,
     })
     .select("*,file:files!inner(*)")
@@ -152,6 +160,7 @@ async function linkSeminarFile(i: LinkSeminarFileInput) {
 async function updateSeminarFile(i: UpdateSeminarFileInput) {
   const patch: TablesUpdate<"seminar_files"> = {};
   if (i.role !== undefined) patch.role = i.role;
+  if (i.showInGallery !== undefined) patch.show_in_gallery = i.showInGallery;
   if (i.sortOrder !== undefined) patch.sort_order = i.sortOrder;
   const { data, error } = await supabase
     .from("seminar_files")

@@ -10,6 +10,7 @@ import {
   type ContentStatus,
   type FileDto,
   type PageParams,
+  type PageResult,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
 import type { Database, Tables } from "@shared/api/supabase";
@@ -144,7 +145,18 @@ export function mapGalleryListRow(row: RpcGalleryRow, admin: boolean) {
       }
     : item;
 }
-async function fetchList(p: ReturnType<typeof resolveParams>, admin: boolean) {
+async function fetchList(
+  p: ReturnType<typeof resolveParams>,
+  admin: false,
+): Promise<PageResult<GalleryListItem>>;
+async function fetchList(
+  p: ReturnType<typeof resolveParams>,
+  admin: true,
+): Promise<PageResult<AdminGalleryListItem>>;
+async function fetchList(
+  p: ReturnType<typeof resolveParams>,
+  admin: boolean,
+): Promise<PageResult<GalleryListItem | AdminGalleryListItem>> {
   const { data, error } = await supabase.rpc("list_galleries", {
     p_admin: admin,
     p_from: p.from,

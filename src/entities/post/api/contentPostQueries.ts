@@ -13,6 +13,7 @@ import {
   type ContentStatus,
   type FileDto,
   type PageParams,
+  type PageResult,
   type PostCategory,
   type PostFileRole,
 } from "@shared/api/content";
@@ -22,6 +23,7 @@ import type { Database, Json, Tables } from "@shared/api/supabase";
 export type PostFileDto = {
   file: FileDto;
   role: PostFileRole;
+  showInGallery: boolean;
   sortOrder: number;
   createdAt: string;
 };
@@ -72,7 +74,7 @@ type JoinedPost = Tables<"posts"> & {
   files: Array<Tables<"post_files"> & { file: Tables<"files"> | null }>;
 };
 const SELECT =
-  "id,category,title,summary,content,institution_id,status,is_pinned,published_at,created_at,updated_at,institution:institutions(id,institution_type,category_id,name,logo_file_id,description,homepage_url,display_order,is_active,created_at,updated_at,category:institution_categories!inner(id,code,name,display_order,is_active,created_at,updated_at),logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)),files:post_files(post_id,file_id,role,sort_order,created_at,file:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
+  "id,category,title,summary,content,institution_id,status,is_pinned,published_at,created_at,updated_at,institution:institutions(id,institution_type,category_id,name,logo_file_id,description,homepage_url,display_order,is_active,created_at,updated_at,category:institution_categories!inner(id,code,name,display_order,is_active,created_at,updated_at),logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)),files:post_files(post_id,file_id,role,show_in_gallery,sort_order,created_at,file:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
 
 function mapPost(row: JoinedPost): ContentPostDetail {
   const files = row.files
@@ -87,6 +89,7 @@ function mapPost(row: JoinedPost): ContentPostDetail {
     .map((relation) => ({
       file: mapFile(relation.file),
       role: relation.role,
+      showInGallery: relation.show_in_gallery,
       sortOrder: relation.sort_order,
       createdAt: relation.created_at,
     }))
@@ -161,7 +164,8 @@ function mapRpcInstitution(value: Json | null): InstitutionSummary | null {
   const institution = value as RpcInstitution;
   return {
     id: institution.id,
-    institutionType: institution.institution_type as InstitutionSummary["institutionType"],
+    institutionType:
+      institution.institution_type as InstitutionSummary["institutionType"],
     name: institution.name,
     logo: mapRpcFile(institution.logo),
   };
@@ -198,8 +202,16 @@ export function mapContentPostListRow(row: RpcPostRow, admin: boolean) {
 
 async function fetchList(
   params: ReturnType<typeof resolveParams>,
+  admin: false,
+): Promise<PageResult<ContentPostListItem>>;
+async function fetchList(
+  params: ReturnType<typeof resolveParams>,
+  admin: true,
+): Promise<PageResult<AdminContentPostListItem>>;
+async function fetchList(
+  params: ReturnType<typeof resolveParams>,
   admin: boolean,
-) {
+): Promise<PageResult<ContentPostListItem | AdminContentPostListItem>> {
   const { data, error } = await supabase.rpc("list_content_posts", {
     p_admin: admin,
     p_category: params.category,

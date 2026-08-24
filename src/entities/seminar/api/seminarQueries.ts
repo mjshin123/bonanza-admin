@@ -10,6 +10,7 @@ import {
   type ContentStatus,
   type FileDto,
   type PageParams,
+  type PageResult,
   type SelectionMethod,
   type SeminarFileRole,
   type SeminarTiming,
@@ -19,6 +20,7 @@ import type { Database, Tables } from "@shared/api/supabase";
 export type SeminarFileDto = {
   file: FileDto;
   role: SeminarFileRole;
+  showInGallery: boolean;
   sortOrder: number;
   createdAt: string;
 };
@@ -63,12 +65,13 @@ type Joined = Tables<"seminars"> & {
   files: Array<Tables<"seminar_files"> & { file: Tables<"files"> }>;
 };
 const SELECT =
-  "id,title,introduction,result_summary,content,starts_at,ends_at,location,selection_method,selection_method_detail,capacity,registration_deadline,application_url,status,published_at,created_at,updated_at,files:seminar_files(seminar_id,file_id,role,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
+  "id,title,introduction,result_summary,content,starts_at,ends_at,location,selection_method,selection_method_detail,capacity,registration_deadline,application_url,status,published_at,created_at,updated_at,files:seminar_files(seminar_id,file_id,role,show_in_gallery,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
 export function mapSeminar(row: Joined): SeminarDetail {
   const files = row.files
     .map((r) => ({
       file: mapFile(r.file),
       role: r.role as SeminarFileRole,
+      showInGallery: r.show_in_gallery,
       sortOrder: r.sort_order,
       createdAt: r.created_at,
     }))
@@ -161,7 +164,18 @@ export function mapSeminarListRow(row: RpcSeminarRow, admin: boolean) {
       }
     : item;
 }
-async function fetchList(p: ReturnType<typeof resolveParams>, admin: boolean) {
+async function fetchList(
+  p: ReturnType<typeof resolveParams>,
+  admin: false,
+): Promise<PageResult<SeminarListItem>>;
+async function fetchList(
+  p: ReturnType<typeof resolveParams>,
+  admin: true,
+): Promise<PageResult<AdminSeminarListItem>>;
+async function fetchList(
+  p: ReturnType<typeof resolveParams>,
+  admin: boolean,
+): Promise<PageResult<SeminarListItem | AdminSeminarListItem>> {
   const { data, error } = await supabase.rpc("list_seminars", {
     p_admin: admin,
     p_from: p.from,

@@ -9,6 +9,7 @@ import {
   type ContentStatus,
   type FileDto,
   type PageParams,
+  type PageResult,
   type ResourceCategory,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
@@ -16,6 +17,7 @@ import type { Database, Tables } from "@shared/api/supabase";
 
 export type ResourceFileDto = {
   file: FileDto;
+  showInGallery: boolean;
   sortOrder: number;
   createdAt: string;
 };
@@ -51,12 +53,13 @@ type Joined = Tables<"resources"> & {
   files: Array<Tables<"resource_files"> & { file: Tables<"files"> }>;
 };
 const SELECT =
-  "id,category,title,summary,reference_year,status,published_at,created_at,updated_at,files:resource_files(resource_id,file_id,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
+  "id,category,title,summary,reference_year,status,published_at,created_at,updated_at,files:resource_files(resource_id,file_id,show_in_gallery,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
 
 export function mapResource(row: Joined): ResourceDetail {
   const files = row.files
     .map((r) => ({
       file: mapFile(r.file),
+      showInGallery: r.show_in_gallery,
       sortOrder: r.sort_order,
       createdAt: r.created_at,
     }))
@@ -137,8 +140,16 @@ export function mapResourceListRow(row: RpcResourceRow, admin: boolean) {
 }
 async function fetchList(
   params: ReturnType<typeof resolveParams>,
+  admin: false,
+): Promise<PageResult<ResourceListItem>>;
+async function fetchList(
+  params: ReturnType<typeof resolveParams>,
+  admin: true,
+): Promise<PageResult<AdminResourceListItem>>;
+async function fetchList(
+  params: ReturnType<typeof resolveParams>,
   admin: boolean,
-) {
+): Promise<PageResult<ResourceListItem | AdminResourceListItem>> {
   const { data, error } = await supabase.rpc("list_resources", {
     p_admin: admin,
     p_category: params.category,

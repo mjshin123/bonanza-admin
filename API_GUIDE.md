@@ -17,16 +17,16 @@ KFCPA v2 콘텐츠 API를 빠르게 연동하기 위한 요약본이다. 전체 
 
 ## 공통 값
 
-| 항목 | 값 |
-|---|---|
-| 공개 상태 | draft, published, hidden |
-| 게시물 분류 | notice, association_news, member_news |
-| 자료 분류 | resource, financial_disclosure |
-| 기관 타입 | member, partner |
-| 파일 타입 | image, attachment |
-| 게시물 파일 역할 | cover, content |
-| 세미나 파일 역할 | poster, photo |
-| 선발 방식 | first_come, lottery, other |
+| 항목             | 값                                    |
+| ---------------- | ------------------------------------- |
+| 공개 상태        | draft, published, hidden              |
+| 게시물 분류      | notice, association_news, member_news |
+| 자료 분류        | resource, financial_disclosure        |
+| 기관 타입        | member, partner                       |
+| 파일 타입        | image, attachment                     |
+| 게시물 파일 역할 | cover, content                        |
+| 세미나 파일 역할 | poster, photo                         |
+| 선발 방식        | first_come, lottery, other            |
 
 member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류에는 기관을 연결할 수 없다.
 
@@ -34,14 +34,14 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 
 모든 목록 RPC의 응답 행에는 total_count가 포함된다. p_admin 기본값은 false이며 anon 사용자가 true로 호출하면 권한 오류가 발생한다.
 
-| RPC | 권한 | 주요 파라미터 | 주요 응답 |
-|---|---|---|---|
-| list_content_posts | 공개/관리자 | p_category, p_institution_id, p_q, p_status, p_page, p_page_size, p_admin | 제목, 요약, 기관, 대표 이미지, 고정 여부, 게시일 |
-| list_resources | 공개/관리자 | p_category, p_reference_year, p_q, p_status, 페이징, p_admin | 제목, 요약, 기준연도, 파일 수, 게시일 |
-| list_seminars | 공개/관리자 | p_timing, p_from, p_to, p_q, p_status, 페이징, p_admin | 소개, 결과 요약, 일시, 장소, 포스터 |
-| list_galleries | 공개/관리자 | p_from, p_to, p_q, p_status, 페이징, p_admin | 설명, 행사일, 대표 이미지, 사진 수 |
-| list_admin_files | 관리자 | p_file_kind, p_usage, p_q, 페이징 | 파일 메타데이터와 도메인별 사용 횟수 |
-| get_admin_file_detail | 관리자 | p_file_id | 파일 메타데이터와 전체 사용처 |
+| RPC                   | 권한        | 주요 파라미터                                                             | 주요 응답                                        |
+| --------------------- | ----------- | ------------------------------------------------------------------------- | ------------------------------------------------ |
+| list_content_posts    | 공개/관리자 | p_category, p_institution_id, p_q, p_status, p_page, p_page_size, p_admin | 제목, 요약, 기관, 대표 이미지, 고정 여부, 게시일 |
+| list_resources        | 공개/관리자 | p_category, p_reference_year, p_q, p_status, 페이징, p_admin              | 제목, 요약, 기준연도, 파일 수, 게시일            |
+| list_seminars         | 공개/관리자 | p_timing, p_from, p_to, p_q, p_status, 페이징, p_admin                    | 소개, 결과 요약, 일시, 장소, 포스터              |
+| list_galleries        | 공개/관리자 | p_from, p_to, p_q, p_status, 페이징, p_admin                              | 설명, 행사일, 대표 이미지, 사진 수               |
+| list_admin_files      | 관리자      | p_file_kind, p_usage, p_q, 페이징                                         | 파일 메타데이터와 도메인별 사용 횟수             |
+| get_admin_file_detail | 관리자      | p_file_id                                                                 | 파일 메타데이터와 전체 사용처                    |
 
 상세 조회는 다음 Query option을 사용한다.
 
@@ -56,27 +56,30 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 
 저장 RPC는 부모 행과 파일 관계 전체를 하나의 transaction에서 처리한다.
 
-| RPC | p_input 핵심 필드 | p_files 항목 |
-|---|---|---|
-| save_content_post | category, title, summary, content, institutionId, status, isPinned, publishedAt | fileId, role |
-| save_resource | category, title, summary, referenceYear, status, publishedAt | fileId |
-| save_seminar | title, introduction, resultSummary, content, startsAt, endsAt, location, selectionMethod, selectionMethodDetail, capacity, registrationDeadline, applicationUrl, status, publishedAt | fileId, role |
-| save_gallery | title, description, eventDate, status, publishedAt, displayOrder | fileId, caption |
+| RPC               | p_input 핵심 필드                                                                                                                                                                    | p_files 항목                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| save_content_post | category, title, summary, content, institutionId, status, isPinned, publishedAt                                                                                                      | fileId, role, showInGallery               |
+| save_resource     | category, title, summary, referenceYear, status, publishedAt                                                                                                                         | fileId, showInGallery                     |
+| save_seminar      | title, introduction, resultSummary, content, startsAt, endsAt, location, selectionMethod, selectionMethodDetail, capacity, registrationDeadline, applicationUrl, status, publishedAt | fileId, role, showInGallery               |
+| save_gallery      | title, description, eventDate, status, publishedAt, displayOrder                                                                                                                     | fileId, caption (기존 독립 갤러리 호환용) |
 
 공통 RPC 인자는 다음과 같다.
 
-| 인자 | 생성 | 수정 | 설명 |
-|---|---:|---:|---|
-| p_input | 필수 | 필수 | camelCase JSON 명령 |
-| p_files | 선택 | 필수 권장 | 저장 후 남아야 할 전체 파일 관계 |
-| p_id | 생략 | 필수 | 수정 대상 UUID |
-| p_expected_updated_at | 생략 | 필수 | 상세 응답의 updatedAt |
+| 인자                  | 생성 |      수정 | 설명                             |
+| --------------------- | ---: | --------: | -------------------------------- |
+| p_input               | 필수 |      필수 | camelCase JSON 명령              |
+| p_files               | 선택 | 필수 권장 | 저장 후 남아야 할 전체 파일 관계 |
+| p_id                  | 생략 |      필수 | 수정 대상 UUID                   |
+| p_expected_updated_at | 생략 |      필수 | 상세 응답의 updatedAt            |
 
 중요 규칙:
 
 - p_files는 추가분이 아니라 정렬된 전체 스냅샷이다.
 - 배열 순서가 sort_order가 되며 최대 1,000개다.
 - 같은 fileId를 한 콘텐츠에 중복 연결할 수 없다.
+- 소식 이미지, 자료 사진, 세미나 photo의 showInGallery가 true이면 해당 사진이 포토 갤러리에 노출된다.
+- 소식·자료·세미나 저장 시 기존 공개 갤러리 조회용 앨범과 사진 관계가 같은 transaction에서 자동 동기화된다. 별도의 갤러리 등록 요청은 필요하지 않다.
+- 세미나 poster에는 showInGallery를 true로 지정할 수 없다.
 - 수정 시 expectedUpdatedAt이 다르면 CONFLICT로 처리한다.
 - 공개 자료는 파일 1개 이상, 공개 갤러리는 사진 1개 이상이어야 한다.
 - 삭제 시 관계 행만 cascade되며 중앙 files 행과 Storage 객체는 자동 삭제되지 않는다.
@@ -108,27 +111,28 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 
 ## 오류 코드
 
-| 코드 | 의미 | 처리 |
-|---|---|---|
-| NOT_FOUND | 대상 없음 | 목록 이동 또는 새로고침 |
-| IN_USE | 다른 데이터가 참조 중 | 참조 관계 먼저 해제 |
-| CONFLICT | 중복 또는 optimistic lock 충돌 | 최신 상세 재조회 후 재시도 |
-| INVALID_STATE | 필드·상태·게시 조건 위반 | 입력값과 연결 파일 확인 |
-| STORAGE_CLEANUP_REQUIRED | Storage/DB 보상 실패 | 운영 로그 확인 및 수동 정리 |
+| 코드                     | 의미                           | 처리                        |
+| ------------------------ | ------------------------------ | --------------------------- |
+| NOT_FOUND                | 대상 없음                      | 목록 이동 또는 새로고침     |
+| IN_USE                   | 다른 데이터가 참조 중          | 참조 관계 먼저 해제         |
+| CONFLICT                 | 중복 또는 optimistic lock 충돌 | 최신 상세 재조회 후 재시도  |
+| INVALID_STATE            | 필드·상태·게시 조건 위반       | 입력값과 연결 파일 확인     |
+| STORAGE_CLEANUP_REQUIRED | Storage/DB 보상 실패           | 운영 로그 확인 및 수동 정리 |
 
 원시 PostgREST 오류를 화면에서 직접 해석하지 말고 throwContentError가 변환한 ContentApiError를 사용한다.
 
 ## 구현 위치
 
-| 책임 | 위치 |
-|---|---|
-| Supabase client와 생성 타입 | src/shared/api/supabase/ |
-| 공통 DTO·검증·오류 | src/shared/api/content/ |
-| 공개/관리자 조회 | src/entities/*/api/*Queries.ts |
-| 관리자 저장·삭제 | src/features/*-manage/api/*Mutations.ts |
-| 파일 업로드·삭제 | src/features/file-upload/, src/features/file-delete/ |
-| 조회 RPC migration | supabase/migrations/20260824170000_add_content_query_rpcs.sql |
-| 공개 파일 projection | supabase/migrations/20260824171000_fix_public_rpc_file_projection.sql |
-| 저장·삭제 보상 RPC | supabase/migrations/20260824180000_add_content_command_rpcs.sql |
+| 책임                        | 위치                                                                  |
+| --------------------------- | --------------------------------------------------------------------- |
+| Supabase client와 생성 타입 | src/shared/api/supabase/                                              |
+| 공통 DTO·검증·오류          | src/shared/api/content/                                               |
+| 공개/관리자 조회            | src/entities/*/api/*Queries.ts                                        |
+| 관리자 저장·삭제            | src/features/*-manage/api/*Mutations.ts                               |
+| 파일 업로드·삭제            | src/features/file-upload/, src/features/file-delete/                  |
+| 조회 RPC migration          | supabase/migrations/20260824170000_add_content_query_rpcs.sql         |
+| 공개 파일 projection        | supabase/migrations/20260824171000_fix_public_rpc_file_projection.sql |
+| 저장·삭제 보상 RPC          | supabase/migrations/20260824180000_add_content_command_rpcs.sql       |
+| 첨부 사진별 갤러리 노출     | supabase/migrations/20260824200000_source_gallery_visibility.sql      |
 
 API 계약을 변경하면 migration, 생성 DB 타입, entity Query, feature Mutation, 이 문서를 함께 갱신한다.
