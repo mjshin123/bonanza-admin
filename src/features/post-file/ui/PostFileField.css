@@ -1,0 +1,202 @@
+.post-file-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.post-file-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+}
+
+.post-file-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.post-file-label {
+  color: var(--text-strong);
+  font-size: var(--text-body-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.post-file-heading p,
+.post-file-empty {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--lh-caption);
+}
+
+.post-file-heading input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.post-file-button {
+  display: inline-flex;
+  height: var(--control-h-sm);
+  padding: 0 13px;
+  border: 1px solid var(--navy-600);
+  border-radius: var(--r-md);
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--navy-600);
+  cursor: pointer;
+  font-size: var(--text-body-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.post-file-empty {
+  padding: var(--sp-6);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  text-align: center;
+}
+
+.post-file-error {
+  color: var(--danger);
+  font-size: var(--text-caption);
+}
+
+.post-file-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.post-file-gallery-item {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+.post-file-gallery-item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.post-file-gallery-item > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+}
+
+.post-file-gallery-item span,
+.post-file-new-files li > span,
+.post-file-attachment-list a {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: var(--text-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-file-attachment-list,
+.post-file-new-files ul {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: var(--sp-2);
+  list-style: none;
+}
+
+.post-file-attachment-list li,
+.post-file-new-files li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+.post-file-new-files li:has(img) {
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+}
+
+.post-file-new-files li img {
+  width: 52px;
+  height: 40px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+}
+
+.post-file-attachment-list a {
+  color: var(--teal-700);
+  text-decoration: none;
+}
+
+.post-file-attachment-list a:hover {
+  text-decoration: underline;
+}
+
+.post-file-attachment-list li > span,
+.post-file-new-files small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.post-file-new-files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.post-file-new-files > strong {
+  color: var(--text-strong);
+  font-size: var(--text-body-sm);
+}
+
+@media (max-width: 767px) {
+  .post-file-field {
+    padding: var(--sp-4);
+  }
+
+  .post-file-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .post-file-gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .post-file-attachment-list li,
+  .post-file-new-files li,
+  .post-file-new-files li:has(img) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .post-file-new-files li img {
+    display: none;
+  }
+
+  .post-file-attachment-list li > span,
+  .post-file-new-files small {
+    grid-column: 1;
+  }
+}

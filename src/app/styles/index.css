@@ -1,0 +1,5 @@
+@import "@shared/config/tokens/index.css";
+
+#root {
+  min-height: 100svh;
+}

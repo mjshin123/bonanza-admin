@@ -1,0 +1,8 @@
+:root{
+  --ease:cubic-bezier(.22,1,.36,1);
+  --dur-fast:160ms;
+  --dur-base:240ms;
+}
+@media (prefers-reduced-motion:reduce){
+  :root{--dur-fast:1ms; --dur-base:1ms;}
+}

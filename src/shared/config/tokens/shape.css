@@ -1,0 +1,18 @@
+:root{
+  --r-sm:4px;
+  --r-md:6px;
+  --r-lg:12px;
+  --r-full:999px;
+
+  --border-width:1px;
+  --shadow:0 12px 48px -12px rgba(5,20,31,.18);
+
+  --z-base:0;
+  --z-sticky:100;
+  --z-dropdown:200;
+  --z-modal:300;
+  --z-toast:400;
+
+  --control-h-sm:32px; --control-h-md:40px; --control-h-lg:48px;
+  --nav-h:72px;
+}

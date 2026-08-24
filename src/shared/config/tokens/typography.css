@@ -1,0 +1,22 @@
+:root{
+  --font-sans:"Pretendard Variable",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-data:Inter,"Pretendard Variable",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,monospace;
+
+  --fw-regular:400;
+  --fw-semibold:600;
+  --fw-bold:700;
+
+  --text-display:48px;      --lh-display:60px;   --ls-display:-.02em;
+  --text-h1:32px;           --lh-h1:44px;        --ls-h1:-.02em;
+  --text-h2:26px;           --lh-h2:38px;        --ls-h2:-.01em;
+  --text-h3:20px;           --lh-h3:30px;        --ls-h3:-.01em;
+  --text-h4:18px;           --lh-h4:28px;        --ls-h4:0;
+  --text-body-lg:18px;      --lh-body-lg:30px;
+  --text-body-base:16px;    --lh-body-base:26px;
+  --text-body-sm:14px;      --lh-body-sm:22px;
+  --text-caption:13px;      --lh-caption:20px;   --ls-caption:.01em;
+  --text-mono-size:14px;    --lh-mono:22px;
+
+  --measure:72ch;
+}

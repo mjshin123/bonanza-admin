@@ -1,0 +1,49 @@
+.kfcpa-logo-marquee {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.kfcpa-logo-marquee__track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation-name: kfcpa-logo-marquee-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.kfcpa-logo-marquee__item {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.kfcpa-logo-marquee__item a {
+  display: flex;
+  align-items: center;
+}
+
+@keyframes kfcpa-logo-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kfcpa-logo-marquee__track {
+    animation: none;
+  }
+  .kfcpa-logo-marquee {
+    overflow-x: auto;
+  }
+}
