@@ -2,10 +2,11 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   CONTENT_QUERY_OPTIONS,
   mapFile,
-  pageRange,
+  mapRpcFile,
   pageResult,
   requireUuid,
   resolvePageParams,
+  throwContentError,
   type ContentStatus,
   type FileDto,
   type PageParams,
@@ -14,7 +15,7 @@ import {
   type SeminarTiming,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
-import type { Tables } from "@shared/api/supabase";
+import type { Database, Tables } from "@shared/api/supabase";
 export type SeminarFileDto = {
   file: FileDto;
   role: SeminarFileRole;
@@ -40,6 +41,11 @@ export type SeminarDetail = SeminarListItem & {
   registrationDeadline: string | null;
   applicationUrl: string | null;
   photos: SeminarFileDto[];
+  status: ContentStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+export type AdminSeminarListItem = SeminarListItem & {
   status: ContentStatus;
   createdAt: string;
   updatedAt: string;
@@ -123,58 +129,55 @@ export const seminarQueryKeys = {
     ["seminars", "admin", "list", p] as const,
   adminDetail: (id: string) => ["seminars", "admin", "detail", id] as const,
 };
+type RpcSeminarRow =
+  Database["public"]["Functions"]["list_seminars"]["Returns"][number];
+
+export function mapSeminarListRow(
+  row: RpcSeminarRow,
+  admin: false,
+): SeminarListItem;
+export function mapSeminarListRow(
+  row: RpcSeminarRow,
+  admin: true,
+): AdminSeminarListItem;
+export function mapSeminarListRow(row: RpcSeminarRow, admin: boolean) {
+  const item: SeminarListItem = {
+    id: row.id,
+    title: row.title,
+    introduction: row.introduction,
+    resultSummary: row.result_summary,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    location: row.location,
+    poster: mapRpcFile(row.poster),
+    publishedAt: row.published_at,
+  };
+  return admin
+    ? {
+        ...item,
+        status: row.status as ContentStatus,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }
+    : item;
+}
 async function fetchList(p: ReturnType<typeof resolveParams>, admin: boolean) {
-  const { from, to } = pageRange(p),
-    now = new Date().toISOString();
-  let q = supabase
-    .from("seminars")
-    .select(SELECT, { count: "exact" })
-    .range(from, to);
-  if (!admin) q = q.eq("status", "published").lte("published_at", now);
-  if (p.status) q = q.eq("status", p.status);
-  if (p.from) q = q.gte("starts_at", p.from);
-  if (p.to) q = q.lte("starts_at", p.to);
-  if (p.q)
-    q = q.or(
-      `title.ilike.%${p.q}%,introduction.ilike.%${p.q}%,result_summary.ilike.%${p.q}%`,
-    );
-  if (p.timing === "upcoming")
-    q = q
-      .or(`ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${now})`)
-      .order("starts_at")
-      .order("id");
-  else if (p.timing === "past")
-    q = q
-      .or(`ends_at.lt.${now},and(ends_at.is.null,starts_at.lt.${now})`)
-      .order("ends_at", { ascending: false, nullsFirst: false })
-      .order("starts_at", { ascending: false })
-      .order("id", { ascending: false });
-  else
-    q = q
-      .order("starts_at", { ascending: false })
-      .order("id", { ascending: false });
-  const { data, error, count } = await q;
-  if (error) throw error;
-  const details = data.map((r) => mapSeminar(r as Joined));
-  const items = details.map(
-    ({
-      content: _content,
-      selectionMethod: _sm,
-      selectionMethodDetail: _smd,
-      capacity: _capacity,
-      registrationDeadline: _deadline,
-      applicationUrl: _url,
-      photos: _photos,
-      status: _status,
-      createdAt: _created,
-      updatedAt: _updated,
-      ...item
-    }) =>
-      admin
-        ? { ...item, status: _status, createdAt: _created, updatedAt: _updated }
-        : item,
-  );
-  return pageResult(items, count, p);
+  const { data, error } = await supabase.rpc("list_seminars", {
+    p_admin: admin,
+    p_from: p.from,
+    p_page: p.page,
+    p_page_size: p.pageSize,
+    p_q: p.q,
+    p_status: admin ? p.status : undefined,
+    p_timing: p.timing,
+    p_to: p.to,
+  });
+  if (error) throwContentError(error);
+  const rows = data as RpcSeminarRow[];
+  const items = admin
+    ? rows.map((row) => mapSeminarListRow(row, true))
+    : rows.map((row) => mapSeminarListRow(row, false));
+  return pageResult(items, rows[0]?.total_count ?? 0, p);
 }
 async function fetchDetail(id: string, admin: boolean) {
   let q = supabase.from("seminars").select(SELECT).eq("id", requireUuid(id));

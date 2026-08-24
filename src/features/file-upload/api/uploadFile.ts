@@ -1,6 +1,7 @@
 import { mutationOptions } from "@tanstack/react-query";
 
 import {
+  ContentApiError,
   mapFile,
   throwContentError,
   type AdminFileDto,
@@ -73,7 +74,16 @@ async function uploadFile(input: UploadFileInput): Promise<AdminFileDto> {
     .select("*")
     .single();
   if (error) {
-    await supabase.storage.from(PUBLIC_ASSETS_BUCKET).remove([storagePath]);
+    const cleanup = await supabase.storage
+      .from(PUBLIC_ASSETS_BUCKET)
+      .remove([storagePath]);
+    if (cleanup.error) {
+      throw new ContentApiError(
+        "STORAGE_CLEANUP_REQUIRED",
+        "파일 메타데이터 등록과 업로드 객체 정리에 모두 실패했습니다.",
+        { database: error, storage: cleanup.error },
+      );
+    }
     throwContentError(error);
   }
   return mapFile(data);

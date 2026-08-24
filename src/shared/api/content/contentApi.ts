@@ -1,4 +1,4 @@
-import type { Tables } from "@shared/api/supabase";
+import type { Json, Tables } from "@shared/api/supabase";
 import { getPublicAssetUrl } from "@shared/api/supabase";
 
 export type ContentStatus = "draft" | "published" | "hidden";
@@ -105,6 +105,33 @@ export function requireUuid(value: string, fieldName = "id"): string {
   return normalized;
 }
 
+export function requireExpectedUpdatedAt(value: string): string {
+  if (Number.isNaN(Date.parse(value))) {
+    throw new TypeError("expectedUpdatedAt은 유효한 ISO 일시여야 합니다.");
+  }
+  return new Date(value).toISOString();
+}
+
+export function normalizeFileItems<T extends { fileId: string }>(
+  items: T[],
+): T[] {
+  if (items.length > 1000) {
+    throw new RangeError(
+      "한 콘텐츠에는 파일을 최대 1,000개 연결할 수 있습니다.",
+    );
+  }
+  const normalized = items.map((item) => ({
+    ...item,
+    fileId: requireUuid(item.fileId, "fileId"),
+  }));
+  if (
+    new Set(normalized.map((item) => item.fileId)).size !== normalized.length
+  ) {
+    throw new TypeError("같은 파일을 한 콘텐츠에 중복 연결할 수 없습니다.");
+  }
+  return normalized;
+}
+
 export function requireText(
   value: string,
   fieldName: string,
@@ -158,7 +185,7 @@ export function mapFile(
     widthPx: row.width_px,
     heightPx: row.height_px,
     altText: row.alt_text,
-    url: getPublicAssetUrl(row.storage_path) ?? "",
+    url: getPublicAssetUrl(row.storage_path, row.bucket_name) ?? "",
     bucketName: row.bucket_name,
     storagePath: row.storage_path,
     uploadedBy: row.uploaded_by ?? null,
@@ -167,11 +194,34 @@ export function mapFile(
   };
 }
 
+type RpcFileJson = {
+  alt_text: string | null;
+  bucket_name: string;
+  created_at: string;
+  file_kind: string;
+  height_px: number | null;
+  id: string;
+  mime_type: string;
+  original_name: string;
+  size_bytes: number;
+  storage_path: string;
+  updated_at: string;
+  width_px: number | null;
+};
+
+export function mapRpcFile(value: Json | null): FileDto | null {
+  if (value === null) return null;
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("RPC 파일 응답 형식이 올바르지 않습니다.");
+  }
+  return mapFile(value as RpcFileJson);
+}
+
 type PostgrestLikeError = { code?: string; message?: string; details?: string };
 
 export function throwContentError(error: unknown): never {
   const candidate = error as PostgrestLikeError;
-  if (candidate.code === "PGRST116") {
+  if (candidate.code === "PGRST116" || candidate.code === "P0002") {
     throw new ContentApiError("NOT_FOUND", "대상을 찾을 수 없습니다.", error);
   }
   if (candidate.code === "23503") {
@@ -181,14 +231,18 @@ export function throwContentError(error: unknown): never {
       error,
     );
   }
-  if (candidate.code === "23505") {
+  if (candidate.code === "23505" || candidate.code === "40001") {
     throw new ContentApiError(
       "CONFLICT",
       "이미 존재하거나 서로 충돌하는 데이터입니다.",
       error,
     );
   }
-  if (candidate.code === "23514") {
+  if (
+    candidate.code === "23514" ||
+    candidate.code === "22023" ||
+    candidate.code === "22P02"
+  ) {
     throw new ContentApiError(
       "INVALID_STATE",
       "현재 상태에서는 요청을 처리할 수 없습니다.",

@@ -7,8 +7,10 @@ import {
 import {
   ContentApiError,
   mapFile,
+  normalizeFileItems,
   normalizePublishedAt,
   optionalText,
+  requireExpectedUpdatedAt,
   requireText,
   requireUuid,
   throwContentError,
@@ -16,19 +18,23 @@ import {
   type ResourceCategory,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
-import type { Tables, TablesInsert, TablesUpdate } from "@shared/api/supabase";
+import type { Json, Tables } from "@shared/api/supabase";
+
+export type SaveResourceFileInput = { fileId: string };
 
 export type CreateResourceInput = {
   category: ResourceCategory;
   title: string;
   summary?: string;
   referenceYear?: number | null;
-  status?: Exclude<ContentStatus, "published">;
+  status?: ContentStatus;
   publishedAt?: string | null;
+  files?: SaveResourceFileInput[];
 };
-export type UpdateResourceInput = Partial<
-  Omit<CreateResourceInput, "status">
-> & { id: string; status?: ContentStatus };
+export type UpdateResourceInput = Required<CreateResourceInput> & {
+  id: string;
+  expectedUpdatedAt: string;
+};
 export type LinkResourceFileInput = {
   resourceId: string;
   fileId: string;
@@ -48,38 +54,36 @@ const SELECT = "*, files:resource_files(*,file:files!inner(*))";
 type Joined = Tables<"resources"> & {
   files: Array<Tables<"resource_files"> & { file: Tables<"files"> }>;
 };
-function payload(
-  input: Partial<Omit<CreateResourceInput, "status">> & {
-    status?: ContentStatus;
-  },
-): TablesUpdate<"resources"> {
-  const p: TablesUpdate<"resources"> = {};
-  if (input.category !== undefined) p.category = input.category;
-  if (input.title !== undefined)
-    p.title = requireText(input.title, "title", 200);
-  if (input.summary !== undefined)
-    p.summary = optionalText(input.summary, "summary", 500);
-  if (input.referenceYear !== undefined) {
-    if (
-      input.referenceYear !== null &&
-      (!Number.isInteger(input.referenceYear) ||
-        input.referenceYear < 1900 ||
-        input.referenceYear > 2100)
-    )
-      throw new RangeError("referenceYear는 1900~2100 정수여야 합니다.");
-    p.reference_year = input.referenceYear;
+function validateReferenceYear(value: number | null | undefined) {
+  if (
+    value !== undefined &&
+    value !== null &&
+    (!Number.isInteger(value) || value < 1900 || value > 2100)
+  ) {
+    throw new RangeError("referenceYear는 1900~2100 정수여야 합니다.");
   }
-  if (input.status !== undefined) p.status = input.status;
-  const publishedAt = normalizePublishedAt(input.status, input.publishedAt);
-  if (publishedAt !== undefined) p.published_at = publishedAt;
-  return p;
+  return value ?? null;
+}
+export function buildResourceCommand(input: CreateResourceInput): Json {
+  const status = input.status ?? "draft";
+  return {
+    category: input.category,
+    title: requireText(input.title, "title", 200),
+    summary: optionalText(input.summary, "summary", 500) ?? "",
+    referenceYear: validateReferenceYear(input.referenceYear),
+    status,
+    publishedAt: normalizePublishedAt(status, input.publishedAt) ?? null,
+  };
 }
 async function createResource(
   input: CreateResourceInput,
 ): Promise<ResourceDetail> {
+  const files = normalizeFileItems(input.files ?? []);
   const { data, error } = await supabase
-    .from("resources")
-    .insert(payload(input) as TablesInsert<"resources">)
+    .rpc("save_resource", {
+      p_input: buildResourceCommand(input),
+      p_files: files,
+    })
     .select(SELECT)
     .single();
   if (error) throwContentError(error);
@@ -88,11 +92,14 @@ async function createResource(
 async function updateResource(
   input: UpdateResourceInput,
 ): Promise<ResourceDetail> {
-  const { id, ...patch } = input;
+  const files = normalizeFileItems(input.files);
   const { data, error } = await supabase
-    .from("resources")
-    .update(payload(patch))
-    .eq("id", requireUuid(id))
+    .rpc("save_resource", {
+      p_expected_updated_at: requireExpectedUpdatedAt(input.expectedUpdatedAt),
+      p_files: files,
+      p_id: requireUuid(input.id),
+      p_input: buildResourceCommand(input),
+    })
     .select(SELECT)
     .single();
   if (error) throwContentError(error);

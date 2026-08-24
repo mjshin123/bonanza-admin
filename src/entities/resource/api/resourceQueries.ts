@@ -2,17 +2,17 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   CONTENT_QUERY_OPTIONS,
   mapFile,
-  pageRange,
   pageResult,
   requireUuid,
   resolvePageParams,
+  throwContentError,
   type ContentStatus,
   type FileDto,
   type PageParams,
   type ResourceCategory,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
-import type { Tables } from "@shared/api/supabase";
+import type { Database, Tables } from "@shared/api/supabase";
 
 export type ResourceFileDto = {
   file: FileDto;
@@ -30,6 +30,11 @@ export type ResourceListItem = {
 };
 export type ResourceDetail = ResourceListItem & {
   files: ResourceFileDto[];
+  status: ContentStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+export type AdminResourceListItem = ResourceListItem & {
   status: ContentStatus;
   createdAt: string;
   updatedAt: string;
@@ -100,49 +105,55 @@ export const resourceQueryKeys = {
     ["resources", "admin", "list", p] as const,
   adminDetail: (id: string) => ["resources", "admin", "detail", id] as const,
 };
+type RpcResourceRow =
+  Database["public"]["Functions"]["list_resources"]["Returns"][number];
+
+export function mapResourceListRow(
+  row: RpcResourceRow,
+  admin: false,
+): ResourceListItem;
+export function mapResourceListRow(
+  row: RpcResourceRow,
+  admin: true,
+): AdminResourceListItem;
+export function mapResourceListRow(row: RpcResourceRow, admin: boolean) {
+  const item: ResourceListItem = {
+    id: row.id,
+    category: row.category as ResourceCategory,
+    title: row.title,
+    summary: row.summary,
+    referenceYear: row.reference_year,
+    fileCount: row.file_count,
+    publishedAt: row.published_at,
+  };
+  return admin
+    ? {
+        ...item,
+        status: row.status as ContentStatus,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }
+    : item;
+}
 async function fetchList(
   params: ReturnType<typeof resolveParams>,
   admin: boolean,
 ) {
-  const { from, to } = pageRange(params);
-  let query = supabase
-    .from("resources")
-    .select(SELECT, { count: "exact" })
-    .order("published_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(from, to);
-  if (!admin)
-    query = query
-      .eq("status", "published")
-      .lte("published_at", new Date().toISOString());
-  if (params.category) query = query.eq("category", params.category);
-  if (params.referenceYear)
-    query = query.eq("reference_year", params.referenceYear);
-  if (params.status) query = query.eq("status", params.status);
-  if (params.q)
-    query = query.or(`title.ilike.%${params.q}%,summary.ilike.%${params.q}%`);
-  const { data, error, count } = await query;
-  if (error) throw error;
-  const details = data.map((r) => mapResource(r as Joined));
-  const items = details.map(
-    ({
-      files: _files,
-      status: _status,
-      createdAt: _createdAt,
-      updatedAt: _updatedAt,
-      ...item
-    }) =>
-      admin
-        ? {
-            ...item,
-            status: _status,
-            createdAt: _createdAt,
-            updatedAt: _updatedAt,
-          }
-        : item,
-  );
-  return pageResult(items, count, params);
+  const { data, error } = await supabase.rpc("list_resources", {
+    p_admin: admin,
+    p_category: params.category,
+    p_page: params.page,
+    p_page_size: params.pageSize,
+    p_q: params.q,
+    p_reference_year: params.referenceYear,
+    p_status: admin ? params.status : undefined,
+  });
+  if (error) throwContentError(error);
+  const rows = data as RpcResourceRow[];
+  const items = admin
+    ? rows.map((row) => mapResourceListRow(row, true))
+    : rows.map((row) => mapResourceListRow(row, false));
+  return pageResult(items, rows[0]?.total_count ?? 0, params);
 }
 async function fetchDetail(id: string, admin: boolean) {
   let query = supabase

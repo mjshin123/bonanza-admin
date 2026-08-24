@@ -3,15 +3,16 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   CONTENT_QUERY_OPTIONS,
   mapFile,
-  pageRange,
   pageResult,
   requireUuid,
   resolvePageParams,
+  throwContentError,
   type AdminFileDto,
   type FileKind,
   type PageParams,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
+import type { Database } from "@shared/api/supabase";
 
 export type AdminFileUsage = "all" | "used" | "unused";
 export type AdminFileListParams = PageParams & {
@@ -27,6 +28,7 @@ export type FileUsageSummary = {
   galleryCount: number;
 };
 export type AdminFileDetail = AdminFileDto & { usage: FileUsageSummary };
+export type AdminFileListItem = AdminFileDetail & { isUsed: boolean };
 
 function resolveParams(params: AdminFileListParams = {}) {
   return {
@@ -44,105 +46,63 @@ export const fileQueryKeys = {
   adminDetail: (id: string) => ["files", "admin", "detail", id] as const,
 };
 
-async function fetchUsedFileIds(): Promise<string[]> {
-  const [institutions, posts, resources, seminars, galleries] =
-    await Promise.all([
-      supabase
-        .from("institutions")
-        .select("logo_file_id")
-        .not("logo_file_id", "is", null),
-      supabase.from("post_files").select("file_id").not("file_id", "is", null),
-      supabase.from("resource_files").select("file_id"),
-      supabase.from("seminar_files").select("file_id"),
-      supabase.from("gallery_items").select("file_id"),
-    ]);
-  const error = [institutions, posts, resources, seminars, galleries].find(
-    (result) => result.error,
-  )?.error;
-  if (error) throw error;
-  return [
-    ...new Set([
-      ...(institutions.data ?? []).flatMap((row) =>
-        row.logo_file_id ? [row.logo_file_id] : [],
-      ),
-      ...(posts.data ?? []).flatMap((row) =>
-        row.file_id ? [row.file_id] : [],
-      ),
-      ...(resources.data ?? []).map((row) => row.file_id),
-      ...(seminars.data ?? []).map((row) => row.file_id),
-      ...(galleries.data ?? []).map((row) => row.file_id),
-    ]),
-  ];
+type AdminFileListRow =
+  Database["public"]["Functions"]["list_admin_files"]["Returns"][number];
+type AdminFileDetailRow =
+  Database["public"]["Functions"]["get_admin_file_detail"]["Returns"][number];
+
+function mapUsage(row: AdminFileDetailRow): FileUsageSummary {
+  return {
+    institutionLogoCount: row.institution_logo_count,
+    postCount: row.post_count,
+    resourceCount: row.resource_count,
+    seminarCount: row.seminar_count,
+    galleryCount: row.gallery_count,
+  };
+}
+
+export function mapAdminFileListRow(
+  row: AdminFileListRow,
+): AdminFileListItem {
+  const usage = mapUsage(row);
+  return {
+    ...mapFile(row),
+    usage,
+    isUsed: Object.values(usage).some((count) => count > 0),
+  };
+}
+
+export function mapAdminFileDetailRow(
+  row: AdminFileDetailRow,
+): AdminFileDetail {
+  return { ...mapFile(row), usage: mapUsage(row) };
 }
 
 async function fetchAdminFiles(params: ReturnType<typeof resolveParams>) {
-  const { from, to } = pageRange(params);
-  let query = supabase.from("files").select("*", { count: "exact" });
-  if (params.fileKind) query = query.eq("file_kind", params.fileKind);
-  if (params.q) query = query.ilike("original_name", `%${params.q}%`);
-  if (params.usage !== "all") {
-    const ids = await fetchUsedFileIds();
-    if (params.usage === "used") {
-      if (ids.length === 0) return pageResult([], 0, params);
-      query = query.in("id", ids);
-    } else if (ids.length > 0) {
-      query = query.not("id", "in", `(${ids.join(",")})`);
-    }
-  }
-  const { data, error, count } = await query
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(from, to);
-  if (error) throw error;
-  return pageResult(data.map(mapFile), count, params);
+  const { data, error } = await supabase.rpc("list_admin_files", {
+    p_file_kind: params.fileKind,
+    p_page: params.page,
+    p_page_size: params.pageSize,
+    p_q: params.q,
+    p_usage: params.usage,
+  });
+  if (error) throwContentError(error);
+  const rows = data as AdminFileListRow[];
+  return pageResult(
+    rows.map(mapAdminFileListRow),
+    rows[0]?.total_count ?? 0,
+    params,
+  );
 }
 
 async function fetchAdminFileById(id: string): Promise<AdminFileDetail | null> {
   const normalizedId = requireUuid(id);
-  const [file, institutions, posts, resources, seminars, galleries] =
-    await Promise.all([
-      supabase.from("files").select("*").eq("id", normalizedId).maybeSingle(),
-      supabase
-        .from("institutions")
-        .select("id", { count: "exact", head: true })
-        .eq("logo_file_id", normalizedId),
-      supabase
-        .from("post_files")
-        .select("post_id", { count: "exact", head: true })
-        .eq("file_id", normalizedId),
-      supabase
-        .from("resource_files")
-        .select("resource_id", { count: "exact", head: true })
-        .eq("file_id", normalizedId),
-      supabase
-        .from("seminar_files")
-        .select("seminar_id", { count: "exact", head: true })
-        .eq("file_id", normalizedId),
-      supabase
-        .from("gallery_items")
-        .select("gallery_id", { count: "exact", head: true })
-        .eq("file_id", normalizedId),
-    ]);
-  const error = [
-    file,
-    institutions,
-    posts,
-    resources,
-    seminars,
-    galleries,
-  ].find((result) => result.error)?.error;
-  if (error) throw error;
-  if (!file.data) return null;
-  return {
-    ...mapFile(file.data),
-    usage: {
-      institutionLogoCount: institutions.count ?? 0,
-      postCount: posts.count ?? 0,
-      resourceCount: resources.count ?? 0,
-      seminarCount: seminars.count ?? 0,
-      galleryCount: galleries.count ?? 0,
-    },
-  };
+  const { data, error } = await supabase.rpc("get_admin_file_detail", {
+    p_file_id: normalizedId,
+  });
+  if (error) throwContentError(error);
+  const row = (data as AdminFileDetailRow[])[0];
+  return row ? mapAdminFileDetailRow(row) : null;
 }
 
 export function adminFilesQueryOptions(params: AdminFileListParams = {}) {

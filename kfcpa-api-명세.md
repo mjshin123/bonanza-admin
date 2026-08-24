@@ -1,6 +1,6 @@
 # KFCPA 홈페이지 API 명세서 v2
 
-> 상태: **v2 데이터 접근 계층 구현 완료 · 화면 전환 진행 가능**
+> 상태: **v2 조회·저장 RPC 및 데이터 접근 계층 구현 완료 · 화면 전환 진행 가능**
 >
 > 이 문서는 KFCPA 홈페이지의 v2 데이터 접근 계약을 정의한다. 신규 FSD entity/feature API와 DB 확장 migration은 구현됐으며, 기존 화면은 운영 데이터 검증 기간 동안 레거시 API와 호환 조회를 유지한다.
 
@@ -25,7 +25,7 @@ DB 문서 파일명은 사용자가 지정한 기존 경로와 외부 참조를 
 
 | 항목 | 값 |
 |---|---|
-| 문서 버전 | `2.0.0` |
+| 문서 버전 | `2.2.0` |
 | 작성일 | `2026-08-24` |
 | 구현 상태 | DB·Supabase/TanStack API 구현 완료, 기존 화면 호환 단계 |
 | 데이터 접근 | Supabase JavaScript SDK |
@@ -192,8 +192,8 @@ export type PageResult<T> = {
 
 - `page`는 1 이상의 정수여야 한다.
 - `pageSize`는 1 이상 100 이하의 정수여야 한다.
-- Supabase `range(from, to)`는 `from = (page - 1) * pageSize`, `to = from + pageSize - 1`로 계산한다.
-- 목록 쿼리는 `{ count: "exact" }`를 사용하고 `totalPages = Math.ceil(total / pageSize)`로 계산한다.
+- v2 콘텐츠와 관리자 파일 목록은 RPC에 `page`, `pageSize`를 전달하며 DB가 `LIMIT/OFFSET`을 적용한다.
+- RPC 행의 `total_count`를 `total`로 변환하고 `totalPages = Math.ceil(total / pageSize)`로 계산한다.
 - 정규화된 기본값까지 Query key에 포함한다.
 
 목록 필터는 다음과 같이 정규화한다.
@@ -203,6 +203,18 @@ export type PageResult<T> = {
 - enum 필터는 이 문서에 정의된 값만 허용한다.
 - `from`, `to`는 유효한 날짜 또는 일시여야 하며 둘 다 있으면 `from <= to`여야 한다.
 - 같은 의미의 생략값과 기본값이 서로 다른 Query key를 만들지 않게 정규화 후 key를 생성한다.
+
+#### 구현된 목록 RPC
+
+| RPC | 주요 필터 | 목록 projection |
+|---|---|---|
+| `list_content_posts` | `category`, `institution_id`, `q`, `status` | 기관 요약, cover 1건 |
+| `list_resources` | `category`, `q`, `reference_year`, `status` | `file_count` |
+| `list_seminars` | `q`, `timing`, `from`, `to`, `status` | poster 1건 |
+| `list_galleries` | `q`, `from`, `to`, `status` | 첫 이미지, `item_count` |
+| `list_admin_files` | `file_kind`, `q`, `usage` | 파일 메타데이터, 도메인별 사용 수 |
+
+네 콘텐츠 RPC의 공통 인자는 `p_page`, `p_page_size`, `p_admin`이다. `p_admin = true`는 `authenticated`만 허용하며 공개 호출은 DB 함수와 RLS 양쪽에서 `published_at <= now()`인 `published` 행으로 제한한다. 검색 문자열은 RPC 파라미터로 바인딩하며 클라이언트에서 PostgREST `.or(...)` 문자열을 조합하지 않는다.
 
 ### 3.4 게시 상태와 공개 조건
 
@@ -285,13 +297,26 @@ UI는 Supabase의 영문 오류 문자열을 그대로 노출하지 않는다. �
 | 생성 | `.from(table).insert(mappedInput).select(detailSelect).single()` |
 | 수정 | `.from(table).update(mappedPatch).eq("id", id).select(detailSelect).single()` |
 | 삭제 | `.from(table).delete().eq("id", id).select("id").single()` |
-| 단건 | `.select(detailSelect).eq("id", id).maybeSingle()` |
-| 목록 | `.select(listSelect, { count: "exact" })` + 필터·정렬·`range()` |
+| v2 목록 | `.rpc(listFunction, normalizedParams)` |
+| 상세 | `.select(detailSelect).eq("id", id).maybeSingle()` |
 
 - 수정 입력에서 `undefined`는 변경하지 않음을 뜻하고 `null`은 nullable 필드를 비움을 뜻한다.
 - 생성·수정 응답은 DB row를 camelCase DTO로 변환한 뒤 반환한다.
 - 삭제 대상이 없으면 `NOT_FOUND`, FK RESTRICT면 `IN_USE`로 변환한다.
 - 여러 테이블을 함께 검증·수정하거나 순서를 일괄 변경하는 작업은 관리용 RPC를 사용한다.
+
+### 3.9 콘텐츠 command RPC
+
+| RPC | 부모 테이블 | 관계 배열 항목 |
+|---|---|---|
+| `save_content_post` | `posts` | `{ fileId, role }` |
+| `save_resource` | `resources` | `{ fileId }` |
+| `save_seminar` | `seminars` | `{ fileId, role }` |
+| `save_gallery` | `galleries` | `{ fileId, caption }` |
+
+각 함수는 부모 필드와 관계 배열 전체를 한 transaction에서 저장하고 부모 row를 반환한다. 배열 순서가 `sort_order`이며 동일 파일 중복은 허용하지 않는다. 관계 배열은 최대 1,000개다. 생성은 `p_id = null`, 수정은 `p_id`와 조회 당시 `p_expected_updated_at`을 함께 전달한다. 다른 요청이 먼저 수정했다면 `40001`을 `CONFLICT`로 변환한다.
+
+신규 저장 API는 요청 1회와 DB RPC 1회로 부모 및 관계를 반영한다. 기존 개별 link/update/reorder/unlink mutation은 관리자 화면의 단계적 전환을 위해 당분간 유지하되 신규 전체 폼 저장에는 command RPC를 우선한다.
 
 ---
 
@@ -456,9 +481,8 @@ export type GalleryItemDto = {
 ```ts
 export const fileQueryKeys = {
   all: ["files"] as const,
-  adminLists: () => [...fileQueryKeys.all, "admin", "list"] as const,
   adminList: (params: ResolvedAdminFileListParams) =>
-    [...fileQueryKeys.adminLists(), params] as const,
+    ["files", "admin", "list", params] as const,
   adminDetail: (id: string) =>
     [...fileQueryKeys.all, "admin", "detail", id] as const,
 };
@@ -477,11 +501,11 @@ export type AdminFileListParams = PageParams & {
 
 async function fetchAdminFiles(
   params: ResolvedAdminFileListParams,
-): Promise<PageResult<AdminFileDto>>;
+): Promise<PageResult<AdminFileListItem>>;
 
 export function adminFilesQueryOptions(
   params?: AdminFileListParams,
-): QueryOptions<PageResult<AdminFileDto>>;
+): QueryOptions<PageResult<AdminFileListItem>>;
 ```
 
 | 항목 | 계약 |
@@ -493,6 +517,7 @@ export function adminFilesQueryOptions(
 | 인증 | 관리자 |
 
 `usage = used`는 `institutions.logo_file_id`, 네 관계 테이블 중 하나 이상에서 참조되는 파일이다.
+목록의 `usage`에는 도메인별 참조 수가 들어가며 `isUsed`는 합계가 1 이상인지 나타낸다. `list_admin_files` 한 번에서 관계 사용량 집계, 검색, 필터, 정렬, 페이지네이션을 수행한다.
 
 ### 6.3 관리자 파일 상세
 
@@ -514,6 +539,7 @@ export function adminFileDetailQueryOptions(
 | 인증 | 관리자 |
 
 사용처 요약은 기관, 소식, 자료, 세미나, 갤러리별 참조 수를 포함한다.
+상세는 `get_admin_file_detail(p_file_id)` RPC 한 번으로 파일과 사용처 요약을 반환한다.
 
 ### 6.4 파일 업로드
 
@@ -601,6 +627,8 @@ export function deleteFileMutationOptions(): MutationOptions<
 | 전제 | 모든 참조 수가 0 |
 
 DB FK는 파일 방향 삭제를 `RESTRICT`한다. 기관 로고나 관계 테이블에서 참조 중이면 `IN_USE` 오류를 던진다. 콘텐츠를 삭제해 관계 행이 CASCADE로 사라져도 파일 행과 Storage 객체는 자동 삭제하지 않는다.
+
+삭제는 `begin_file_delete` → Storage remove → `complete_file_delete` 순서다. Storage remove가 실패하면 `restore_file_delete`가 private 복구 기록의 신뢰된 snapshot으로 파일 행을 복원한다.
 
 ### 6.7 공개 URL
 
@@ -1042,13 +1070,13 @@ export type CreatePostInput = {
   status?: ContentStatus;
   isPinned?: boolean;
   publishedAt?: string | null;
+  files?: Array<{ fileId: string; role: PostFileRole }>;
 };
 
-export type UpdatePostInput =
-  Partial<Omit<CreatePostInput, "category">> & {
-    id: string;
-    category?: PostCategory;
-  };
+export type UpdatePostInput = Required<CreatePostInput> & {
+  id: string;
+  expectedUpdatedAt: string;
+};
 
 async function createPost(
   input: CreatePostInput,
@@ -1302,15 +1330,15 @@ export type CreateResourceInput = {
   title: string;
   summary?: string;
   referenceYear?: number | null;
-  status?: Exclude<ContentStatus, "published">;
+  status?: ContentStatus;
   publishedAt?: string | null;
+  files?: Array<{ fileId: string }>;
 };
 
-export type UpdateResourceInput =
-  Partial<Omit<CreateResourceInput, "status">> & {
-    id: string;
-    status?: ContentStatus;
-  };
+export type UpdateResourceInput = Required<CreateResourceInput> & {
+  id: string;
+  expectedUpdatedAt: string;
+};
 
 async function createResource(
   input: CreateResourceInput,
@@ -1347,7 +1375,7 @@ export function deleteResourceMutationOptions(): MutationOptions<
 | 수정 | `["resources", "update"]` |
 | 삭제 | `["resources", "delete"]` |
 
-`createResource`는 관계 파일을 같은 원자적 RPC에서 만들지 않으므로 `status`를 `draft` 또는 `hidden`으로만 받으며 기본값은 `draft`다. `published` 입력은 DB 요청 전에 `INVALID_STATE`를 던진다. draft 생성 → 파일 연결 → `updateResource({ status: "published" })` 순서로 게시한다. 자료 삭제 시 관계만 CASCADE로 삭제되고 중앙 파일은 유지된다.
+`createResource`와 `updateResource`는 전체 파일 배열을 `save_resource`에 함께 전달한다. 따라서 파일이 1개 이상이면 생성과 동시에 `published`로 저장할 수 있으며, 부모와 파일 관계는 같은 transaction에서 확정된다. 자료 삭제 시 관계만 CASCADE로 삭제되고 중앙 파일은 유지된다.
 
 ### 10.5 자료 파일 관계
 
@@ -1587,10 +1615,13 @@ export type CreateSeminarInput = {
   applicationUrl?: string | null;
   status?: ContentStatus;
   publishedAt?: string | null;
+  files?: Array<{ fileId: string; role: SeminarFileRole }>;
 };
 
-export type UpdateSeminarInput =
-  Partial<CreateSeminarInput> & { id: string };
+export type UpdateSeminarInput = Required<CreateSeminarInput> & {
+  id: string;
+  expectedUpdatedAt: string;
+};
 
 async function createSeminar(
   input: CreateSeminarInput,
@@ -1839,16 +1870,16 @@ export type CreateGalleryInput = {
   title: string;
   description?: string;
   eventDate?: string | null;
-  status?: Exclude<ContentStatus, "published">;
+  status?: ContentStatus;
   publishedAt?: string | null;
   displayOrder?: number;
+  files?: Array<{ fileId: string; caption?: string }>;
 };
 
-export type UpdateGalleryInput =
-  Partial<Omit<CreateGalleryInput, "status">> & {
-    id: string;
-    status?: ContentStatus;
-  };
+export type UpdateGalleryInput = Required<CreateGalleryInput> & {
+  id: string;
+  expectedUpdatedAt: string;
+};
 
 async function createGallery(
   input: CreateGalleryInput,
@@ -1885,7 +1916,7 @@ export function deleteGalleryMutationOptions(): MutationOptions<
 | 수정 | `["galleries", "update"]` |
 | 삭제 | `["galleries", "delete"]` |
 
-`createGallery`는 갤러리 항목을 같은 원자적 RPC에서 만들지 않으므로 `status`를 `draft` 또는 `hidden`으로만 받으며 기본값은 `draft`다. `published` 입력은 DB 요청 전에 `INVALID_STATE`를 던진다. draft 생성 → 이미지 항목 연결 → `updateGallery({ status: "published" })` 순서로 게시한다.
+`createGallery`와 `updateGallery`는 전체 이미지 배열을 `save_gallery`에 함께 전달한다. 따라서 이미지가 1개 이상이면 생성과 동시에 `published`로 저장할 수 있으며, 부모와 갤러리 항목은 같은 transaction에서 확정된다.
 
 갤러리를 삭제해도 파일은 삭제하지 않는다. 같은 파일이 다른 갤러리나 콘텐츠에서 계속 사용될 수 있다.
 
@@ -2031,18 +2062,15 @@ PostgreSQL 트랜잭션과 Storage 작업은 하나의 원자적 트랜잭션이
 ### 14.2 파일 삭제
 
 ```text
-1. files 행과 참조 수, bucket/path 조회
-2. 참조가 있으면 IN_USE
-3. files 행 DELETE
-4. FK RESTRICT 충돌이면 삭제 중단
-5. Storage 객체 REMOVE
-6. REMOVE 실패 시 원본 메타데이터로 files 행 복원 시도
-7. 복원도 실패하면 STORAGE_CLEANUP_REQUIRED를 던지고 외부 운영 로그에 기록
+1. `begin_file_delete`가 참조를 검사하고 private 복구 snapshot을 기록
+2. 같은 transaction에서 `files` 행 삭제
+3. 클라이언트가 Storage 객체 REMOVE
+4. 성공하면 `complete_file_delete`로 복구 기록 제거
+5. 실패하면 `restore_file_delete`로 원본 파일 행 복원
+6. 복원도 실패하면 `STORAGE_CLEANUP_REQUIRED`
 ```
 
-DB 행을 먼저 삭제하면 동시 연결 경쟁을 FK가 차단한다. Storage 삭제 실패 시 사용자가 보는 관계가 깨지지 않도록 행 복원을 우선하고, 최종 고아 객체는 운영 정리 대상으로 기록한다.
-
-cleanup 기록을 위한 새 DB 테이블은 이 설계에 추가하지 않는다. 외부 오류 추적 도구 또는 운영 로그에 최소 `fileId`, `bucketName`, `storagePath`, 실패 단계와 원본 오류를 남겨 재처리할 수 있게 한다. 사용자 응답이나 공개 로그에는 내부 Storage 경로를 노출하지 않는다.
+DB 행을 먼저 삭제하면 동시 연결 경쟁을 FK가 차단한다. snapshot은 API에 노출된 테이블이 아닌 `private.file_delete_operations`에 저장하고 삭제를 시작한 관리자만 완료 또는 복원할 수 있다. 브라우저가 중단되어 작업이 남은 경우에도 복구 근거가 유지된다. 사용자 응답이나 공개 로그에는 내부 Storage 경로를 노출하지 않는다.
 
 ### 14.3 콘텐츠 삭제
 

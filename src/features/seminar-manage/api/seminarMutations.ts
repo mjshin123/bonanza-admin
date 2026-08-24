@@ -2,7 +2,9 @@ import { mutationOptions } from "@tanstack/react-query";
 import { mapSeminar, type SeminarFileDto } from "@entities/seminar";
 import {
   mapFile,
+  normalizeFileItems,
   normalizePublishedAt,
+  requireExpectedUpdatedAt,
   requireText,
   requireUuid,
   throwContentError,
@@ -11,7 +13,8 @@ import {
   type SeminarFileRole,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
-import type { Tables, TablesInsert, TablesUpdate } from "@shared/api/supabase";
+import type { Json, Tables, TablesUpdate } from "@shared/api/supabase";
+export type SaveSeminarFileInput = { fileId: string; role: SeminarFileRole };
 export type CreateSeminarInput = {
   title: string;
   introduction?: string;
@@ -27,8 +30,12 @@ export type CreateSeminarInput = {
   applicationUrl?: string | null;
   status?: ContentStatus;
   publishedAt?: string | null;
+  files?: SaveSeminarFileInput[];
 };
-export type UpdateSeminarInput = Partial<CreateSeminarInput> & { id: string };
+export type UpdateSeminarInput = Required<CreateSeminarInput> & {
+  id: string;
+  expectedUpdatedAt: string;
+};
 export type LinkSeminarFileInput = {
   seminarId: string;
   fileId: string;
@@ -56,56 +63,53 @@ function validDate(v: string | null | undefined, n: string) {
     throw new TypeError(`${n}은 유효한 일시여야 합니다.`);
   return v;
 }
-function payload(i: Partial<CreateSeminarInput>): TablesUpdate<"seminars"> {
-  const p: TablesUpdate<"seminars"> = {};
-  if (i.title !== undefined) p.title = requireText(i.title, "title", 200);
-  if (i.introduction !== undefined) p.introduction = i.introduction;
-  if (i.resultSummary !== undefined) p.result_summary = i.resultSummary;
-  if (i.content !== undefined) p.content = i.content;
-  if (i.startsAt !== undefined)
-    p.starts_at = validDate(i.startsAt, "startsAt")!;
-  if (i.endsAt !== undefined) p.ends_at = validDate(i.endsAt, "endsAt");
-  if (i.location !== undefined)
-    p.location = requireText(i.location, "location", 300);
-  if (i.selectionMethod !== undefined) p.selection_method = i.selectionMethod;
-  if (i.selectionMethodDetail !== undefined)
-    p.selection_method_detail = i.selectionMethodDetail;
-  if (i.capacity !== undefined) {
-    if (
-      i.capacity !== null &&
-      (!Number.isInteger(i.capacity) || i.capacity < 1)
-    )
-      throw new RangeError("capacity는 1 이상의 정수여야 합니다.");
-    p.capacity = i.capacity;
+export function buildSeminarCommand(i: CreateSeminarInput): Json {
+  if (
+    i.capacity !== undefined &&
+    i.capacity !== null &&
+    (!Number.isInteger(i.capacity) || i.capacity < 1)
+  ) {
+    throw new RangeError("capacity는 1 이상의 정수여야 합니다.");
   }
-  if (i.registrationDeadline !== undefined)
-    p.registration_deadline = validDate(
-      i.registrationDeadline,
-      "registrationDeadline",
-    );
-  if (i.applicationUrl !== undefined) p.application_url = i.applicationUrl;
-  if (i.status !== undefined) p.status = i.status;
-  const at = normalizePublishedAt(i.status, i.publishedAt);
-  if (at !== undefined) p.published_at = at;
-  return p;
+  const status = i.status ?? "draft";
+  return {
+    title: requireText(i.title, "title", 200),
+    introduction: i.introduction ?? "",
+    resultSummary: i.resultSummary ?? "",
+    content: i.content ?? null,
+    startsAt: validDate(i.startsAt, "startsAt")!,
+    endsAt: validDate(i.endsAt, "endsAt") ?? null,
+    location: requireText(i.location, "location", 300),
+    selectionMethod: i.selectionMethod,
+    selectionMethodDetail: i.selectionMethodDetail ?? null,
+    capacity: i.capacity ?? null,
+    registrationDeadline:
+      validDate(i.registrationDeadline, "registrationDeadline") ?? null,
+    applicationUrl: i.applicationUrl ?? null,
+    status,
+    publishedAt: normalizePublishedAt(status, i.publishedAt) ?? null,
+  };
 }
 async function createSeminar(i: CreateSeminarInput) {
+  const files = normalizeFileItems(i.files ?? []);
   const { data, error } = await supabase
-    .from("seminars")
-    .insert(payload(i) as TablesInsert<"seminars">)
+    .rpc("save_seminar", { p_input: buildSeminarCommand(i), p_files: files })
     .select(SELECT)
     .single();
   if (error) throwContentError(error);
   return mapSeminar(data as Joined);
 }
 async function updateSeminar(i: UpdateSeminarInput) {
-  const { id, ...patch } = i,
-    { data, error } = await supabase
-      .from("seminars")
-      .update(payload(patch))
-      .eq("id", requireUuid(id))
-      .select(SELECT)
-      .single();
+  const files = normalizeFileItems(i.files);
+  const { data, error } = await supabase
+    .rpc("save_seminar", {
+      p_expected_updated_at: requireExpectedUpdatedAt(i.expectedUpdatedAt),
+      p_files: files,
+      p_id: requireUuid(i.id),
+      p_input: buildSeminarCommand(i),
+    })
+    .select(SELECT)
+    .single();
   if (error) throwContentError(error);
   return mapSeminar(data as Joined);
 }

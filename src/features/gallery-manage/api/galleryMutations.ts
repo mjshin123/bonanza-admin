@@ -2,26 +2,30 @@ import { mutationOptions } from "@tanstack/react-query";
 import { mapGallery, type GalleryItemDto } from "@entities/gallery";
 import {
   mapFile,
+  normalizeFileItems,
   normalizePublishedAt,
   optionalText,
+  requireExpectedUpdatedAt,
   requireText,
   requireUuid,
   throwContentError,
   type ContentStatus,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
-import type { Tables, TablesInsert, TablesUpdate } from "@shared/api/supabase";
+import type { Json, Tables, TablesUpdate } from "@shared/api/supabase";
+export type SaveGalleryItemInput = { fileId: string; caption?: string };
 export type CreateGalleryInput = {
   title: string;
   description?: string;
   eventDate?: string | null;
-  status?: Exclude<ContentStatus, "published">;
+  status?: ContentStatus;
   publishedAt?: string | null;
   displayOrder?: number;
+  files?: SaveGalleryItemInput[];
 };
-export type UpdateGalleryInput = Partial<Omit<CreateGalleryInput, "status">> & {
+export type UpdateGalleryInput = Required<CreateGalleryInput> & {
   id: string;
-  status?: ContentStatus;
+  expectedUpdatedAt: string;
 };
 export type AddGalleryItemInput = {
   galleryId: string;
@@ -44,44 +48,57 @@ const SELECT = "*,items:gallery_items(*,file:files!inner(*))";
 type Joined = Tables<"galleries"> & {
   items: Array<Tables<"gallery_items"> & { file: Tables<"files"> }>;
 };
-function payload(
-  i: Partial<Omit<CreateGalleryInput, "status">> & { status?: ContentStatus },
-): TablesUpdate<"galleries"> {
-  const p: TablesUpdate<"galleries"> = {};
-  if (i.title !== undefined) p.title = requireText(i.title, "title", 200);
-  if (i.description !== undefined) p.description = i.description;
-  if (i.eventDate !== undefined) {
-    if (i.eventDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(i.eventDate))
-      throw new TypeError("eventDate는 YYYY-MM-DD 형식이어야 합니다.");
-    p.event_date = i.eventDate;
+export function buildGalleryCommand(i: CreateGalleryInput): Json {
+  if (
+    i.eventDate !== undefined &&
+    i.eventDate !== null &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(i.eventDate)
+  ) {
+    throw new TypeError("eventDate는 YYYY-MM-DD 형식이어야 합니다.");
   }
-  if (i.displayOrder !== undefined) {
-    if (!Number.isInteger(i.displayOrder) || i.displayOrder < 0)
-      throw new RangeError("displayOrder는 0 이상의 정수여야 합니다.");
-    p.display_order = i.displayOrder;
+  if (
+    i.displayOrder !== undefined &&
+    (!Number.isInteger(i.displayOrder) || i.displayOrder < 0)
+  ) {
+    throw new RangeError("displayOrder는 0 이상의 정수여야 합니다.");
   }
-  if (i.status !== undefined) p.status = i.status;
-  const at = normalizePublishedAt(i.status, i.publishedAt);
-  if (at !== undefined) p.published_at = at;
-  return p;
+  const status = i.status ?? "draft";
+  return {
+    title: requireText(i.title, "title", 200),
+    description: i.description ?? "",
+    eventDate: i.eventDate ?? null,
+    status,
+    publishedAt: normalizePublishedAt(status, i.publishedAt) ?? null,
+    displayOrder: i.displayOrder ?? 0,
+  };
+}
+export function buildGalleryFiles(i: SaveGalleryItemInput[]) {
+  return normalizeFileItems(i).map((item) => ({
+    fileId: item.fileId,
+    caption: optionalText(item.caption, "caption", 500) ?? "",
+  }));
 }
 async function createGallery(i: CreateGalleryInput) {
   const { data, error } = await supabase
-    .from("galleries")
-    .insert(payload(i) as TablesInsert<"galleries">)
+    .rpc("save_gallery", {
+      p_input: buildGalleryCommand(i),
+      p_files: buildGalleryFiles(i.files ?? []),
+    })
     .select(SELECT)
     .single();
   if (error) throwContentError(error);
   return mapGallery(data as Joined);
 }
 async function updateGallery(i: UpdateGalleryInput) {
-  const { id, ...patch } = i,
-    { data, error } = await supabase
-      .from("galleries")
-      .update(payload(patch))
-      .eq("id", requireUuid(id))
-      .select(SELECT)
-      .single();
+  const { data, error } = await supabase
+    .rpc("save_gallery", {
+      p_expected_updated_at: requireExpectedUpdatedAt(i.expectedUpdatedAt),
+      p_files: buildGalleryFiles(i.files),
+      p_id: requireUuid(i.id),
+      p_input: buildGalleryCommand(i),
+    })
+    .select(SELECT)
+    .single();
   if (error) throwContentError(error);
   return mapGallery(data as Joined);
 }

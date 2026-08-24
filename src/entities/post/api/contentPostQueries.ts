@@ -5,10 +5,11 @@ import { mapInstitution } from "@entities/institution";
 import {
   CONTENT_QUERY_OPTIONS,
   mapFile,
-  pageRange,
+  mapRpcFile,
   pageResult,
   requireUuid,
   resolvePageParams,
+  throwContentError,
   type ContentStatus,
   type FileDto,
   type PageParams,
@@ -16,7 +17,7 @@ import {
   type PostFileRole,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
-import type { Tables } from "@shared/api/supabase";
+import type { Database, Json, Tables } from "@shared/api/supabase";
 
 export type PostFileDto = {
   file: FileDto;
@@ -132,61 +133,88 @@ function resolveParams(params: AdminPostListParamsV2 = {}) {
   };
 }
 export const contentPostQueryKeys = {
-  all: ["posts"] as const,
+  all: ["content-posts"] as const,
   publicList: (params: ReturnType<typeof resolveParams>) =>
-    ["posts", "public", "list", params] as const,
-  publicDetail: (id: string) => ["posts", "public", "detail", id] as const,
+    ["content-posts", "public", "list", params] as const,
+  publicDetail: (id: string) =>
+    ["content-posts", "public", "detail", id] as const,
   adminList: (params: ReturnType<typeof resolveParams>) =>
-    ["posts", "admin", "list", params] as const,
-  adminDetail: (id: string) => ["posts", "admin", "detail", id] as const,
+    ["content-posts", "admin", "list", params] as const,
+  adminDetail: (id: string) =>
+    ["content-posts", "admin", "detail", id] as const,
 };
+
+type RpcPostRow =
+  Database["public"]["Functions"]["list_content_posts"]["Returns"][number];
+type RpcInstitution = {
+  id: string;
+  institution_type: string;
+  logo: Json | null;
+  name: string;
+};
+
+function mapRpcInstitution(value: Json | null): InstitutionSummary | null {
+  if (value === null) return null;
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("RPC 기관 응답 형식이 올바르지 않습니다.");
+  }
+  const institution = value as RpcInstitution;
+  return {
+    id: institution.id,
+    institutionType: institution.institution_type as InstitutionSummary["institutionType"],
+    name: institution.name,
+    logo: mapRpcFile(institution.logo),
+  };
+}
+
+export function mapContentPostListRow(
+  row: RpcPostRow,
+  admin: false,
+): ContentPostListItem;
+export function mapContentPostListRow(
+  row: RpcPostRow,
+  admin: true,
+): AdminContentPostListItem;
+export function mapContentPostListRow(row: RpcPostRow, admin: boolean) {
+  const item: ContentPostListItem = {
+    id: row.id,
+    category: row.category as PostCategory,
+    title: row.title,
+    summary: row.summary,
+    institution: mapRpcInstitution(row.institution),
+    cover: mapRpcFile(row.cover),
+    isPinned: row.is_pinned,
+    publishedAt: row.published_at,
+  };
+  return admin
+    ? {
+        ...item,
+        status: row.status as ContentStatus,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }
+    : item;
+}
 
 async function fetchList(
   params: ReturnType<typeof resolveParams>,
   admin: boolean,
 ) {
-  const { from, to } = pageRange(params);
-  let query = supabase
-    .from("posts")
-    .select(SELECT, { count: "exact" })
-    .not("category", "is", null)
-    .order("is_pinned", { ascending: false })
-    .order("published_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(from, to);
-  if (!admin)
-    query = query
-      .eq("status", "published")
-      .lte("published_at", new Date().toISOString());
-  if (params.category) query = query.eq("category", params.category);
-  if (params.institutionId)
-    query = query.eq("institution_id", params.institutionId);
-  if (params.status) query = query.eq("status", params.status);
-  if (params.q)
-    query = query.or(`title.ilike.%${params.q}%,summary.ilike.%${params.q}%`);
-  const { data, error, count } = await query;
-  if (error) throw error;
-  const details = data.map((row) => mapPost(row as JoinedPost));
-  const items = details.map(
-    ({
-      content: _content,
-      files: _files,
-      status: _status,
-      createdAt: _createdAt,
-      updatedAt: _updatedAt,
-      ...item
-    }) =>
-      admin
-        ? {
-            ...item,
-            status: _status,
-            createdAt: _createdAt,
-            updatedAt: _updatedAt,
-          }
-        : item,
-  );
-  return pageResult(items, count, params);
+  const { data, error } = await supabase.rpc("list_content_posts", {
+    p_admin: admin,
+    p_category: params.category,
+    p_institution_id: params.institutionId,
+    p_page: params.page,
+    p_page_size: params.pageSize,
+    p_q: params.q,
+    p_status: admin ? params.status : undefined,
+  });
+  if (error) throwContentError(error);
+  const rows = data as RpcPostRow[];
+  const items = admin
+    ? rows.map((row) => mapContentPostListRow(row, true))
+    : rows.map((row) => mapContentPostListRow(row, false));
+  return pageResult(items, rows[0]?.total_count ?? 0, params);
 }
 async function fetchDetail(id: string, admin: boolean) {
   let query = supabase

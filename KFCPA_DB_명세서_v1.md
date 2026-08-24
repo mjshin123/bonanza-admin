@@ -1303,4 +1303,49 @@ galleries ─ gallery_items ───────┘
 - 갤러리 노출은 공개 앨범과의 관계로 결정한다.
 - 파일을 재사용하는 동안 삭제하지 않는다.
 - 공개 상태, RLS, Storage 공개 범위를 서로 다른 보안 계층으로 구분한다.
-- 실제 migration과 애플리케이션 전환 전까지 이 문서는 목표 v2 명세로만 사용한다.
+- v2 DB와 조회 API는 구현됐으며 기존 관리자 화면은 데이터 검증 후 단계적으로 전환한다.
+
+---
+
+## 24. v2 조회 RPC
+
+`20260824170000_add_content_query_rpcs.sql`에서 목록 검색·필터·정렬·페이지네이션을 DB에서 수행하는 조회 함수를 추가했다. `20260824171000_fix_public_rpc_file_projection.sql`은 `uploaded_by`를 공개하지 않으면서 공개 RPC가 안전한 파일 projection만 조회하도록 `content_public_files` security-invoker view를 추가한다.
+
+| 함수 | 실행 권한 | 반환 특징 |
+|---|---|---|
+| `list_content_posts` | `anon`, `authenticated` | 기관 요약과 cover 1건 |
+| `list_resources` | `anon`, `authenticated` | 현재 자료의 첨부파일 수 |
+| `list_seminars` | `anon`, `authenticated` | poster 1건, 행사 시점 정렬 |
+| `list_galleries` | `anon`, `authenticated` | 첫 이미지와 항목 수 |
+| `list_admin_files` | `authenticated` | 다섯 사용처 집계와 사용 여부 필터 |
+| `get_admin_file_detail` | `authenticated` | 파일 1건과 사용처별 참조 수 |
+
+모든 함수는 `SECURITY INVOKER`, `SET search_path = ''`를 사용한다. 공개 콘텐츠 함수에서 `p_admin = true`는 인증 사용자에게만 허용하고, 공개 호출에는 `status = 'published' AND published_at <= now()`를 함수에서 명시하는 동시에 기존 RLS도 적용한다.
+
+목록 함수의 `pageSize`는 최대 100이며 검색어는 SQL 파라미터로 바인딩한다. 각 행의 `total_count`는 같은 필터의 전체 건수다. 1만 건 기준 한 페이지 조회 비용은 브라우저→Supabase API 1회, DB RPC/statement 1회, Redis 0회다. 대표 파일과 집계는 SQL 내부 join/subquery로 처리하므로 행별 HTTP 또는 별도 DB 요청은 발생하지 않는다.
+
+---
+
+## 25. v2 command RPC와 파일 삭제 보상
+
+`20260824180000_add_content_command_rpcs.sql`은 다음 원자적 저장 함수를 구현한다.
+
+| 함수 | 저장 범위 | 동시 수정 방지 |
+|---|---|---|
+| `save_content_post` | 소식과 `post_files` 전체 | `expected_updated_at` |
+| `save_resource` | 자료와 `resource_files` 전체 | `expected_updated_at` |
+| `save_seminar` | 세미나와 `seminar_files` 전체 | `expected_updated_at` |
+| `save_gallery` | 갤러리와 `gallery_items` 전체 | `expected_updated_at` |
+
+관계 입력은 JSON 배열이며 배열 위치를 0부터 시작하는 `sort_order`로 사용한다. 동일 파일 ID를 중복할 수 없고 한 부모에 최대 1,000개를 허용한다. 부모 갱신과 기존 관계 교체, 새 관계 bulk insert는 한 transaction에서 처리한다. 자료와 갤러리의 지연 constraint trigger는 transaction 종료 시 최종 관계 집합을 검사한다.
+
+파일 삭제는 PostgreSQL과 Storage가 같은 ACID transaction에 포함되지 않는 점을 보완하기 위해 `private.file_delete_operations`를 사용한다.
+
+1. `begin_file_delete`가 모든 참조를 indexed `EXISTS`로 확인한다.
+2. 원본 metadata snapshot을 private schema에 저장하고 `files` 행을 삭제한다.
+3. Storage 삭제 성공 시 `complete_file_delete`가 snapshot을 제거한다.
+4. Storage 삭제 실패 시 `restore_file_delete`가 원본 `uploaded_by`, 생성일시를 포함해 행을 복원한다.
+
+세 보상 함수는 `SECURITY DEFINER`, 빈 `search_path`, 명시적 `auth.uid()` 검증을 사용하고 `authenticated`에만 실행을 허용한다. private schema와 복구 테이블은 Data API 역할에 직접 공개하지 않는다.
+
+파일 수가 1만 건이어도 삭제 1건은 브라우저 API 최대 3회, DB RPC 2회, Storage 1회, Redis 0회다. 콘텐츠 파일 1,000개 저장은 브라우저 API 1회, DB RPC/statement 1회, Redis 0회이며 관계는 반복 HTTP가 아니라 `jsonb_array_elements ... with ordinality` 기반 bulk insert로 처리한다.

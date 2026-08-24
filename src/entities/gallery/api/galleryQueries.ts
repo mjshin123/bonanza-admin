@@ -2,16 +2,17 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   CONTENT_QUERY_OPTIONS,
   mapFile,
-  pageRange,
+  mapRpcFile,
   pageResult,
   requireUuid,
   resolvePageParams,
+  throwContentError,
   type ContentStatus,
   type FileDto,
   type PageParams,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
-import type { Tables } from "@shared/api/supabase";
+import type { Database, Tables } from "@shared/api/supabase";
 export type GalleryItemDto = {
   file: FileDto;
   caption: string;
@@ -30,6 +31,11 @@ export type GalleryListItem = {
 };
 export type GalleryDetail = GalleryListItem & {
   items: GalleryItemDto[];
+  status: ContentStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+export type AdminGalleryListItem = GalleryListItem & {
   status: ContentStatus;
   createdAt: string;
   updatedAt: string;
@@ -107,40 +113,53 @@ export const galleryQueryKeys = {
     ["galleries", "admin", "list", p] as const,
   adminDetail: (id: string) => ["galleries", "admin", "detail", id] as const,
 };
+type RpcGalleryRow =
+  Database["public"]["Functions"]["list_galleries"]["Returns"][number];
+
+export function mapGalleryListRow(
+  row: RpcGalleryRow,
+  admin: false,
+): GalleryListItem;
+export function mapGalleryListRow(
+  row: RpcGalleryRow,
+  admin: true,
+): AdminGalleryListItem;
+export function mapGalleryListRow(row: RpcGalleryRow, admin: boolean) {
+  const item: GalleryListItem = {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    eventDate: row.event_date,
+    coverImage: mapRpcFile(row.cover_image),
+    itemCount: row.item_count,
+    displayOrder: row.display_order,
+    publishedAt: row.published_at,
+  };
+  return admin
+    ? {
+        ...item,
+        status: row.status as ContentStatus,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }
+    : item;
+}
 async function fetchList(p: ReturnType<typeof resolveParams>, admin: boolean) {
-  const { from, to } = pageRange(p);
-  let q = supabase
-    .from("galleries")
-    .select(SELECT, { count: "exact" })
-    .order("event_date", { ascending: false, nullsFirst: false })
-    .order("display_order")
-    .order("published_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(from, to);
-  if (!admin)
-    q = q
-      .eq("status", "published")
-      .lte("published_at", new Date().toISOString());
-  if (p.status) q = q.eq("status", p.status);
-  if (p.from) q = q.gte("event_date", p.from);
-  if (p.to) q = q.lte("event_date", p.to);
-  if (p.q) q = q.or(`title.ilike.%${p.q}%,description.ilike.%${p.q}%`);
-  const { data, error, count } = await q;
-  if (error) throw error;
-  const details = data.map((r) => mapGallery(r as Joined));
-  const items = details.map(
-    ({
-      items: _items,
-      status: _status,
-      createdAt: _created,
-      updatedAt: _updated,
-      ...item
-    }) =>
-      admin
-        ? { ...item, status: _status, createdAt: _created, updatedAt: _updated }
-        : item,
-  );
-  return pageResult(items, count, p);
+  const { data, error } = await supabase.rpc("list_galleries", {
+    p_admin: admin,
+    p_from: p.from,
+    p_page: p.page,
+    p_page_size: p.pageSize,
+    p_q: p.q,
+    p_status: admin ? p.status : undefined,
+    p_to: p.to,
+  });
+  if (error) throwContentError(error);
+  const rows = data as RpcGalleryRow[];
+  const items = admin
+    ? rows.map((row) => mapGalleryListRow(row, true))
+    : rows.map((row) => mapGalleryListRow(row, false));
+  return pageResult(items, rows[0]?.total_count ?? 0, p);
 }
 async function fetchDetail(id: string, admin: boolean) {
   let q = supabase.from("galleries").select(SELECT).eq("id", requireUuid(id));

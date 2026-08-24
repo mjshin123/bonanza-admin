@@ -6,8 +6,10 @@ import {
 } from "@entities/post";
 import {
   mapFile,
+  normalizeFileItems,
   normalizePublishedAt,
   optionalText,
+  requireExpectedUpdatedAt,
   requireText,
   requireUuid,
   throwContentError,
@@ -16,7 +18,14 @@ import {
   type PostFileRole,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
-import type { Tables, TablesInsert, TablesUpdate } from "@shared/api/supabase";
+import type {
+  Json,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+} from "@shared/api/supabase";
+
+export type SavePostFileInput = { fileId: string; role: PostFileRole };
 
 export type CreateContentPostInput = {
   category: PostCategory;
@@ -27,10 +36,12 @@ export type CreateContentPostInput = {
   status?: ContentStatus;
   isPinned?: boolean;
   publishedAt?: string | null;
+  files?: SavePostFileInput[];
 };
-export type UpdateContentPostInput = Partial<
-  Omit<CreateContentPostInput, "category">
-> & { id: string; category?: PostCategory };
+export type UpdateContentPostInput = Required<CreateContentPostInput> & {
+  id: string;
+  expectedUpdatedAt: string;
+};
 export type CreatePostInput = CreateContentPostInput;
 export type UpdatePostInput = UpdateContentPostInput;
 export type LinkPostFileInput = {
@@ -62,27 +73,6 @@ type Joined = Tables<"posts"> & {
   files: Array<Tables<"post_files"> & { file: Tables<"files"> | null }>;
 };
 
-function payload(
-  input: Partial<CreateContentPostInput>,
-): TablesUpdate<"posts"> {
-  const result: TablesUpdate<"posts"> = {};
-  if (input.category !== undefined) result.category = input.category;
-  if (input.title !== undefined)
-    result.title = requireText(input.title, "title", 200);
-  if (input.summary !== undefined)
-    result.summary = optionalText(input.summary, "summary", 500);
-  if (input.content !== undefined) result.content = input.content;
-  if (input.institutionId !== undefined)
-    result.institution_id =
-      input.institutionId === null
-        ? null
-        : requireUuid(input.institutionId, "institutionId");
-  if (input.status !== undefined) result.status = input.status;
-  if (input.isPinned !== undefined) result.is_pinned = input.isPinned;
-  const publishedAt = normalizePublishedAt(input.status, input.publishedAt);
-  if (publishedAt !== undefined) result.published_at = publishedAt;
-  return result;
-}
 function validateInstitution(
   category: PostCategory | undefined,
   institutionId: string | null | undefined,
@@ -92,15 +82,30 @@ function validateInstitution(
   if (category && category !== "member_news" && institutionId)
     throw new TypeError("공지사항과 협회소식에는 기관을 연결할 수 없습니다.");
 }
+export function buildContentPostCommand(input: CreateContentPostInput) {
+  validateInstitution(input.category, input.institutionId);
+  const status = input.status ?? "draft";
+  const command = {
+    category: input.category,
+    title: requireText(input.title, "title", 200),
+    summary: optionalText(input.summary, "summary", 500) ?? "",
+    content: input.content,
+    institutionId:
+      input.category === "member_news"
+        ? requireUuid(input.institutionId!, "institutionId")
+        : null,
+    status,
+    isPinned: input.isPinned ?? false,
+    publishedAt: normalizePublishedAt(status, input.publishedAt) ?? null,
+  } satisfies Json;
+  return { command, files: normalizeFileItems(input.files ?? []) };
+}
 async function createContentPost(
   input: CreateContentPostInput,
 ): Promise<ContentPostDetail> {
-  validateInstitution(input.category, input.institutionId);
-  const insert = payload(input) as TablesInsert<"posts">;
-  if (input.category !== "member_news") insert.institution_id = null;
+  const { command, files } = buildContentPostCommand(input);
   const { data, error } = await supabase
-    .from("posts")
-    .insert(insert)
+    .rpc("save_content_post", { p_input: command, p_files: files })
     .select(SELECT)
     .single();
   if (error) throwContentError(error);
@@ -109,16 +114,14 @@ async function createContentPost(
 async function updateContentPost(
   input: UpdateContentPostInput,
 ): Promise<ContentPostDetail> {
-  validateInstitution(input.category, input.institutionId);
-  const { id, ...patch } = input;
-  const updatePayload = payload(patch);
-  if (patch.category && patch.category !== "member_news") {
-    updatePayload.institution_id = null;
-  }
+  const { command, files } = buildContentPostCommand(input);
   const { data, error } = await supabase
-    .from("posts")
-    .update(updatePayload)
-    .eq("id", requireUuid(id))
+    .rpc("save_content_post", {
+      p_expected_updated_at: requireExpectedUpdatedAt(input.expectedUpdatedAt),
+      p_files: files,
+      p_id: requireUuid(input.id),
+      p_input: command,
+    })
     .select(SELECT)
     .single();
   if (error) throwContentError(error);
@@ -210,17 +213,17 @@ async function unlinkPostFile(input: UnlinkPostFileInput) {
 }
 export const createContentPostMutationOptions = () =>
   mutationOptions({
-    mutationKey: ["posts", "create"],
+    mutationKey: ["content-posts", "create"],
     mutationFn: createContentPost,
   });
 export const updateContentPostMutationOptions = () =>
   mutationOptions({
-    mutationKey: ["posts", "update"],
+    mutationKey: ["content-posts", "update"],
     mutationFn: updateContentPost,
   });
 export const deleteContentPostMutationOptions = () =>
   mutationOptions({
-    mutationKey: ["posts", "delete"],
+    mutationKey: ["content-posts", "delete"],
     mutationFn: deleteContentPost,
   });
 export const createPostMutationOptions = createContentPostMutationOptions;
@@ -228,21 +231,21 @@ export const updatePostMutationOptions = updateContentPostMutationOptions;
 export const deletePostMutationOptions = deleteContentPostMutationOptions;
 export const linkPostFileMutationOptions = () =>
   mutationOptions({
-    mutationKey: ["posts", "file", "link"],
+    mutationKey: ["content-posts", "file", "link"],
     mutationFn: linkPostFile,
   });
 export const updatePostFileMutationOptions = () =>
   mutationOptions({
-    mutationKey: ["posts", "file", "update"],
+    mutationKey: ["content-posts", "file", "update"],
     mutationFn: updatePostFile,
   });
 export const reorderPostFilesMutationOptions = () =>
   mutationOptions({
-    mutationKey: ["posts", "file", "reorder"],
+    mutationKey: ["content-posts", "file", "reorder"],
     mutationFn: reorderPostFiles,
   });
 export const unlinkPostFileMutationOptions = () =>
   mutationOptions({
-    mutationKey: ["posts", "file", "unlink"],
+    mutationKey: ["content-posts", "file", "unlink"],
     mutationFn: unlinkPostFile,
   });
