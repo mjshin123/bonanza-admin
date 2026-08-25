@@ -50,7 +50,7 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 - seminarDetailQueryOptions / adminSeminarDetailQueryOptions
 - galleryDetailQueryOptions / adminGalleryDetailQueryOptions
 
-기관과 기관 분류는 institutions, institution_categories 테이블의 PostgREST API를 사용한다. 공개 Query는 활성 데이터만, 관리자 Query는 인증 세션에서 전체 데이터를 조회한다.
+기관과 기관 분류는 institutions, institution_categories 테이블의 PostgREST API를 사용한다. 공개 Query는 활성 데이터만, 관리자 Query는 인증 세션에서 전체 데이터를 조회한다. institution_categories는 institution_type(member/partner)별로 완전히 분리된 목록이며, code와 name의 유일 제약도 institution_type 단위로 걸려 있다. 기관 분류를 생성·수정할 때는 institutionType을 반드시 지정해야 하고, 회원기관용 분류와 협력기관용 분류는 서로 다른 행이므로 같은 이름이라도 각각 따로 만들어야 한다.
 
 ## 저장 API
 

@@ -28,6 +28,7 @@ import {
   STATUS_OPTIONS,
   toDateTimeLocal,
   toIsoOrNull,
+  useBackNavCloses,
   useDebouncedValue,
 } from "../model/adminContent";
 import {
@@ -54,7 +55,6 @@ const CATEGORIES: Array<{ value: PostCategory; label: string }> = [
 
 type SelectedPostFile = {
   file: FileDto;
-  role: "cover" | "content";
   showInGallery: boolean;
 };
 type PostFormState = {
@@ -115,7 +115,6 @@ function PostEditor({
     setFiles(
       item.files.map((entry: PostFileDto) => ({
         file: entry.file,
-        role: entry.role,
         showInGallery: entry.showInGallery,
       })),
     );
@@ -142,9 +141,9 @@ function PostEditor({
       status,
       isPinned: form.isPinned,
       publishedAt: toIsoOrNull(form.publishedAt),
-      files: files.map((entry) => ({
+      files: files.map((entry, index) => ({
         fileId: entry.file.id,
-        role: entry.role,
+        role: index === 0 ? ("cover" as const) : ("content" as const),
         showInGallery: entry.showInGallery,
       })),
     };
@@ -240,7 +239,7 @@ function PostEditor({
       <Field
         label="내용 이미지"
         wide
-        hint="대표 이미지는 한 장만 지정할 수 있습니다. 갤러리 체크는 해당 사진만 홈페이지 포토 갤러리에 노출합니다."
+        hint="첫 번째 이미지가 대표 이미지로 사용됩니다. 갤러리 체크는 해당 사진만 홈페이지 포토 갤러리에 노출합니다."
       >
         <FileUpload
           accept="image/*"
@@ -252,14 +251,13 @@ function PostEditor({
               ...current,
               ...uploaded.map((file) => ({
                 file,
-                role: "content" as const,
                 showInGallery: false,
               })),
             ])
           }
         />
         <div className="content-admin-file-list">
-          {files.map((entry) => (
+          {files.map((entry, index) => (
             <div className="content-admin-file-row" key={entry.file.id}>
               <img
                 alt=""
@@ -268,9 +266,6 @@ function PostEditor({
               />
               <div>
                 <strong>{entry.file.originalName}</strong>
-                <span>
-                  {entry.role === "cover" ? "대표 이미지" : "내용 이미지"}
-                </span>
                 <Checkbox
                   checked={entry.showInGallery}
                   label="포토 갤러리에 노출"
@@ -286,25 +281,40 @@ function PostEditor({
                 />
               </div>
               <div className="content-admin-table-actions">
-                {entry.role !== "cover" ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      setFiles((current) =>
-                        current.map((candidate) => ({
-                          ...candidate,
-                          role:
-                            candidate.file.id === entry.file.id
-                              ? "cover"
-                              : "content",
-                        })),
-                      )
-                    }
-                  >
-                    대표 지정
-                  </Button>
-                ) : null}
+                <Button
+                  disabled={index === 0}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setFiles((current) => {
+                      const next = [...current];
+                      [next[index - 1], next[index]] = [
+                        next[index],
+                        next[index - 1],
+                      ];
+                      return next;
+                    })
+                  }
+                >
+                  ▲
+                </Button>
+                <Button
+                  disabled={index === files.length - 1}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setFiles((current) => {
+                      const next = [...current];
+                      [next[index], next[index + 1]] = [
+                        next[index + 1],
+                        next[index],
+                      ];
+                      return next;
+                    })
+                  }
+                >
+                  ▼
+                </Button>
                 <Button
                   size="sm"
                   variant="text"
@@ -380,6 +390,10 @@ export function PostSection() {
   const [publishedTo, setPublishedTo] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const closeEditor = useBackNavCloses(editorOpen, () => {
+    setEditorOpen(false);
+    setEditingId(null);
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminPostsQueryOptions({
@@ -438,10 +452,7 @@ export function PostSection() {
       <PostEditor
         category={category}
         editingId={editingId}
-        onClose={() => {
-          setEditorOpen(false);
-          setEditingId(null);
-        }}
+        onClose={closeEditor}
       />
     );
   return (
@@ -553,12 +564,21 @@ export function PostSection() {
                   />
                 </td>
                 <td>
-                  <div className="content-admin-table-title">
-                    <strong>
-                      {item.isPinned ? "[고정] " : ""}
-                      {item.title}
-                    </strong>
-                  </div>
+                  <button
+                    className="content-admin-table-title-button"
+                    type="button"
+                    onClick={() => {
+                      setEditingId(item.id);
+                      setEditorOpen(true);
+                    }}
+                  >
+                    <div className="content-admin-table-title">
+                      <strong>
+                        {item.isPinned ? "[고정] " : ""}
+                        {item.title}
+                      </strong>
+                    </div>
+                  </button>
                 </td>
                 <td>{item.institution?.name ?? "협회"}</td>
                 <td>

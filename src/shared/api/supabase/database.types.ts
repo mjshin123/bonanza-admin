@@ -213,6 +213,7 @@ export type Database = {
           created_by: string | null
           display_order: number
           id: string
+          institution_type: string
           is_active: boolean
           name: string
           updated_at: string
@@ -223,6 +224,7 @@ export type Database = {
           created_by?: string | null
           display_order?: number
           id?: string
+          institution_type: string
           is_active?: boolean
           name: string
           updated_at?: string
@@ -233,6 +235,7 @@ export type Database = {
           created_by?: string | null
           display_order?: number
           id?: string
+          institution_type?: string
           is_active?: boolean
           name?: string
           updated_at?: string

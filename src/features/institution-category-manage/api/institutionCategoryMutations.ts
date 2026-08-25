@@ -15,6 +15,7 @@ import type { TablesInsert } from "@shared/api/supabase";
 export type CreateInstitutionCategoryInput = {
   code: string;
   name: string;
+  institutionType: "member" | "partner";
   displayOrder?: number;
   isActive?: boolean;
 };
@@ -25,6 +26,7 @@ function mapInput(input: Partial<CreateInstitutionCategoryInput>) {
   const result: {
     code?: string;
     name?: string;
+    institution_type?: "member" | "partner";
     display_order?: number;
     is_active?: boolean;
   } = {};
@@ -39,6 +41,8 @@ function mapInput(input: Partial<CreateInstitutionCategoryInput>) {
   }
   if (input.name !== undefined)
     result.name = requireText(input.name, "name", 100);
+  if (input.institutionType !== undefined)
+    result.institution_type = input.institutionType;
   if (input.displayOrder !== undefined) {
     if (!Number.isInteger(input.displayOrder) || input.displayOrder < 0) {
       throw new RangeError("displayOrder는 0 이상의 정수여야 합니다.");
@@ -64,8 +68,8 @@ async function createCategory(
   input: CreateInstitutionCategoryInput,
 ): Promise<InstitutionCategoryDto> {
   const payload = mapInput(input);
-  if (!payload.code || !payload.name)
-    throw new TypeError("code와 name은 필수입니다.");
+  if (!payload.code || !payload.name || !payload.institution_type)
+    throw new TypeError("code, name, institutionType은 필수입니다.");
   if (payload.display_order === undefined)
     payload.display_order = await nextDisplayOrder();
   const { data, error } = await supabase

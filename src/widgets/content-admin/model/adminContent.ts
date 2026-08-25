@@ -1,7 +1,38 @@
 import type { ContentStatus } from "@shared/api/content";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const PAGE_SIZE = 20;
+
+/**
+ * Makes the browser Back button close an open editor/detail panel and land
+ * back on the list underneath, instead of leaving the page entirely — since
+ * opening the panel is normally just local state with no history entry of
+ * its own. Call the returned function from Cancel/Save so it also unwinds
+ * the extra history entry when the panel is closed without using Back.
+ */
+export function useBackNavCloses(open: boolean, onClose: () => void) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const close = useRef(() => {
+    onCloseRef.current();
+    if (
+      (window.history.state as { contentAdminEditor?: boolean } | null)
+        ?.contentAdminEditor
+    ) {
+      window.history.back();
+    }
+  }).current;
+
+  useEffect(() => {
+    if (!open) return;
+    window.history.pushState({ contentAdminEditor: true }, "");
+    window.addEventListener("popstate", close);
+    return () => window.removeEventListener("popstate", close);
+  }, [open, close]);
+
+  return close;
+}
 
 export const STATUS_OPTIONS = [
   { value: "", label: "전체 상태" },
@@ -9,8 +40,6 @@ export const STATUS_OPTIONS = [
   { value: "published", label: "게시" },
   { value: "hidden", label: "숨김" },
 ];
-
-export const EDIT_STATUS_OPTIONS = STATUS_OPTIONS.slice(1);
 
 export type DisplayStatus = ContentStatus | "scheduled";
 

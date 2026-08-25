@@ -9,6 +9,7 @@ export type InstitutionCategoryDto = {
   id: string;
   code: string;
   name: string;
+  institutionType: "member" | "partner";
   displayOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -22,6 +23,7 @@ export function mapInstitutionCategory(
     id: row.id,
     code: row.code,
     name: row.name,
+    institutionType: row.institution_type as "member" | "partner",
     displayOrder: row.display_order,
     isActive: row.is_active,
     createdAt: row.created_at,
@@ -40,7 +42,9 @@ export const institutionCategoryQueryKeys = {
 async function fetchCategories(admin: boolean) {
   let query = supabase
     .from("institution_categories")
-    .select("id,code,name,display_order,is_active,created_at,updated_at")
+    .select(
+      "id,code,name,institution_type,display_order,is_active,created_at,updated_at",
+    )
     .order("display_order")
     .order("name")
     .order("id");
