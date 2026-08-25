@@ -36,7 +36,8 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 | --------------------- | ----------- | ------------------------------------------------------------------------- | ------------------------------------------------ |
 | list_content_posts    | 공개        | p_category, p_institution_id, p_q, p_status, p_page, p_page_size, p_admin | 제목, 기관, 대표 이미지, 고정 여부, 게시일 |
 | list_admin_content_posts | 관리자  | 공개 RPC 인자 + p_published_from, p_published_to | 게시일 범위가 적용된 게시글 목록 |
-| list_resources        | 공개/관리자 | p_category, p_q, p_status, p_published_from, p_published_to, 페이징, p_admin              | 제목, 파일 수, 게시일            |
+| list_resources        | 공개        | p_category, p_q, p_reference_year, p_status, 페이징, p_admin | 제목, 기준연도, 파일 수, 게시일 |
+| list_admin_resources  | 관리자      | p_category, p_q, p_status, p_published_from, p_published_to, 페이징, p_admin | 제목, 파일 수, 게시일 |
 | list_seminars         | 공개        | p_timing, p_from, p_to(행사일), p_q, p_status, 페이징, p_admin | 소개, 일시, 장소, 대표 이미지 |
 | list_admin_seminars   | 관리자      | 공개 RPC 인자 + p_published_from, p_published_to | 게시일 범위 및 대표 행사 여부가 적용된 세미나 목록 |
 | list_galleries        | 공개/관리자 | p_from, p_to, p_q, p_status, 페이징, p_admin                              | 설명, 행사일, 대표 이미지, 사진 수               |

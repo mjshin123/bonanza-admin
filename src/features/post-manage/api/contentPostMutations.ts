@@ -1,9 +1,5 @@
 import { mutationOptions } from "@tanstack/react-query";
-import {
-  mapContentPost,
-  type ContentPostDetail,
-  type PostFileDto,
-} from "@entities/post";
+import { type PostFileDto } from "@entities/post";
 import {
   mapFile,
   normalizeFileItems,
@@ -65,18 +61,6 @@ export type ReorderPostFilesInput = {
   items: Array<{ fileId: string; sortOrder: number }>;
 };
 export type UnlinkPostFileInput = { postId: string; fileId: string };
-const SELECT =
-  "*, institution:institutions(category:institution_categories!inner(*),logo:files(*)), files:post_files(*,file:files(*))";
-type Joined = Tables<"posts"> & {
-  institution:
-    | (Tables<"institutions"> & {
-        category: Tables<"institution_categories">;
-        logo: Tables<"files"> | null;
-      })
-    | null;
-  files: Array<Tables<"post_files"> & { file: Tables<"files"> | null }>;
-};
-
 function validateInstitution(
   category: PostCategory | undefined,
   institutionId: string | null | undefined,
@@ -107,18 +91,17 @@ export function buildContentPostCommand(input: CreateContentPostInput) {
 }
 async function createContentPost(
   input: CreateContentPostInput,
-): Promise<ContentPostDetail> {
+): Promise<string> {
   const { command, files } = buildContentPostCommand(input);
   const { data, error } = await supabase
     .rpc("save_content_post", { p_input: command, p_files: files })
-    .select(SELECT)
     .single();
   if (error) throwContentError(error);
-  return mapContentPost(data as Joined);
+  return (data as Tables<"posts">).id;
 }
 async function updateContentPost(
   input: UpdateContentPostInput,
-): Promise<ContentPostDetail> {
+): Promise<string> {
   const { command, files } = buildContentPostCommand(input);
   const { data, error } = await supabase
     .rpc("save_content_post", {
@@ -127,10 +110,9 @@ async function updateContentPost(
       p_id: requireUuid(input.id),
       p_input: command,
     })
-    .select(SELECT)
     .single();
   if (error) throwContentError(error);
-  return mapContentPost(data as Joined);
+  return (data as Tables<"posts">).id;
 }
 async function deleteContentPost(id: string) {
   const { data, error } = await supabase

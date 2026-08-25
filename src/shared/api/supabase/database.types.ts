@@ -976,53 +976,52 @@ export type Database = {
           updated_at: string
         }[]
       }
-      list_resources:
-        | {
-            Args: {
-              p_admin?: boolean
-              p_category?: string
-              p_page?: number
-              p_page_size?: number
-              p_q?: string
-              p_reference_year?: number
-              p_status?: string
-            }
-            Returns: {
-              category: string
-              created_at: string
-              file_count: number
-              id: string
-              published_at: string
-              reference_year: number
-              status: string
-              title: string
-              total_count: number
-              updated_at: string
-            }[]
-          }
-        | {
-            Args: {
-              p_admin?: boolean
-              p_category?: string
-              p_page?: number
-              p_page_size?: number
-              p_published_from?: string
-              p_published_to?: string
-              p_q?: string
-              p_status?: string
-            }
-            Returns: {
-              category: string
-              created_at: string
-              file_count: number
-              id: string
-              published_at: string
-              status: string
-              title: string
-              total_count: number
-              updated_at: string
-            }[]
-          }
+      list_admin_resources: {
+        Args: {
+          p_admin?: boolean
+          p_category?: string
+          p_page?: number
+          p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
+          p_q?: string
+          p_status?: string
+        }
+        Returns: {
+          category: string
+          created_at: string
+          file_count: number
+          id: string
+          published_at: string
+          status: string
+          title: string
+          total_count: number
+          updated_at: string
+        }[]
+      }
+      list_resources: {
+        Args: {
+          p_admin?: boolean
+          p_category?: string
+          p_page?: number
+          p_page_size?: number
+          p_q?: string
+          p_reference_year?: number
+          p_status?: string
+        }
+        Returns: {
+          category: string
+          created_at: string
+          file_count: number
+          id: string
+          published_at: string
+          reference_year: number
+          status: string
+          title: string
+          total_count: number
+          updated_at: string
+        }[]
+      }
       list_seminars: {
         Args: {
           p_admin?: boolean
