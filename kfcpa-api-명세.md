@@ -944,7 +944,6 @@ export type PostListItem = {
   id: string;
   category: PostCategory;
   title: string;
-  summary: string;
   institution: InstitutionSummary | null;
   cover: FileDto | null;
   isPinned: boolean;
@@ -974,7 +973,6 @@ export type AdminPostDetail = Omit<PostDetail, "publishedAt"> & {
 검증:
 
 - `title`: trim 후 1~200자
-- `summary`: 최대 500자
 - `content`: 필수 문자열
 - `member_news`: `member` 타입 기관의 `institutionId` 필수
 - `notice`, `association_news`: `institutionId`는 `null`
@@ -1032,7 +1030,7 @@ export function postDetailQueryOptions(
 | 항목 | 계약 |
 |---|---|
 | 공개 필터 | 공개 조건, 선택 category/institution |
-| 검색 | `title`, `summary` 부분 일치 |
+| 검색 | `title` 부분 일치 |
 | 목록 정렬 | `is_pinned DESC`, `published_at DESC`, `created_at DESC`, `id DESC` |
 | 파일 Join | 목록은 `role = cover` 1건, 상세는 전체 |
 | 회원기관 Join | `member_news`는 활성 member 기관 |
@@ -1064,7 +1062,6 @@ export function adminPostDetailQueryOptions(
 export type CreatePostInput = {
   category: PostCategory;
   title: string;
-  summary?: string;
   content: string;
   institutionId?: string | null;
   status?: ContentStatus;
@@ -1211,7 +1208,6 @@ export type ResourceListItem = {
   id: string;
   category: ResourceCategory;
   title: string;
-  summary: string;
   referenceYear: number | null;
   fileCount: number;
   publishedAt: string | null;
@@ -1245,7 +1241,6 @@ export type AdminResourceDetail = Omit<
 검증:
 
 - `title`: trim 후 1~200자
-- `summary`: 최대 500자
 - `referenceYear`: 1900~2100 정수 또는 `null`
 - 첨부 확장자는 제한하지 않는다.
 - `published` 전환 시 연결된 파일이 1개 이상이어야 한다.
@@ -1297,7 +1292,7 @@ export function resourceDetailQueryOptions(
 | 항목 | 계약 |
 |---|---|
 | 공개 필터 | 공개 조건, 선택 category/referenceYear |
-| 검색 | `title`, `summary` 부분 일치 |
+| 검색 | `title` 부분 일치 |
 | 목록 정렬 | `published_at DESC`, `created_at DESC`, `id DESC` |
 | 상세 파일 | `sort_order ASC`, `created_at ASC`, `file_id ASC` |
 | 상세 미존재 | `null` |
@@ -1328,7 +1323,6 @@ export function adminResourceDetailQueryOptions(
 export type CreateResourceInput = {
   category: ResourceCategory;
   title: string;
-  summary?: string;
   referenceYear?: number | null;
   status?: ContentStatus;
   publishedAt?: string | null;
@@ -1463,7 +1457,6 @@ export type SeminarListItem = {
   id: string;
   title: string;
   introduction: string;
-  resultSummary: string;
   startsAt: string;
   endsAt: string | null;
   location: string;
@@ -1603,7 +1596,6 @@ export function adminSeminarDetailQueryOptions(
 export type CreateSeminarInput = {
   title: string;
   introduction?: string;
-  resultSummary?: string;
   content?: string | null;
   startsAt: string;
   endsAt?: string | null;

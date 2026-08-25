@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildContentPostCommand } from "@features/post-manage";
+import { buildResourceCommand } from "@features/resource-manage";
 import { buildSeminarCommand } from "@features/seminar-manage";
 import {
   buildGalleryCommand,
@@ -29,6 +30,7 @@ describe("콘텐츠 command payload", () => {
       }),
     );
     expect(result.command.publishedAt).toEqual(expect.any(String));
+    expect(result.command).not.toHaveProperty("summary");
     expect(result.files).toEqual([
       { fileId: FILE_ID, role: "cover", showInGallery: true },
     ]);
@@ -51,6 +53,15 @@ describe("콘텐츠 command payload", () => {
         title: "세미나",
       }),
     ).toThrow("유효한 일시");
+  });
+
+  it("자료와 세미나 command에 요약 필드를 포함하지 않는다", () => {
+    expect(
+      buildResourceCommand({ category: "seminar_material", title: "자료" }),
+    ).not.toHaveProperty("summary");
+    expect(
+      buildSeminarCommand({ startsAt: new Date().toISOString(), title: "행사" }),
+    ).not.toHaveProperty("resultSummary");
   });
 
   it("갤러리 command와 caption을 정규화한다", () => {

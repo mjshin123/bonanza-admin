@@ -34,10 +34,10 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 
 | RPC                   | 권한        | 주요 파라미터                                                             | 주요 응답                                        |
 | --------------------- | ----------- | ------------------------------------------------------------------------- | ------------------------------------------------ |
-| list_content_posts    | 공개        | p_category, p_institution_id, p_q, p_status, p_page, p_page_size, p_admin | 제목, 요약, 기관, 대표 이미지, 고정 여부, 게시일 |
+| list_content_posts    | 공개        | p_category, p_institution_id, p_q, p_status, p_page, p_page_size, p_admin | 제목, 기관, 대표 이미지, 고정 여부, 게시일 |
 | list_admin_content_posts | 관리자  | 공개 RPC 인자 + p_published_from, p_published_to | 게시일 범위가 적용된 게시글 목록 |
-| list_resources        | 공개/관리자 | p_category, p_q, p_status, p_published_from, p_published_to, 페이징, p_admin              | 제목, 요약, 파일 수, 게시일            |
-| list_seminars         | 공개        | p_timing, p_from, p_to(행사일), p_q, p_status, 페이징, p_admin | 소개, 결과 요약, 일시, 장소, 대표 이미지 |
+| list_resources        | 공개/관리자 | p_category, p_q, p_status, p_published_from, p_published_to, 페이징, p_admin              | 제목, 파일 수, 게시일            |
+| list_seminars         | 공개        | p_timing, p_from, p_to(행사일), p_q, p_status, 페이징, p_admin | 소개, 일시, 장소, 대표 이미지 |
 | list_admin_seminars   | 관리자      | 공개 RPC 인자 + p_published_from, p_published_to | 게시일 범위 및 대표 행사 여부가 적용된 세미나 목록 |
 | list_galleries        | 공개/관리자 | p_from, p_to, p_q, p_status, 페이징, p_admin                              | 설명, 행사일, 대표 이미지, 사진 수               |
 | list_admin_files      | 관리자      | p_file_kind, p_usage, p_q, 페이징                                         | 파일 메타데이터와 도메인별 사용 횟수             |
@@ -58,9 +58,9 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 
 | RPC               | p_input 핵심 필드                                                                                                                                                                    | p_files 항목                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
-| save_content_post | category, title, summary, content, institutionId, status, isPinned, publishedAt                                                                                                      | fileId, role, showInGallery               |
-| save_resource     | category, title, summary, status, publishedAt                                                                                                                         | fileId, showInGallery                     |
-| save_seminar      | title, introduction, resultSummary, content, startsAt, endsAt, location, applicationUrl, status, publishedAt, isFeatured | fileId, showInGallery                     |
+| save_content_post | category, title, content, institutionId, status, isPinned, publishedAt                                                                                                      | fileId, role, showInGallery               |
+| save_resource     | category, title, status, publishedAt                                                                                                                         | fileId, showInGallery                     |
+| save_seminar      | title, introduction, content, startsAt, endsAt, location, applicationUrl, status, publishedAt, isFeatured | fileId, showInGallery                     |
 | save_gallery      | title, description, eventDate, status, publishedAt, displayOrder                                                                                                                     | fileId, caption (기존 독립 갤러리 호환용) |
 
 공통 RPC 인자는 다음과 같다.
@@ -135,5 +135,6 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 | 첨부 사진별 갤러리 노출     | supabase/migrations/20260824200000_source_gallery_visibility.sql      |
 | 게시일 범위 필터            | supabase/migrations/20260825120200_add_published_date_filters.sql       |
 | 자료 기준연도 Admin 폐기    | supabase/migrations/20260825120300_deprecate_resource_reference_year.sql |
+| 콘텐츠 요약 필드 제거       | supabase/migrations/20260825140000_remove_content_summaries.sql |
 
 API 계약을 변경하면 migration, 생성 DB 타입, entity Query, feature Mutation, 이 문서를 함께 갱신한다.

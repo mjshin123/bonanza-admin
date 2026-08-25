@@ -43,7 +43,6 @@ import {
   SectionTitle,
   StatusBadge,
   TableShell,
-  Textarea,
 } from "./AdminCommon";
 
 const EMPTY_ID = "00000000-0000-4000-8000-000000000000";
@@ -60,7 +59,6 @@ type SelectedPostFile = {
 };
 type PostFormState = {
   title: string;
-  summary: string;
   content: string;
   institutionId: string;
   isPinned: boolean;
@@ -96,7 +94,6 @@ function PostEditor({
   });
   const [form, setForm] = useState<PostFormState>({
     title: "",
-    summary: "",
     content: "",
     institutionId: "",
     isPinned: false,
@@ -110,7 +107,6 @@ function PostEditor({
     if (!item) return;
     setForm({
       title: item.title,
-      summary: item.summary,
       content: item.content,
       institutionId: item.institution?.id ?? "",
       isPinned: item.isPinned,
@@ -141,7 +137,6 @@ function PostEditor({
     const input = {
       category,
       title: form.title,
-      summary: form.summary,
       content: sanitizePostContent(form.content),
       institutionId: category === "member_news" ? form.institutionId : null,
       status,
@@ -192,15 +187,6 @@ function PostEditor({
           maxLength={200}
           value={form.title}
           onChange={(event) => setForm({ ...form, title: event.target.value })}
-        />
-      </Field>
-      <Field label="요약" wide>
-        <Textarea
-          maxLength={500}
-          value={form.summary}
-          onChange={(event) =>
-            setForm({ ...form, summary: event.target.value })
-          }
         />
       </Field>
       {category === "member_news" ? (
@@ -478,7 +464,7 @@ export function PostSection() {
       <FilterBar>
         <Input
           aria-label="게시물 검색"
-          placeholder="제목 또는 요약 검색"
+          placeholder="제목 검색"
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
@@ -572,7 +558,6 @@ export function PostSection() {
                       {item.isPinned ? "[고정] " : ""}
                       {item.title}
                     </strong>
-                    <span>{item.summary || "요약 없음"}</span>
                   </div>
                 </td>
                 <td>{item.institution?.name ?? "협회"}</td>

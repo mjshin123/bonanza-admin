@@ -51,7 +51,6 @@ type SelectedSeminarImage = { file: FileDto; showInGallery: boolean };
 type SeminarForm = {
   title: string;
   introduction: string;
-  resultSummary: string;
   content: string;
   startsAt: string;
   endsAt: string;
@@ -64,7 +63,6 @@ type SeminarForm = {
 const EMPTY_FORM: SeminarForm = {
   title: "",
   introduction: "",
-  resultSummary: "",
   content: "",
   startsAt: "",
   endsAt: "",
@@ -99,7 +97,6 @@ function SeminarEditor({
     setForm({
       title: item.title,
       introduction: item.introduction,
-      resultSummary: item.resultSummary,
       content: item.content ?? "",
       startsAt: toDateTimeLocal(item.startsAt),
       endsAt: toDateTimeLocal(item.endsAt),
@@ -122,7 +119,6 @@ function SeminarEditor({
     const input = {
       title: form.title,
       introduction: form.introduction,
-      resultSummary: form.resultSummary,
       content: hasMeaningfulPostContent(form.content)
         ? sanitizePostContent(form.content)
         : null,
@@ -164,7 +160,7 @@ function SeminarEditor({
   return (
     <EditorCard
       title={editingId ? "세미나 수정" : "세미나 등록"}
-      description="예정 행사에는 소개를, 종료 행사에는 결과 요약과 현장 사진을 노출합니다. 첨부 사진별로 포토 갤러리 노출 여부를 지정합니다."
+      description="행사 소개와 현장 사진을 노출합니다. 첨부 사진별로 포토 갤러리 노출 여부를 지정합니다."
       onSubmit={(event) => void submit(event)}
     >
       <Field label="세미나명" required wide>
@@ -180,12 +176,6 @@ function SeminarEditor({
         <Textarea
           value={form.introduction}
           onChange={(event) => set("introduction", event.target.value)}
-        />
-      </Field>
-      <Field label="지난 행사 요약" wide>
-        <Textarea
-          value={form.resultSummary}
-          onChange={(event) => set("resultSummary", event.target.value)}
         />
       </Field>
       <Field label="시작 일시" required>
@@ -525,9 +515,7 @@ export function SeminarSection() {
                     ) : null}
                     <div className="content-admin-table-title">
                       <strong>{item.title}</strong>
-                      <span>
-                        {item.introduction || item.resultSummary || "소개 없음"}
-                      </span>
+                      <span>{item.introduction || "소개 없음"}</span>
                     </div>
                   </div>
                 </td>

@@ -7,7 +7,6 @@ export type SeminarEventFormState = {
   applicationMethod: string;
   applicationUrl: string;
   capacity: string;
-  caption: string;
   content: string;
   endsAt: string;
   isPinned: boolean;
@@ -24,7 +23,6 @@ export const EMPTY_SEMINAR_EVENT_FORM: SeminarEventFormState = {
   applicationMethod: "",
   applicationUrl: "",
   capacity: "",
-  caption: "",
   content: "",
   endsAt: "",
   isPinned: false,
@@ -59,7 +57,6 @@ export function seminarEventToForm(
     applicationMethod: event.application_method ?? "",
     applicationUrl: event.application_url ?? "",
     capacity: event.capacity === null ? "" : String(event.capacity),
-    caption: event.post.caption,
     content: event.post.content,
     endsAt: toDateTimeLocal(event.ends_at),
     isPinned: event.post.is_pinned,
@@ -84,7 +81,6 @@ export function seminarEventFormToValues(
     applicationMethod: form.applicationMethod,
     applicationUrl: form.applicationUrl,
     capacity: form.capacity ? Number(form.capacity) : null,
-    caption: form.caption,
     content: form.content,
     endsAt: toIsoDateTime(form.endsAt),
     isPinned: form.isPinned,

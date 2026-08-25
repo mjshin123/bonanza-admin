@@ -26,7 +26,6 @@ export type SeminarListItem = {
   id: string;
   title: string;
   introduction: string;
-  resultSummary: string;
   startsAt: string;
   endsAt: string | null;
   location: string | null;
@@ -62,7 +61,7 @@ type Joined = Tables<"seminars"> & {
   files: Array<Tables<"seminar_files"> & { file: Tables<"files"> }>;
 };
 const SELECT =
-  "id,title,introduction,result_summary,content,starts_at,ends_at,location,application_url,is_featured,status,published_at,created_at,updated_at,files:seminar_files(seminar_id,file_id,show_in_gallery,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
+  "id,title,introduction,content,starts_at,ends_at,location,application_url,is_featured,status,published_at,created_at,updated_at,files:seminar_files(seminar_id,file_id,show_in_gallery,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
 export function mapSeminar(row: Joined): SeminarDetail {
   const images = row.files
     .map((r) => ({
@@ -81,7 +80,6 @@ export function mapSeminar(row: Joined): SeminarDetail {
     id: row.id,
     title: row.title,
     introduction: row.introduction,
-    resultSummary: row.result_summary,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     location: row.location,
@@ -150,7 +148,6 @@ export function mapSeminarListRow(row: AnyRpcSeminarRow, admin: boolean) {
     id: row.id,
     title: row.title,
     introduction: row.introduction,
-    resultSummary: row.result_summary,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     location: row.location,

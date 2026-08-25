@@ -8,7 +8,6 @@ import {
   mapFile,
   normalizeFileItems,
   normalizePublishedAt,
-  optionalText,
   requireExpectedUpdatedAt,
   requireText,
   requireUuid,
@@ -34,7 +33,6 @@ export type SavePostFileInput = {
 export type CreateContentPostInput = {
   category: PostCategory;
   title: string;
-  summary?: string;
   content: string;
   institutionId?: string | null;
   status?: ContentStatus;
@@ -94,7 +92,6 @@ export function buildContentPostCommand(input: CreateContentPostInput) {
   const command = {
     category: input.category,
     title: requireText(input.title, "title", 200),
-    summary: optionalText(input.summary, "summary", 500) ?? "",
     content: input.content,
     institutionId:
       input.category === "member_news"

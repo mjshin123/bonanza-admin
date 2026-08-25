@@ -7,7 +7,6 @@ import { normalizeTags } from "@shared/lib";
 export type UpdatedPost = Tables<"posts">;
 
 export type UpdatePostInput = {
-  caption: string;
   content: string;
   id: string;
   isPinned: boolean;
@@ -21,20 +20,14 @@ export type UpdatePostInput = {
 
 async function updatePost(input: UpdatePostInput): Promise<UpdatedPost> {
   const title = input.title.trim();
-  const caption = input.caption.trim();
 
   if (!title) {
     throw new TypeError("제목을 입력해주세요.");
   }
 
-  if (caption.length > 200) {
-    throw new RangeError("캡션은 200자 이하여야 합니다.");
-  }
-
   const { data, error } = await supabase
     .from("posts")
     .update({
-      caption,
       content: input.content,
       is_pinned: input.isPinned,
       is_published: input.isPublished,

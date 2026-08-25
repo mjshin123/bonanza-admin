@@ -45,7 +45,6 @@ import {
   SectionTitle,
   StatusBadge,
   TableShell,
-  Textarea,
 } from "./AdminCommon";
 
 type SelectedResourceFile = {
@@ -81,7 +80,6 @@ function ResourceEditor({
   const updateMutation = useMutation(updateResourceMutationOptions());
   const mutation = editingId ? updateMutation : createMutation;
   const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState("");
   const [status, setStatus] = useState<ContentStatus>("draft");
   const [publishedAt, setPublishedAt] = useState("");
   const [files, setFiles] = useState<SelectedResourceFile[]>([]);
@@ -90,7 +88,6 @@ function ResourceEditor({
     const item = detailQuery.data;
     if (!item) return;
     setTitle(item.title);
-    setSummary(item.summary);
     setStatus(item.status);
     setPublishedAt(toDateTimeLocal(item.publishedAt));
     setFiles(
@@ -106,7 +103,6 @@ function ResourceEditor({
     const input = {
       category,
       title,
-      summary,
       status,
       publishedAt: toIsoOrNull(publishedAt),
       files: files.map((entry) => ({
@@ -150,13 +146,6 @@ function ResourceEditor({
           maxLength={200}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-        />
-      </Field>
-      <Field label="요약" wide>
-        <Textarea
-          maxLength={500}
-          value={summary}
-          onChange={(event) => setSummary(event.target.value)}
         />
       </Field>
       <Field label="게시 상태" required>
@@ -360,7 +349,7 @@ export function ResourceSection() {
       <FilterBar>
         <Input
           aria-label="자료 검색"
-          placeholder="제목 또는 요약 검색"
+          placeholder="제목 검색"
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
@@ -451,7 +440,6 @@ export function ResourceSection() {
                 <td>
                   <div className="content-admin-table-title">
                     <strong>{item.title}</strong>
-                    <span>{item.summary || "요약 없음"}</span>
                   </div>
                 </td>
                 <td>{item.fileCount}개</td>

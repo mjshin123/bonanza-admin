@@ -9,7 +9,6 @@ import {
   mapFile,
   normalizeFileItems,
   normalizePublishedAt,
-  optionalText,
   requireExpectedUpdatedAt,
   requireText,
   requireUuid,
@@ -28,7 +27,6 @@ export type SaveResourceFileInput = {
 export type CreateResourceInput = {
   category: ResourceCategory;
   title: string;
-  summary?: string;
   status?: ContentStatus;
   publishedAt?: string | null;
   files?: SaveResourceFileInput[];
@@ -62,7 +60,6 @@ export function buildResourceCommand(input: CreateResourceInput): Json {
   return {
     category: input.category,
     title: requireText(input.title, "title", 200),
-    summary: optionalText(input.summary, "summary", 500) ?? "",
     status,
     publishedAt: normalizePublishedAt(status, input.publishedAt) ?? null,
   };

@@ -26,7 +26,6 @@ export type ResourceListItem = {
   id: string;
   category: ResourceCategory;
   title: string;
-  summary: string;
   fileCount: number;
   publishedAt: string | null;
 };
@@ -54,7 +53,7 @@ type Joined = Tables<"resources"> & {
   files: Array<Tables<"resource_files"> & { file: Tables<"files"> }>;
 };
 const SELECT =
-  "id,category,title,summary,status,published_at,created_at,updated_at,files:resource_files(resource_id,file_id,show_in_gallery,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
+  "id,category,title,status,published_at,created_at,updated_at,files:resource_files(resource_id,file_id,show_in_gallery,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
 
 export function mapResource(row: Joined): ResourceDetail {
   const files = row.files
@@ -74,7 +73,6 @@ export function mapResource(row: Joined): ResourceDetail {
     id: row.id,
     category: row.category as ResourceCategory,
     title: row.title,
-    summary: row.summary,
     fileCount: files.length,
     publishedAt: row.published_at,
     files,
@@ -122,7 +120,6 @@ export function mapResourceListRow(row: RpcResourceRow, admin: boolean) {
     id: row.id,
     category: row.category as ResourceCategory,
     title: row.title,
-    summary: row.summary,
     fileCount: row.file_count,
     publishedAt: row.published_at,
   };

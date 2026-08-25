@@ -4,7 +4,6 @@ export type SeminarEventValues = {
   applicationMethod?: string | null;
   applicationUrl?: string | null;
   capacity?: number | null;
-  caption?: string;
   content?: string;
   endsAt?: string | null;
   isPinned?: boolean;
@@ -23,7 +22,6 @@ export type NormalizedSeminarEventValues = {
   applicationMethod: string | null;
   applicationUrl: string | null;
   capacity: number | null;
-  caption: string;
   content: string;
   endsAt: string | null;
   isPinned: boolean;
@@ -120,12 +118,6 @@ export function normalizeSeminarEventValues(
     values.registrationDeadline,
     "접수 마감일",
   );
-  const caption = values.caption?.trim() ?? "";
-
-  if (caption.length > 200) {
-    throw new RangeError("캡션은 200자 이하여야 합니다.");
-  }
-
   if (endsAt && Date.parse(endsAt) < Date.parse(startsAt)) {
     throw new RangeError("종료 일시는 시작 일시보다 빠를 수 없습니다.");
   }
@@ -150,7 +142,6 @@ export function normalizeSeminarEventValues(
     applicationMethod: normalizeOptionalText(values.applicationMethod),
     applicationUrl: normalizeApplicationUrl(values.applicationUrl),
     capacity,
-    caption,
     content: values.content ?? "",
     endsAt,
     isPinned: values.isPinned ?? false,

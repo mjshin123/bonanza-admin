@@ -242,7 +242,6 @@ export function GeneralPostAdmin({
       if (!postId) {
         const createdPost = await createMutation.mutateAsync({
           boardId: board.id,
-          caption: form.caption,
           content: initialContent,
           isPinned: mode === "gallery" ? false : form.isPinned,
           isPublished: hasNewAssets ? false : isPublished,
@@ -321,7 +320,6 @@ export function GeneralPostAdmin({
 
       if (editingPost || hasNewAssets) {
         await updateMutation.mutateAsync({
-          caption: form.caption,
           content: finalContent,
           id: postId,
           isPinned: mode === "gallery" ? false : form.isPinned,

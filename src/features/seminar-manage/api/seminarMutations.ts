@@ -19,7 +19,6 @@ export type SaveSeminarFileInput = {
 export type CreateSeminarInput = {
   title: string;
   introduction?: string;
-  resultSummary?: string;
   content?: string | null;
   startsAt: string;
   endsAt?: string | null;
@@ -66,7 +65,6 @@ export function buildSeminarCommand(i: CreateSeminarInput): Json {
   return {
     title: requireText(i.title, "title", 200),
     introduction: i.introduction ?? "",
-    resultSummary: i.resultSummary ?? "",
     content: i.content ?? null,
     startsAt: validDate(i.startsAt, "startsAt")!,
     endsAt: validDate(i.endsAt, "endsAt") ?? null,
