@@ -255,6 +255,7 @@ export type Database = {
           id: string
           institution_type: string
           is_active: boolean
+          is_pending: boolean
           logo_file_id: string | null
           name: string
           updated_at: string
@@ -269,6 +270,7 @@ export type Database = {
           id?: string
           institution_type: string
           is_active?: boolean
+          is_pending?: boolean
           logo_file_id?: string | null
           name: string
           updated_at?: string
@@ -283,6 +285,7 @@ export type Database = {
           id?: string
           institution_type?: string
           is_active?: boolean
+          is_pending?: boolean
           logo_file_id?: string | null
           name?: string
           updated_at?: string

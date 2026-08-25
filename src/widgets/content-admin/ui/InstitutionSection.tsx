@@ -48,6 +48,7 @@ type InstitutionFormState = {
   homepageUrl: string;
   displayOrder: string;
   isActive: boolean;
+  isPending: boolean;
   logoFileId: string | null;
   logoUrl: string | null;
 };
@@ -60,6 +61,7 @@ const EMPTY_INSTITUTION: InstitutionFormState = {
   homepageUrl: "",
   displayOrder: "0",
   isActive: true,
+  isPending: false,
   logoFileId: null,
   logoUrl: null,
 };
@@ -90,6 +92,7 @@ function InstitutionEditor({
             homepageUrl: item.homepageUrl ?? "",
             displayOrder: String(item.displayOrder),
             isActive: item.isActive,
+            isPending: item.isPending,
             logoFileId: item.logo?.id ?? null,
             logoUrl: item.logo?.url ?? null,
           }
@@ -107,6 +110,7 @@ function InstitutionEditor({
       homepageUrl: form.homepageUrl || null,
       displayOrder: Number(form.displayOrder),
       isActive: form.isActive,
+      isPending: form.isPending,
       logoFileId: form.logoFileId,
     };
     try {
@@ -194,6 +198,13 @@ function InstitutionEditor({
           checked={form.isActive}
           label="홈페이지에 기관 노출"
           onChange={(isActive) => setForm({ ...form, isActive })}
+        />
+      </Field>
+      <Field label="등록 상태">
+        <Checkbox
+          checked={form.isPending}
+          label="등록 예정으로 표시"
+          onChange={(isPending) => setForm({ ...form, isPending })}
         />
       </Field>
       <Field label="기관 설명" wide>
@@ -529,6 +540,7 @@ export function InstitutionSection() {
                   <th>타입</th>
                   <th>분류</th>
                   <th>노출</th>
+                  <th>등록 상태</th>
                   <th>순서</th>
                   <th aria-label="작업" />
                 </tr>
@@ -561,6 +573,7 @@ export function InstitutionSection() {
                     </td>
                     <td>{item.category.name}</td>
                     <td>{item.isActive ? "노출" : "미노출"}</td>
+                    <td>{item.isPending ? "등록 예정" : "등록 완료"}</td>
                     <td>{item.displayOrder}</td>
                     <td>
                       <div className="content-admin-table-actions">

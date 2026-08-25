@@ -19,6 +19,7 @@ export type CreateInstitutionInput = {
   homepageUrl?: string | null;
   displayOrder?: number;
   isActive?: boolean;
+  isPending?: boolean;
 };
 export type UpdateInstitutionInput = Partial<CreateInstitutionInput> & {
   id: string;
@@ -66,6 +67,7 @@ function mapInput(
     payload.display_order = input.displayOrder;
   }
   if (input.isActive !== undefined) payload.is_active = input.isActive;
+  if (input.isPending !== undefined) payload.is_pending = input.isPending;
   return payload;
 }
 

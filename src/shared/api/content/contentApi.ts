@@ -5,7 +5,13 @@ export type ContentStatus = "draft" | "published" | "hidden";
 export type FileKind = "image" | "attachment";
 export type InstitutionType = "member" | "partner";
 export type PostCategory = "notice" | "association_news" | "member_news";
-export type ResourceCategory = "resource" | "financial_disclosure";
+export type ResourceCategory =
+  | "seminar_material"
+  | "law_policy"
+  | "annual_settlement"
+  | "business_plan_budget"
+  | "donation_usage"
+  | "annual_report";
 export type PostFileRole = "cover" | "content";
 export type SeminarFileRole = "poster" | "photo";
 export type SelectionMethod = "first_come" | "lottery" | "other";

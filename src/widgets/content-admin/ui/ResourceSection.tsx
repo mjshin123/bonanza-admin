@@ -53,8 +53,12 @@ type SelectedResourceFile = {
 
 const EMPTY_ID = "00000000-0000-4000-8000-000000000000";
 const CATEGORIES: Array<{ value: ResourceCategory; label: string }> = [
-  { value: "resource", label: "자료실" },
-  { value: "financial_disclosure", label: "결산 · 공시 자료" },
+  { value: "seminar_material", label: "세미나 자료" },
+  { value: "law_policy", label: "법령·정책 자료" },
+  { value: "annual_settlement", label: "연간 결산서류" },
+  { value: "business_plan_budget", label: "사업계획 및 예산" },
+  { value: "donation_usage", label: "기부금 모집·사용 내역" },
+  { value: "annual_report", label: "연차보고서" },
 ];
 
 function ResourceEditor({
@@ -280,7 +284,8 @@ function ResourceEditor({
 
 export function ResourceSection() {
   const queryClient = useQueryClient();
-  const [category, setCategory] = useState<ResourceCategory>("resource");
+  const [category, setCategory] =
+    useState<ResourceCategory>("seminar_material");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const q = useDebouncedValue(search);
