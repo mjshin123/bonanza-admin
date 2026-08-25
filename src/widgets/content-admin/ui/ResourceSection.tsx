@@ -5,11 +5,11 @@ import {
   adminResourceDetailQueryOptions,
   adminResourcesQueryOptions,
   resourceQueryKeys,
-  type AdminResourceListItem,
 } from "@entities/resource";
 import {
+  bulkDeleteResourcesMutationOptions,
+  bulkHideResourcesMutationOptions,
   createResourceMutationOptions,
-  deleteResourceMutationOptions,
   updateResourceMutationOptions,
 } from "@features/resource-manage";
 import type {
@@ -22,8 +22,10 @@ import { Button, Input } from "@shared/ui";
 import {
   bytesLabel,
   EDIT_STATUS_OPTIONS,
+  endOfDayIso,
   formatDateTime,
   PAGE_SIZE,
+  startOfDayIso,
   STATUS_OPTIONS,
   toDateTimeLocal,
   toIsoOrNull,
@@ -80,7 +82,6 @@ function ResourceEditor({
   const mutation = editingId ? updateMutation : createMutation;
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
-  const [referenceYear, setReferenceYear] = useState("");
   const [status, setStatus] = useState<ContentStatus>("draft");
   const [publishedAt, setPublishedAt] = useState("");
   const [files, setFiles] = useState<SelectedResourceFile[]>([]);
@@ -90,7 +91,6 @@ function ResourceEditor({
     if (!item) return;
     setTitle(item.title);
     setSummary(item.summary);
-    setReferenceYear(item.referenceYear ? String(item.referenceYear) : "");
     setStatus(item.status);
     setPublishedAt(toDateTimeLocal(item.publishedAt));
     setFiles(
@@ -107,7 +107,6 @@ function ResourceEditor({
       category,
       title,
       summary,
-      referenceYear: referenceYear ? Number(referenceYear) : null,
       status,
       publishedAt: toIsoOrNull(publishedAt),
       files: files.map((entry) => ({
@@ -158,17 +157,6 @@ function ResourceEditor({
           maxLength={500}
           value={summary}
           onChange={(event) => setSummary(event.target.value)}
-        />
-      </Field>
-      <Field label="기준연도">
-        <input
-          className="content-admin-native-input"
-          max={2100}
-          min={1900}
-          placeholder="예: 2026"
-          type="number"
-          value={referenceYear}
-          onChange={(event) => setReferenceYear(event.target.value)}
         />
       </Field>
       <Field label="게시 상태" required>
@@ -290,10 +278,11 @@ export function ResourceSection() {
   const [search, setSearch] = useState("");
   const q = useDebouncedValue(search);
   const [status, setStatus] = useState("");
-  const [year, setYear] = useState("");
-  const referenceYear = /^\d{4}$/.test(year) ? Number(year) : undefined;
+  const [publishedFrom, setPublishedFrom] = useState("");
+  const [publishedTo, setPublishedTo] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminResourcesQueryOptions({
       page,
@@ -301,15 +290,43 @@ export function ResourceSection() {
       category,
       q: q || undefined,
       status: status ? (status as ContentStatus) : undefined,
-      referenceYear,
+      publishedFrom: startOfDayIso(publishedFrom),
+      publishedTo: endOfDayIso(publishedTo),
     }),
   );
-  const deleteMutation = useMutation(deleteResourceMutationOptions());
-  const remove = async (item: AdminResourceListItem) => {
-    if (!window.confirm(`'${item.title}' 자료를 삭제할까요?`)) return;
+  const items = query.data?.items ?? [];
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [category, page, q, status, publishedFrom, publishedTo]);
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
+  };
+  const hideMutation = useMutation(bulkHideResourcesMutationOptions());
+  const bulkDeleteMutation = useMutation(bulkDeleteResourcesMutationOptions());
+  const bulkHide = async () => {
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
     try {
-      await deleteMutation.mutateAsync(item.id);
+      await hideMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({ queryKey: resourceQueryKeys.all });
+      setSelectedIds(new Set());
+    } catch {
+      /* 표시 */
+    }
+  };
+  const bulkDelete = async () => {
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
+    try {
+      await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+      await queryClient.invalidateQueries({ queryKey: resourceQueryKeys.all });
+      setSelectedIds(new Set());
     } catch {
       /* 표시 */
     }
@@ -329,7 +346,7 @@ export function ResourceSection() {
     <section className="content-admin-section">
       <SectionTitle
         title="자료실 · 결산/공시"
-        description="자료 유형과 기준연도, 다운로드 파일을 관리합니다."
+        description="자료 유형과 다운로드 파일을 관리합니다."
         action={<Button onClick={() => setEditorOpen(true)}>자료 등록</Button>}
       />
       <SectionTabs
@@ -350,45 +367,67 @@ export function ResourceSection() {
             setPage(1);
           }}
         />
-        <Input
-          aria-label="기준연도"
-          max={2100}
-          min={1900}
-          placeholder="기준연도"
-          type="number"
-          value={year}
-          onChange={(event) => {
-            setYear(event.target.value);
-            setPage(1);
-          }}
-        />
-        <NativeSelect
-          aria-label="게시 상태"
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
-        >
-          {STATUS_OPTIONS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </NativeSelect>
+        <div className="content-admin-filter-extra">
+          <NativeSelect
+            aria-label="게시 상태"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            {STATUS_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </NativeSelect>
+          <div className="content-admin-date-range">
+            <input
+              aria-label="게시일 시작"
+              className="content-admin-native-input"
+              type="date"
+              value={publishedFrom}
+              onChange={(event) => {
+                setPublishedFrom(event.target.value);
+                setPage(1);
+              }}
+            />
+            <span>~</span>
+            <input
+              aria-label="게시일 종료"
+              className="content-admin-native-input"
+              type="date"
+              value={publishedTo}
+              onChange={(event) => {
+                setPublishedTo(event.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+        </div>
       </FilterBar>
-      <MutationMessage error={deleteMutation.error} />
+      <MutationMessage error={bulkDeleteMutation.error} />
+      <MutationMessage error={hideMutation.error} />
       <TableShell
         isLoading={query.isPending}
         error={query.error}
-        isEmpty={!query.data?.items.length}
+        isEmpty={!items.length}
         emptyMessage="등록된 자료가 없습니다."
       >
         <table>
           <thead>
             <tr>
+              <th aria-label="선택">
+                <input
+                  aria-label="전체 선택"
+                  checked={items.length > 0 && selectedIds.size === items.length}
+                  className="content-admin-row-checkbox"
+                  type="checkbox"
+                  onChange={(event) => toggleSelectAll(event.target.checked)}
+                />
+              </th>
               <th>제목</th>
-              <th>기준연도</th>
               <th>파일</th>
               <th>상태</th>
               <th>게시일</th>
@@ -396,15 +435,25 @@ export function ResourceSection() {
             </tr>
           </thead>
           <tbody>
-            {query.data?.items.map((item) => (
+            {items.map((item) => (
               <tr key={item.id}>
+                <td>
+                  <input
+                    aria-label={`${item.title} 선택`}
+                    checked={selectedIds.has(item.id)}
+                    className="content-admin-row-checkbox"
+                    type="checkbox"
+                    onChange={(event) =>
+                      toggleSelected(item.id, event.target.checked)
+                    }
+                  />
+                </td>
                 <td>
                   <div className="content-admin-table-title">
                     <strong>{item.title}</strong>
                     <span>{item.summary || "요약 없음"}</span>
                   </div>
                 </td>
-                <td>{item.referenceYear ?? "-"}</td>
                 <td>{item.fileCount}개</td>
                 <td>
                   <StatusBadge status={item.status} />
@@ -422,13 +471,6 @@ export function ResourceSection() {
                     >
                       수정
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="text"
-                      onClick={() => void remove(item)}
-                    >
-                      삭제
-                    </Button>
                   </div>
                 </td>
               </tr>
@@ -436,6 +478,31 @@ export function ResourceSection() {
           </tbody>
         </table>
       </TableShell>
+      {selectedIds.size > 0 ? (
+        <FilterBar>
+          <span className="content-admin-muted">
+            {selectedIds.size}건 선택됨
+          </span>
+          <div className="content-admin-table-actions">
+            <Button
+              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkHide()}
+            >
+              선택 숨김
+            </Button>
+            <Button
+              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              size="sm"
+              variant="danger"
+              onClick={() => void bulkDelete()}
+            >
+              선택 삭제
+            </Button>
+          </div>
+        </FilterBar>
+      ) : null}
       <Pager
         page={page}
         total={query.data?.total ?? 0}

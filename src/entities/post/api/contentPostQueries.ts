@@ -9,6 +9,7 @@ import {
   pageResult,
   requireUuid,
   resolvePageParams,
+  resolvePublishedDateRange,
   throwContentError,
   type ContentStatus,
   type FileDto,
@@ -56,6 +57,8 @@ export type PostListParamsV2 = PageParams & {
 };
 export type AdminPostListParamsV2 = PostListParamsV2 & {
   status?: ContentStatus;
+  publishedFrom?: string;
+  publishedTo?: string;
 };
 export type PostListItem = ContentPostListItem;
 export type PostDetail = ContentPostDetail;
@@ -125,6 +128,10 @@ function mapPost(row: JoinedPost): ContentPostDetail {
 }
 
 function resolveParams(params: AdminPostListParamsV2 = {}) {
+  const { publishedFrom, publishedTo } = resolvePublishedDateRange(
+    params.publishedFrom,
+    params.publishedTo,
+  );
   return {
     ...resolvePageParams(params),
     category: params.category,
@@ -133,6 +140,8 @@ function resolveParams(params: AdminPostListParamsV2 = {}) {
       : undefined,
     q: params.q?.trim() || undefined,
     status: params.status,
+    publishedFrom,
+    publishedTo,
   };
 }
 export const contentPostQueryKeys = {
@@ -148,7 +157,7 @@ export const contentPostQueryKeys = {
 };
 
 type RpcPostRow =
-  Database["public"]["Functions"]["list_content_posts"]["Returns"][number];
+  Database["public"]["Functions"]["list_admin_content_posts"]["Returns"][number];
 type RpcInstitution = {
   id: string;
   institution_type: string;
@@ -212,15 +221,27 @@ async function fetchList(
   params: ReturnType<typeof resolveParams>,
   admin: boolean,
 ): Promise<PageResult<ContentPostListItem | AdminContentPostListItem>> {
-  const { data, error } = await supabase.rpc("list_content_posts", {
-    p_admin: admin,
-    p_category: params.category,
-    p_institution_id: params.institutionId,
-    p_page: params.page,
-    p_page_size: params.pageSize,
-    p_q: params.q,
-    p_status: admin ? params.status : undefined,
-  });
+  const { data, error } = admin
+    ? await supabase.rpc("list_admin_content_posts", {
+        p_admin: true,
+        p_category: params.category,
+        p_institution_id: params.institutionId,
+        p_page: params.page,
+        p_page_size: params.pageSize,
+        p_published_from: params.publishedFrom,
+        p_published_to: params.publishedTo,
+        p_q: params.q,
+        p_status: params.status,
+      })
+    : await supabase.rpc("list_content_posts", {
+        p_admin: false,
+        p_category: params.category,
+        p_institution_id: params.institutionId,
+        p_page: params.page,
+        p_page_size: params.pageSize,
+        p_q: params.q,
+        p_status: undefined,
+      });
   if (error) throwContentError(error);
   const rows = data as RpcPostRow[];
   const items = admin

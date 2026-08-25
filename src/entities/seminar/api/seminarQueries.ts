@@ -6,20 +6,18 @@ import {
   pageResult,
   requireUuid,
   resolvePageParams,
+  resolvePublishedDateRange,
   throwContentError,
   type ContentStatus,
   type FileDto,
   type PageParams,
   type PageResult,
-  type SelectionMethod,
-  type SeminarFileRole,
   type SeminarTiming,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
 import type { Database, Tables } from "@shared/api/supabase";
 export type SeminarFileDto = {
   file: FileDto;
-  role: SeminarFileRole;
   showInGallery: boolean;
   sortOrder: number;
   createdAt: string;
@@ -31,18 +29,15 @@ export type SeminarListItem = {
   resultSummary: string;
   startsAt: string;
   endsAt: string | null;
-  location: string;
+  location: string | null;
   poster: FileDto | null;
   publishedAt: string | null;
+  isFeatured: boolean;
 };
 export type SeminarDetail = SeminarListItem & {
   content: string | null;
-  selectionMethod: SelectionMethod;
-  selectionMethodDetail: string | null;
-  capacity: number | null;
-  registrationDeadline: string | null;
   applicationUrl: string | null;
-  photos: SeminarFileDto[];
+  images: SeminarFileDto[];
   status: ContentStatus;
   createdAt: string;
   updatedAt: string;
@@ -60,17 +55,18 @@ export type SeminarListParams = PageParams & {
 };
 export type AdminSeminarListParams = SeminarListParams & {
   status?: ContentStatus;
+  publishedFrom?: string;
+  publishedTo?: string;
 };
 type Joined = Tables<"seminars"> & {
   files: Array<Tables<"seminar_files"> & { file: Tables<"files"> }>;
 };
 const SELECT =
-  "id,title,introduction,result_summary,content,starts_at,ends_at,location,selection_method,selection_method_detail,capacity,registration_deadline,application_url,status,published_at,created_at,updated_at,files:seminar_files(seminar_id,file_id,role,show_in_gallery,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
+  "id,title,introduction,result_summary,content,starts_at,ends_at,location,application_url,is_featured,status,published_at,created_at,updated_at,files:seminar_files(seminar_id,file_id,show_in_gallery,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
 export function mapSeminar(row: Joined): SeminarDetail {
-  const files = row.files
+  const images = row.files
     .map((r) => ({
       file: mapFile(r.file),
-      role: r.role as SeminarFileRole,
       showInGallery: r.show_in_gallery,
       sortOrder: r.sort_order,
       createdAt: r.created_at,
@@ -89,15 +85,12 @@ export function mapSeminar(row: Joined): SeminarDetail {
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     location: row.location,
-    poster: files.find((f) => f.role === "poster")?.file ?? null,
+    poster: images[0]?.file ?? null,
     publishedAt: row.published_at,
+    isFeatured: row.is_featured,
     content: row.content,
-    selectionMethod: row.selection_method as SelectionMethod,
-    selectionMethodDetail: row.selection_method_detail,
-    capacity: row.capacity,
-    registrationDeadline: row.registration_deadline,
     applicationUrl: row.application_url,
-    photos: files.filter((f) => f.role === "photo"),
+    images,
     status: row.status as ContentStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -114,6 +107,10 @@ function resolveParams(p: AdminSeminarListParams = {}) {
     to = date(p.to, "to");
   if (from && to && from > to)
     throw new RangeError("from은 to보다 늦을 수 없습니다.");
+  const { publishedFrom, publishedTo } = resolvePublishedDateRange(
+    p.publishedFrom,
+    p.publishedTo,
+  );
   return {
     ...resolvePageParams(p),
     from,
@@ -121,6 +118,8 @@ function resolveParams(p: AdminSeminarListParams = {}) {
     q: p.q?.trim() || undefined,
     timing: p.timing ?? "upcoming",
     status: p.status,
+    publishedFrom,
+    publishedTo,
   };
 }
 export const seminarQueryKeys = {
@@ -133,17 +132,20 @@ export const seminarQueryKeys = {
   adminDetail: (id: string) => ["seminars", "admin", "detail", id] as const,
 };
 type RpcSeminarRow =
+  Database["public"]["Functions"]["list_admin_seminars"]["Returns"][number];
+type PublicRpcSeminarRow =
   Database["public"]["Functions"]["list_seminars"]["Returns"][number];
+type AnyRpcSeminarRow = RpcSeminarRow | PublicRpcSeminarRow;
 
 export function mapSeminarListRow(
-  row: RpcSeminarRow,
+  row: AnyRpcSeminarRow,
   admin: false,
 ): SeminarListItem;
 export function mapSeminarListRow(
-  row: RpcSeminarRow,
+  row: AnyRpcSeminarRow,
   admin: true,
 ): AdminSeminarListItem;
-export function mapSeminarListRow(row: RpcSeminarRow, admin: boolean) {
+export function mapSeminarListRow(row: AnyRpcSeminarRow, admin: boolean) {
   const item: SeminarListItem = {
     id: row.id,
     title: row.title,
@@ -154,6 +156,7 @@ export function mapSeminarListRow(row: RpcSeminarRow, admin: boolean) {
     location: row.location,
     poster: mapRpcFile(row.poster),
     publishedAt: row.published_at,
+    isFeatured: "is_featured" in row ? row.is_featured : false,
   };
   return admin
     ? {
@@ -176,18 +179,31 @@ async function fetchList(
   p: ReturnType<typeof resolveParams>,
   admin: boolean,
 ): Promise<PageResult<SeminarListItem | AdminSeminarListItem>> {
-  const { data, error } = await supabase.rpc("list_seminars", {
-    p_admin: admin,
-    p_from: p.from,
-    p_page: p.page,
-    p_page_size: p.pageSize,
-    p_q: p.q,
-    p_status: admin ? p.status : undefined,
-    p_timing: p.timing,
-    p_to: p.to,
-  });
+  const { data, error } = admin
+    ? await supabase.rpc("list_admin_seminars", {
+        p_admin: true,
+        p_from: p.from,
+        p_page: p.page,
+        p_page_size: p.pageSize,
+        p_published_from: p.publishedFrom,
+        p_published_to: p.publishedTo,
+        p_q: p.q,
+        p_status: p.status,
+        p_timing: p.timing,
+        p_to: p.to,
+      })
+    : await supabase.rpc("list_seminars", {
+        p_admin: false,
+        p_from: p.from,
+        p_page: p.page,
+        p_page_size: p.pageSize,
+        p_q: p.q,
+        p_status: undefined,
+        p_timing: p.timing,
+        p_to: p.to,
+      });
   if (error) throwContentError(error);
-  const rows = data as RpcSeminarRow[];
+  const rows = data as AnyRpcSeminarRow[];
   const items = admin
     ? rows.map((row) => mapSeminarListRow(row, true))
     : rows.map((row) => mapSeminarListRow(row, false));

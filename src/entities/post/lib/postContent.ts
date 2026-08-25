@@ -26,6 +26,8 @@ const ALLOWED_TEXT_COLORS = new Set([
   "#2b5b60",
   "#c6392e",
 ]);
+const ALLOWED_TEXT_ALIGN = new Set(["left", "center", "right"]);
+const ALIGNABLE_TAGS = new Set(["P", "H2", "H3"]);
 
 const SANITIZE_OPTIONS: Config = {
   ALLOWED_ATTR: [
@@ -93,21 +95,25 @@ function normalizeTextStyles(value: string) {
   for (const element of document.body.querySelectorAll<HTMLElement>(
     "[style]",
   )) {
-    if (element.tagName !== "SPAN") {
-      element.removeAttribute("style");
-      continue;
-    }
-
     const styles: string[] = [];
-    const color = normalizeTextColor(element.style.color);
-    const fontSize = element.style.fontSize.trim().toLowerCase();
 
-    if (ALLOWED_TEXT_COLORS.has(color)) {
-      styles.push(`color: ${color}`);
-    }
+    if (element.tagName === "SPAN") {
+      const color = normalizeTextColor(element.style.color);
+      const fontSize = element.style.fontSize.trim().toLowerCase();
 
-    if (ALLOWED_FONT_SIZES.has(fontSize)) {
-      styles.push(`font-size: ${fontSize}`);
+      if (ALLOWED_TEXT_COLORS.has(color)) {
+        styles.push(`color: ${color}`);
+      }
+
+      if (ALLOWED_FONT_SIZES.has(fontSize)) {
+        styles.push(`font-size: ${fontSize}`);
+      }
+    } else if (ALIGNABLE_TAGS.has(element.tagName)) {
+      const textAlign = element.style.textAlign.trim().toLowerCase();
+
+      if (ALLOWED_TEXT_ALIGN.has(textAlign)) {
+        styles.push(`text-align: ${textAlign}`);
+      }
     }
 
     if (styles.length > 0) {

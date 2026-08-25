@@ -705,6 +705,7 @@ export type Database = {
           ends_at: string | null
           id: string
           introduction: string
+          is_featured: boolean
           location: string
           published_at: string | null
           registration_deadline: string | null
@@ -725,6 +726,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           introduction?: string
+          is_featured?: boolean
           location: string
           published_at?: string | null
           registration_deadline?: string | null
@@ -745,6 +747,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           introduction?: string
+          is_featured?: boolean
           location?: string
           published_at?: string | null
           registration_deadline?: string | null
@@ -887,6 +890,33 @@ export type Database = {
           width_px: number
         }[]
       }
+      list_admin_content_posts: {
+        Args: {
+          p_admin?: boolean
+          p_category?: string
+          p_institution_id?: string
+          p_page?: number
+          p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
+          p_q?: string
+          p_status?: string
+        }
+        Returns: {
+          category: string
+          cover: Json
+          created_at: string
+          id: string
+          institution: Json
+          is_pinned: boolean
+          published_at: string
+          status: string
+          summary: string
+          title: string
+          total_count: number
+          updated_at: string
+        }[]
+      }
       list_content_posts: {
         Args: {
           p_admin?: boolean
@@ -943,8 +973,9 @@ export type Database = {
           p_category?: string
           p_page?: number
           p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
           p_q?: string
-          p_reference_year?: number
           p_status?: string
         }
         Returns: {
@@ -953,9 +984,38 @@ export type Database = {
           file_count: number
           id: string
           published_at: string
-          reference_year: number
           status: string
           summary: string
+          title: string
+          total_count: number
+          updated_at: string
+        }[]
+      }
+      list_admin_seminars: {
+        Args: {
+          p_admin?: boolean
+          p_from?: string
+          p_page?: number
+          p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
+          p_q?: string
+          p_status?: string
+          p_timing?: string
+          p_to?: string
+        }
+        Returns: {
+          created_at: string
+          ends_at: string
+          id: string
+          introduction: string
+          is_featured: boolean
+          location: string
+          poster: Json
+          published_at: string
+          result_summary: string
+          starts_at: string
+          status: string
           title: string
           total_count: number
           updated_at: string
@@ -1095,6 +1155,7 @@ export type Database = {
           ends_at: string | null
           id: string
           introduction: string
+          is_featured: boolean
           location: string
           published_at: string | null
           registration_deadline: string | null

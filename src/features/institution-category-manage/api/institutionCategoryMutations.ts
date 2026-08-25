@@ -49,12 +49,25 @@ function mapInput(input: Partial<CreateInstitutionCategoryInput>) {
   return result;
 }
 
+async function nextDisplayOrder() {
+  const { data, error } = await supabase
+    .from("institution_categories")
+    .select("display_order")
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throwContentError(error);
+  return (data?.display_order ?? -1) + 1;
+}
+
 async function createCategory(
   input: CreateInstitutionCategoryInput,
 ): Promise<InstitutionCategoryDto> {
   const payload = mapInput(input);
   if (!payload.code || !payload.name)
     throw new TypeError("code와 name은 필수입니다.");
+  if (payload.display_order === undefined)
+    payload.display_order = await nextDisplayOrder();
   const { data, error } = await supabase
     .from("institution_categories")
     .insert(payload as TablesInsert<"institution_categories">)
@@ -78,6 +91,26 @@ async function updateCategory(
     .single();
   if (error) throwContentError(error);
   return mapInstitutionCategory(data);
+}
+
+export type SwapInstitutionCategoryOrderInput = {
+  first: { id: string; displayOrder: number };
+  second: { id: string; displayOrder: number };
+};
+
+async function swapCategoryOrder(input: SwapInstitutionCategoryOrderInput) {
+  const results = await Promise.all([
+    supabase
+      .from("institution_categories")
+      .update({ display_order: input.second.displayOrder })
+      .eq("id", requireUuid(input.first.id)),
+    supabase
+      .from("institution_categories")
+      .update({ display_order: input.first.displayOrder })
+      .eq("id", requireUuid(input.second.id)),
+  ]);
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throwContentError(failed.error);
 }
 
 async function deleteCategory(id: string): Promise<string> {
@@ -106,4 +139,9 @@ export const deleteInstitutionCategoryMutationOptions = () =>
   mutationOptions({
     mutationKey: ["institution-categories", "delete"],
     mutationFn: deleteCategory,
+  });
+export const swapInstitutionCategoryOrderMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["institution-categories", "swap-order"],
+    mutationFn: swapCategoryOrder,
   });
