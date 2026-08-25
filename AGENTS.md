@@ -66,3 +66,11 @@
 - 구현 중 관련 없는 리팩터링, 기능 추가, 패키지 변경 또는 디자인 변경을 함께 수행하지 않는다.
 - 승인된 검증 절차를 실행하고, 실패하면 원인을 분석한다. 계획 범위를 넘어서는 수정이 필요하면 다시 승인을 받는다.
 - 완료 보고에는 변경한 내용, 변경한 파일, 수행한 검증과 결과, 남아 있는 제한 사항을 명확히 적는다.
+
+## 5. API 연동은 API_GUIDE.md를 기준으로 할 것
+
+- 조회, 저장, 파일 처리, 오류 처리를 포함한 모든 Supabase 기반 API 연동은 프로젝트 루트의 `API_GUIDE.md`를 우선 기준으로 삼는다.
+- 더 자세한 내용이 필요하면 전체 DB 정책은 `KFCPA_DB_명세서_v1.md`, 상세 계약은 `kfcpa-api-명세.md`를 참고하되, 요약된 규칙과 우선순위는 `API_GUIDE.md`를 따른다.
+- 원시 RPC나 PostgREST 호출을 직접 작성하기보다 `src/entities`의 Query option과 `src/features`의 Mutation option을 우선 사용한다.
+- `API_GUIDE.md`와 실제 코드, migration, DB 명세가 충돌하면 임의로 판단하지 않고 충돌 내용을 사용자에게 알린 뒤 지시를 받는다.
+- API 계약을 변경하면 migration, 생성 DB 타입, entity Query, feature Mutation과 함께 `API_GUIDE.md`도 함께 갱신한다.

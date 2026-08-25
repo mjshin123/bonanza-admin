@@ -255,6 +255,7 @@ export type Database = {
           id: string
           institution_type: string
           is_active: boolean
+          is_upcoming: boolean
           logo_file_id: string | null
           name: string
           updated_at: string
@@ -269,6 +270,7 @@ export type Database = {
           id?: string
           institution_type: string
           is_active?: boolean
+          is_upcoming?: boolean
           logo_file_id?: string | null
           name: string
           updated_at?: string
@@ -283,6 +285,7 @@ export type Database = {
           id?: string
           institution_type?: string
           is_active?: boolean
+          is_upcoming?: boolean
           logo_file_id?: string | null
           name?: string
           updated_at?: string
@@ -561,7 +564,6 @@ export type Database = {
           created_by: string | null
           id: string
           published_at: string | null
-          reference_year: number | null
           status: string
           summary: string
           title: string
@@ -573,7 +575,6 @@ export type Database = {
           created_by?: string | null
           id?: string
           published_at?: string | null
-          reference_year?: number | null
           status?: string
           summary?: string
           title: string
@@ -585,7 +586,6 @@ export type Database = {
           created_by?: string | null
           id?: string
           published_at?: string | null
-          reference_year?: number | null
           status?: string
           summary?: string
           title?: string
@@ -647,7 +647,6 @@ export type Database = {
         Row: {
           created_at: string
           file_id: string
-          role: string
           seminar_id: string
           show_in_gallery: boolean
           sort_order: number
@@ -655,7 +654,6 @@ export type Database = {
         Insert: {
           created_at?: string
           file_id: string
-          role: string
           seminar_id: string
           show_in_gallery?: boolean
           sort_order?: number
@@ -663,7 +661,6 @@ export type Database = {
         Update: {
           created_at?: string
           file_id?: string
-          role?: string
           seminar_id?: string
           show_in_gallery?: boolean
           sort_order?: number
@@ -695,19 +692,16 @@ export type Database = {
       seminars: {
         Row: {
           application_url: string | null
-          capacity: number | null
           content: string | null
           created_at: string
           created_by: string | null
           ends_at: string | null
           id: string
           introduction: string
-          location: string
+          is_featured: boolean
+          location: string | null
           published_at: string | null
-          registration_deadline: string | null
           result_summary: string
-          selection_method: string
-          selection_method_detail: string | null
           starts_at: string
           status: string
           title: string
@@ -715,19 +709,16 @@ export type Database = {
         }
         Insert: {
           application_url?: string | null
-          capacity?: number | null
           content?: string | null
           created_at?: string
           created_by?: string | null
           ends_at?: string | null
           id?: string
           introduction?: string
-          location: string
+          is_featured?: boolean
+          location?: string | null
           published_at?: string | null
-          registration_deadline?: string | null
           result_summary?: string
-          selection_method: string
-          selection_method_detail?: string | null
           starts_at: string
           status?: string
           title: string
@@ -735,19 +726,16 @@ export type Database = {
         }
         Update: {
           application_url?: string | null
-          capacity?: number | null
           content?: string | null
           created_at?: string
           created_by?: string | null
           ends_at?: string | null
           id?: string
           introduction?: string
-          location?: string
+          is_featured?: boolean
+          location?: string | null
           published_at?: string | null
-          registration_deadline?: string | null
           result_summary?: string
-          selection_method?: string
-          selection_method_detail?: string | null
           starts_at?: string
           status?: string
           title?: string
@@ -891,6 +879,8 @@ export type Database = {
           p_institution_id?: string
           p_page?: number
           p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
           p_q?: string
           p_status?: string
         }
@@ -940,8 +930,9 @@ export type Database = {
           p_category?: string
           p_page?: number
           p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
           p_q?: string
-          p_reference_year?: number
           p_status?: string
         }
         Returns: {
@@ -950,7 +941,6 @@ export type Database = {
           file_count: number
           id: string
           published_at: string
-          reference_year: number
           status: string
           summary: string
           title: string
@@ -964,6 +954,8 @@ export type Database = {
           p_from?: string
           p_page?: number
           p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
           p_q?: string
           p_status?: string
           p_timing?: string
@@ -974,6 +966,7 @@ export type Database = {
           ends_at: string
           id: string
           introduction: string
+          is_featured: boolean
           location: string
           poster: Json
           published_at: string
@@ -1063,7 +1056,6 @@ export type Database = {
           created_by: string | null
           id: string
           published_at: string | null
-          reference_year: number | null
           status: string
           summary: string
           title: string

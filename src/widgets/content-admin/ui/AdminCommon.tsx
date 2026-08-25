@@ -12,7 +12,11 @@ import type { FileDto, FileKind } from "@shared/api/content";
 import { getErrorMessage } from "@shared/lib";
 import { Badge, Button, Card, Notice, Pagination } from "@shared/ui";
 
-import { statusLabel, statusTone } from "../model/adminContent";
+import {
+  resolveDisplayStatus,
+  statusLabel,
+  statusTone,
+} from "../model/adminContent";
 
 export function SectionTitle({
   title,
@@ -114,10 +118,13 @@ export function Pager({
 
 export function StatusBadge({
   status,
+  publishedAt,
 }: {
   status: "draft" | "published" | "hidden";
+  publishedAt?: string | null;
 }) {
-  return <Badge tone={statusTone(status)}>{statusLabel(status)}</Badge>;
+  const displayStatus = resolveDisplayStatus(status, publishedAt);
+  return <Badge tone={statusTone(displayStatus)}>{statusLabel(displayStatus)}</Badge>;
 }
 
 export function Field({

@@ -17,6 +17,7 @@
     "@tanstack/react-router": "^1.170.21",
     "@tiptap/extension-image": "^3.30.0",
     "@tiptap/extension-placeholder": "^3.30.0",
+    "@tiptap/extension-text-align": "^3.30.0",
     "@tiptap/extension-text-style": "^3.30.0",
     "@tiptap/pm": "^3.30.0",
     "@tiptap/react": "^3.30.0",

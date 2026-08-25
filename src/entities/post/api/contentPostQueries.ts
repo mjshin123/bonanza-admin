@@ -9,6 +9,7 @@ import {
   pageResult,
   requireUuid,
   resolvePageParams,
+  resolvePublishedDateRange,
   throwContentError,
   type ContentStatus,
   type FileDto,
@@ -56,6 +57,8 @@ export type PostListParamsV2 = PageParams & {
 };
 export type AdminPostListParamsV2 = PostListParamsV2 & {
   status?: ContentStatus;
+  publishedFrom?: string;
+  publishedTo?: string;
 };
 export type PostListItem = ContentPostListItem;
 export type PostDetail = ContentPostDetail;
@@ -125,6 +128,10 @@ function mapPost(row: JoinedPost): ContentPostDetail {
 }
 
 function resolveParams(params: AdminPostListParamsV2 = {}) {
+  const { publishedFrom, publishedTo } = resolvePublishedDateRange(
+    params.publishedFrom,
+    params.publishedTo,
+  );
   return {
     ...resolvePageParams(params),
     category: params.category,
@@ -133,6 +140,8 @@ function resolveParams(params: AdminPostListParamsV2 = {}) {
       : undefined,
     q: params.q?.trim() || undefined,
     status: params.status,
+    publishedFrom,
+    publishedTo,
   };
 }
 export const contentPostQueryKeys = {
@@ -218,6 +227,8 @@ async function fetchList(
     p_institution_id: params.institutionId,
     p_page: params.page,
     p_page_size: params.pageSize,
+    p_published_from: params.publishedFrom,
+    p_published_to: params.publishedTo,
     p_q: params.q,
     p_status: admin ? params.status : undefined,
   });

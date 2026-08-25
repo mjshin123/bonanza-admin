@@ -7,6 +7,7 @@ import {
 } from "react";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
 import { Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -37,22 +38,28 @@ const IMAGE_MIME_TYPE_BY_EXTENSION = {
   png: "image/png",
   webp: "image/webp",
 } as const;
-const FONT_SIZE_OPTIONS = [
-  { label: "기본 16px", value: "" },
-  { label: "14px", value: "14px" },
-  { label: "16px", value: "16px" },
-  { label: "18px", value: "18px" },
-  { label: "20px", value: "20px" },
-  { label: "24px", value: "24px" },
-  { label: "32px", value: "32px" },
+const TEXT_STYLE_OPTIONS = [
+  { label: "본문", value: "paragraph" },
+  { label: "제목", value: "heading2" },
+  { label: "부제목", value: "heading3" },
 ] as const;
 const TEXT_COLOR_OPTIONS = [
   { label: "기본색", value: "" },
   { label: "검정", value: "#1A1D24" },
-  { label: "회색", value: "#5C5857" },
+  { label: "다크그레이", value: "#44484F" },
+  { label: "그레이", value: "#6B7280" },
+  { label: "브라운", value: "#8A5A34" },
+  { label: "레드", value: "#D9463C" },
+  { label: "오렌지", value: "#E2872E" },
+  { label: "앰버", value: "#CC9A22" },
+  { label: "옐로우그린", value: "#7FA83B" },
+  { label: "그린", value: "#2E9E5B" },
+  { label: "틸", value: "#2B8C86" },
+  { label: "스카이블루", value: "#2E8FCF" },
+  { label: "블루", value: "#3A6FD8" },
   { label: "네이비", value: "#1A304C" },
-  { label: "청록", value: "#2B5B60" },
-  { label: "빨강", value: "#C6392E" },
+  { label: "퍼플", value: "#7C4FC9" },
+  { label: "핑크", value: "#C6499E" },
 ] as const;
 
 const PostImage = Image.extend({
@@ -80,6 +87,7 @@ const PostImage = Image.extend({
 type PostContentEditorProps = {
   currentThumbnailPath: string | null;
   disabled?: boolean;
+  enableImages?: boolean;
   error?: string;
   extraThumbnailCandidates?: PostThumbnailCandidate[];
   label?: string;
@@ -172,6 +180,7 @@ function normalizeImageFile(file: File) {
 export function PostContentEditor({
   currentThumbnailPath,
   disabled = false,
+  enableImages = true,
   error,
   extraThumbnailCandidates = [],
   label = "본문",
@@ -182,7 +191,9 @@ export function PostContentEditor({
 }: PostContentEditorProps) {
   const [initialContent] = useState(() => preparePostContentForEditor(value));
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
   const previewUrlsRef = useRef(new Map<string, string>());
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [editorHtml, setEditorHtml] = useState(initialContent);
   const [pendingImages, setPendingImages] = useState<
     PendingPostContentImage[]
@@ -211,6 +222,7 @@ export function PostContentEditor({
       TextStyle,
       Color,
       FontSize,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     onUpdate: ({ editor: currentEditor }) => {
       const nextContent = currentEditor.getHTML();
@@ -225,13 +237,15 @@ export function PostContentEditor({
       const textStyle = currentEditor?.getAttributes("textStyle");
 
       return {
+        alignCenter: currentEditor?.isActive({ textAlign: "center" }) ?? false,
+        alignLeft: currentEditor?.isActive({ textAlign: "left" }) ?? false,
+        alignRight: currentEditor?.isActive({ textAlign: "right" }) ?? false,
         blockquote: currentEditor?.isActive("blockquote") ?? false,
         bold: currentEditor?.isActive("bold") ?? false,
         bulletList: currentEditor?.isActive("bulletList") ?? false,
         color: typeof textStyle?.color === "string" ? textStyle.color : "",
-        fontSize:
-          typeof textStyle?.fontSize === "string" ? textStyle.fontSize : "",
         heading2: currentEditor?.isActive("heading", { level: 2 }) ?? false,
+        heading3: currentEditor?.isActive("heading", { level: 3 }) ?? false,
         italic: currentEditor?.isActive("italic") ?? false,
         orderedList: currentEditor?.isActive("orderedList") ?? false,
       };
@@ -241,6 +255,33 @@ export function PostContentEditor({
   useEffect(() => {
     editor?.setEditable(!disabled);
   }, [disabled, editor]);
+
+  useEffect(() => {
+    if (!colorPickerOpen) {
+      return;
+    }
+
+    const closeOnOutsideEvent = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent) {
+        if (event.key === "Escape") {
+          setColorPickerOpen(false);
+        }
+        return;
+      }
+
+      if (!colorPickerRef.current?.contains(event.target as Node)) {
+        setColorPickerOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideEvent);
+    document.addEventListener("keydown", closeOnOutsideEvent);
+
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideEvent);
+      document.removeEventListener("keydown", closeOnOutsideEvent);
+    };
+  }, [colorPickerOpen]);
 
   useEffect(
     () => () => {
@@ -431,62 +472,105 @@ export function PostContentEditor({
         className={`post-content-editor-shell${error ? " has-error" : ""}`}
       >
         <div className="post-content-editor-toolbar" aria-label="본문 서식 도구">
-          <ToolbarButton
-            active={toolbarState?.heading2}
+          <select
+            aria-label="문단 스타일"
             disabled={toolbarDisabled}
-            title="중간 제목"
-            onClick={() =>
-              editor?.chain().focus().toggleHeading({ level: 2 }).run()
+            title="문단 스타일"
+            value={
+              toolbarState?.heading2
+                ? "heading2"
+                : toolbarState?.heading3
+                  ? "heading3"
+                  : "paragraph"
             }
-          >
-            제목
-          </ToolbarButton>
-          <select
-            aria-label="글자 크기"
-            disabled={toolbarDisabled}
-            title="글자 크기"
-            value={toolbarState?.fontSize ?? ""}
             onChange={(event) => {
-              const fontSize = event.target.value;
+              const style = event.target.value;
               const chain = editor?.chain().focus();
 
-              if (fontSize) {
-                chain?.setFontSize(fontSize).run();
+              if (style === "heading2") {
+                chain?.setHeading({ level: 2 }).run();
                 return;
               }
 
-              chain?.unsetFontSize().removeEmptyTextStyle().run();
+              if (style === "heading3") {
+                chain?.setHeading({ level: 3 }).run();
+                return;
+              }
+
+              chain?.setParagraph().run();
             }}
           >
-            {FONT_SIZE_OPTIONS.map((option) => (
-              <option key={option.label} value={option.value}>
+            {TEXT_STYLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
-          <select
-            aria-label="글자색"
-            disabled={toolbarDisabled}
-            title="글자색"
-            value={toolbarState?.color ?? ""}
-            onChange={(event) => {
-              const color = event.target.value;
-              const chain = editor?.chain().focus();
+          <div className="post-content-editor-color-picker" ref={colorPickerRef}>
+            <button
+              aria-expanded={colorPickerOpen}
+              aria-haspopup="true"
+              aria-label="글자색"
+              className="post-content-editor-color-trigger"
+              disabled={toolbarDisabled}
+              title="글자색"
+              type="button"
+              onClick={() => setColorPickerOpen((open) => !open)}
+            >
+              <span className="post-content-editor-color-trigger-letter">
+                가
+              </span>
+              <span
+                className="post-content-editor-color-trigger-bar"
+                style={
+                  toolbarState?.color
+                    ? { backgroundColor: toolbarState.color }
+                    : undefined
+                }
+              />
+            </button>
+            {colorPickerOpen ? (
+              <div
+                className="post-content-editor-color-popover"
+                role="menu"
+                aria-label="글자색 선택"
+              >
+                {TEXT_COLOR_OPTIONS.map((option) => {
+                  const active = (toolbarState?.color ?? "") === option.value;
 
-              if (color) {
-                chain?.setColor(color).run();
-                return;
-              }
+                  return (
+                    <button
+                      key={option.label}
+                      aria-label={option.label}
+                      aria-pressed={active}
+                      className={`post-content-editor-color-swatch${
+                        option.value ? "" : " is-default"
+                      }${active ? " is-active" : ""}`}
+                      role="menuitemradio"
+                      style={
+                        option.value
+                          ? { backgroundColor: option.value }
+                          : undefined
+                      }
+                      title={option.label}
+                      type="button"
+                      onClick={() => {
+                        const chain = editor?.chain().focus();
 
-              chain?.unsetColor().removeEmptyTextStyle().run();
-            }}
-          >
-            {TEXT_COLOR_OPTIONS.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+                        if (option.value) {
+                          chain?.setColor(option.value).run();
+                        } else {
+                          chain?.unsetColor().removeEmptyTextStyle().run();
+                        }
+
+                        setColorPickerOpen(false);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
           <ToolbarButton
             active={toolbarState?.bold}
             disabled={toolbarDisabled}
@@ -528,22 +612,51 @@ export function PostContentEditor({
             인용
           </ToolbarButton>
           <span className="post-content-editor-toolbar-separator" />
-          <button
-            className="post-content-editor-image-button"
-            disabled={disabled || !editorAvailable}
-            type="button"
-            onClick={() => imageInputRef.current?.click()}
+          <ToolbarButton
+            active={toolbarState?.alignLeft}
+            disabled={toolbarDisabled}
+            title="왼쪽 정렬"
+            onClick={() => editor?.chain().focus().setTextAlign("left").run()}
           >
-            이미지 추가
-          </button>
-          <input
-            ref={imageInputRef}
-            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-          disabled={disabled || !editorAvailable}
-            multiple
-            type="file"
-            onChange={handleImageChange}
-          />
+            왼쪽
+          </ToolbarButton>
+          <ToolbarButton
+            active={toolbarState?.alignCenter}
+            disabled={toolbarDisabled}
+            title="중앙 정렬"
+            onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+          >
+            중앙
+          </ToolbarButton>
+          <ToolbarButton
+            active={toolbarState?.alignRight}
+            disabled={toolbarDisabled}
+            title="오른쪽 정렬"
+            onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+          >
+            오른쪽
+          </ToolbarButton>
+          {enableImages ? (
+            <>
+              <span className="post-content-editor-toolbar-separator" />
+              <button
+                className="post-content-editor-image-button"
+                disabled={disabled || !editorAvailable}
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+              >
+                이미지 추가
+              </button>
+              <input
+                ref={imageInputRef}
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                disabled={disabled || !editorAvailable}
+                multiple
+                type="file"
+                onChange={handleImageChange}
+              />
+            </>
+          ) : null}
         </div>
         <EditorContent editor={editor} />
       </div>
@@ -552,55 +665,57 @@ export function PostContentEditor({
         <span className="post-content-editor-error">{imageError}</span>
       ) : null}
 
-      <div className="post-thumbnail-selector">
-        <div className="post-thumbnail-selector-copy">
-          <strong>대표 이미지</strong>
-          <span>본문 또는 갤러리 이미지 중 목록에 표시할 썸네일을 선택합니다.</span>
-        </div>
-        <div className="post-thumbnail-selector-grid">
-          <label className={!thumbnail ? "is-selected" : undefined}>
-            <input
-              checked={!thumbnail}
-              disabled={disabled}
-              name="post-thumbnail"
-              type="radio"
-              onChange={() => {
-                setThumbnail(null);
-                setHasThumbnailChoice(true);
-              }}
-            />
-            <span className="post-thumbnail-none">대표 없음</span>
-          </label>
-          {thumbnailCandidates.map((candidate) => {
-            const selected = referencesMatch(candidate.reference, thumbnail);
+      {enableImages ? (
+        <div className="post-thumbnail-selector">
+          <div className="post-thumbnail-selector-copy">
+            <strong>대표 이미지</strong>
+            <span>본문 또는 갤러리 이미지 중 목록에 표시할 썸네일을 선택합니다.</span>
+          </div>
+          <div className="post-thumbnail-selector-grid">
+            <label className={!thumbnail ? "is-selected" : undefined}>
+              <input
+                checked={!thumbnail}
+                disabled={disabled}
+                name="post-thumbnail"
+                type="radio"
+                onChange={() => {
+                  setThumbnail(null);
+                  setHasThumbnailChoice(true);
+                }}
+              />
+              <span className="post-thumbnail-none">대표 없음</span>
+            </label>
+            {thumbnailCandidates.map((candidate) => {
+              const selected = referencesMatch(candidate.reference, thumbnail);
 
-            return (
-              <label
-                key={candidate.key}
-                className={selected ? "is-selected" : undefined}
-              >
-                <input
-                  checked={selected}
-                  disabled={disabled}
-                  name="post-thumbnail"
-                  type="radio"
-                  onChange={() => {
-                    setThumbnail(candidate.reference);
-                    setHasThumbnailChoice(true);
-                  }}
-                />
-                <img src={candidate.previewUrl} alt="" />
-                <span title={candidate.label}>{candidate.label}</span>
-              </label>
-            );
-          })}
+              return (
+                <label
+                  key={candidate.key}
+                  className={selected ? "is-selected" : undefined}
+                >
+                  <input
+                    checked={selected}
+                    disabled={disabled}
+                    name="post-thumbnail"
+                    type="radio"
+                    onChange={() => {
+                      setThumbnail(candidate.reference);
+                      setHasThumbnailChoice(true);
+                    }}
+                  />
+                  <img src={candidate.previewUrl} alt="" />
+                  <span title={candidate.label}>{candidate.label}</span>
+                </label>
+              );
+            })}
+          </div>
+          {thumbnailCandidates.length === 0 ? (
+            <p className="post-thumbnail-selector-empty">
+              본문에 이미지를 추가하면 대표 이미지로 선택할 수 있습니다.
+            </p>
+          ) : null}
         </div>
-        {thumbnailCandidates.length === 0 ? (
-          <p className="post-thumbnail-selector-empty">
-            본문에 이미지를 추가하면 대표 이미지로 선택할 수 있습니다.
-          </p>
-        ) : null}
-      </div>
+      ) : null}
     </div>
   );
 }

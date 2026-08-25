@@ -12,14 +12,33 @@ export const STATUS_OPTIONS = [
 
 export const EDIT_STATUS_OPTIONS = STATUS_OPTIONS.slice(1);
 
-export function statusLabel(status: ContentStatus) {
-  return { draft: "임시저장", published: "게시", hidden: "숨김" }[status];
+export type DisplayStatus = ContentStatus | "scheduled";
+
+export function resolveDisplayStatus(
+  status: ContentStatus,
+  publishedAt: string | null | undefined,
+): DisplayStatus {
+  if (status === "published" && publishedAt && new Date(publishedAt) > new Date())
+    return "scheduled";
+  return status;
 }
 
-export function statusTone(status: ContentStatus) {
-  return { draft: "neutral", published: "success", hidden: "warning" }[
-    status
-  ] as "neutral" | "success" | "warning";
+export function statusLabel(status: DisplayStatus) {
+  return {
+    draft: "임시저장",
+    published: "게시",
+    hidden: "숨김",
+    scheduled: "예약",
+  }[status];
+}
+
+export function statusTone(status: DisplayStatus) {
+  return {
+    draft: "neutral",
+    published: "success",
+    hidden: "warning",
+    scheduled: "navy",
+  }[status] as "neutral" | "success" | "warning" | "navy";
 }
 
 export function formatDateTime(value: string | null | undefined) {
@@ -39,6 +58,14 @@ export function toDateTimeLocal(value: string | null | undefined) {
 
 export function toIsoOrNull(value: string) {
   return value ? new Date(value).toISOString() : null;
+}
+
+export function startOfDayIso(value: string) {
+  return value ? new Date(`${value}T00:00:00`).toISOString() : undefined;
+}
+
+export function endOfDayIso(value: string) {
+  return value ? new Date(`${value}T23:59:59.999`).toISOString() : undefined;
 }
 
 export function bytesLabel(bytes: number) {

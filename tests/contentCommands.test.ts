@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { buildContentPostCommand } from "@features/post-manage";
-import { buildResourceCommand } from "@features/resource-manage";
 import { buildSeminarCommand } from "@features/seminar-manage";
 import {
   buildGalleryCommand,
@@ -45,14 +44,7 @@ describe("콘텐츠 command payload", () => {
     ).toThrow("institutionId");
   });
 
-  it("자료 기준연도와 세미나 모집 인원을 검증한다", () => {
-    expect(() =>
-      buildResourceCommand({
-        category: "financial_disclosure",
-        referenceYear: 1800,
-        title: "자료",
-      }),
-    ).toThrow("1900~2100");
+  it("세미나 모집 인원을 검증한다", () => {
     expect(() =>
       buildSeminarCommand({
         capacity: 0,

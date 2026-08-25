@@ -98,7 +98,6 @@ describe("목록 RPC DTO 매핑", () => {
         file_count: 3,
         id: ID,
         published_at: NOW,
-        reference_year: 2026,
         status: "published",
         summary: "요약",
         title: "자료",

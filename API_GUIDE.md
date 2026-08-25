@@ -25,8 +25,6 @@ KFCPA v2 콘텐츠 API를 빠르게 연동하기 위한 요약본이다. 전체 
 | 기관 타입        | member, partner                       |
 | 파일 타입        | image, attachment                     |
 | 게시물 파일 역할 | cover, content                        |
-| 세미나 파일 역할 | poster, photo                         |
-| 선발 방식        | first_come, lottery, other            |
 
 member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류에는 기관을 연결할 수 없다.
 
@@ -36,9 +34,9 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 
 | RPC                   | 권한        | 주요 파라미터                                                             | 주요 응답                                        |
 | --------------------- | ----------- | ------------------------------------------------------------------------- | ------------------------------------------------ |
-| list_content_posts    | 공개/관리자 | p_category, p_institution_id, p_q, p_status, p_page, p_page_size, p_admin | 제목, 요약, 기관, 대표 이미지, 고정 여부, 게시일 |
-| list_resources        | 공개/관리자 | p_category, p_reference_year, p_q, p_status, 페이징, p_admin              | 제목, 요약, 기준연도, 파일 수, 게시일            |
-| list_seminars         | 공개/관리자 | p_timing, p_from, p_to, p_q, p_status, 페이징, p_admin                    | 소개, 결과 요약, 일시, 장소, 포스터              |
+| list_content_posts    | 공개/관리자 | p_category, p_institution_id, p_q, p_status, p_published_from, p_published_to, p_page, p_page_size, p_admin | 제목, 요약, 기관, 대표 이미지, 고정 여부, 게시일 |
+| list_resources        | 공개/관리자 | p_category, p_q, p_status, p_published_from, p_published_to, 페이징, p_admin              | 제목, 요약, 파일 수, 게시일            |
+| list_seminars         | 공개/관리자 | p_timing, p_from, p_to(행사일), p_published_from, p_published_to(게시일), p_q, p_status, 페이징, p_admin      | 소개, 결과 요약, 일시, 장소, 대표 이미지, 예정된 행사 여부 |
 | list_galleries        | 공개/관리자 | p_from, p_to, p_q, p_status, 페이징, p_admin                              | 설명, 행사일, 대표 이미지, 사진 수               |
 | list_admin_files      | 관리자      | p_file_kind, p_usage, p_q, 페이징                                         | 파일 메타데이터와 도메인별 사용 횟수             |
 | get_admin_file_detail | 관리자      | p_file_id                                                                 | 파일 메타데이터와 전체 사용처                    |
@@ -59,8 +57,8 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 | RPC               | p_input 핵심 필드                                                                                                                                                                    | p_files 항목                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
 | save_content_post | category, title, summary, content, institutionId, status, isPinned, publishedAt                                                                                                      | fileId, role, showInGallery               |
-| save_resource     | category, title, summary, referenceYear, status, publishedAt                                                                                                                         | fileId, showInGallery                     |
-| save_seminar      | title, introduction, resultSummary, content, startsAt, endsAt, location, selectionMethod, selectionMethodDetail, capacity, registrationDeadline, applicationUrl, status, publishedAt | fileId, role, showInGallery               |
+| save_resource     | category, title, summary, status, publishedAt                                                                                                                         | fileId, showInGallery                     |
+| save_seminar      | title, introduction, resultSummary, content, startsAt, endsAt, location, applicationUrl, status, publishedAt, isFeatured | fileId, showInGallery                     |
 | save_gallery      | title, description, eventDate, status, publishedAt, displayOrder                                                                                                                     | fileId, caption (기존 독립 갤러리 호환용) |
 
 공통 RPC 인자는 다음과 같다.
@@ -77,9 +75,8 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 - p_files는 추가분이 아니라 정렬된 전체 스냅샷이다.
 - 배열 순서가 sort_order가 되며 최대 1,000개다.
 - 같은 fileId를 한 콘텐츠에 중복 연결할 수 없다.
-- 소식 이미지, 자료 사진, 세미나 photo의 showInGallery가 true이면 해당 사진이 포토 갤러리에 노출된다.
+- 소식 이미지, 자료 사진, 세미나 이미지의 showInGallery가 true이면 해당 사진이 포토 갤러리에 노출된다.
 - 소식·자료·세미나 저장 시 기존 공개 갤러리 조회용 앨범과 사진 관계가 같은 transaction에서 자동 동기화된다. 별도의 갤러리 등록 요청은 필요하지 않다.
-- 세미나 poster에는 showInGallery를 true로 지정할 수 없다.
 - 수정 시 expectedUpdatedAt이 다르면 CONFLICT로 처리한다.
 - 공개 자료는 파일 1개 이상, 공개 갤러리는 사진 1개 이상이어야 한다.
 - 삭제 시 관계 행만 cascade되며 중앙 files 행과 Storage 객체는 자동 삭제되지 않는다.
@@ -134,5 +131,7 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 | 공개 파일 projection        | supabase/migrations/20260824171000_fix_public_rpc_file_projection.sql |
 | 저장·삭제 보상 RPC          | supabase/migrations/20260824180000_add_content_command_rpcs.sql       |
 | 첨부 사진별 갤러리 노출     | supabase/migrations/20260824200000_source_gallery_visibility.sql      |
+| 게시일 범위 필터            | supabase/migrations/20260825110000_add_published_date_filters.sql     |
+| 자료 기준연도 제거          | supabase/migrations/20260825120000_remove_resource_reference_year.sql |
 
 API 계약을 변경하면 migration, 생성 DB 타입, entity Query, feature Mutation, 이 문서를 함께 갱신한다.

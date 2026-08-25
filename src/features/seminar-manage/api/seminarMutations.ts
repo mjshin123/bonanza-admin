@@ -9,14 +9,11 @@ import {
   requireUuid,
   throwContentError,
   type ContentStatus,
-  type SelectionMethod,
-  type SeminarFileRole,
 } from "@shared/api/content";
 import { supabase } from "@shared/api/supabase";
 import type { Json, Tables, TablesUpdate } from "@shared/api/supabase";
 export type SaveSeminarFileInput = {
   fileId: string;
-  role: SeminarFileRole;
   showInGallery?: boolean;
 };
 export type CreateSeminarInput = {
@@ -26,14 +23,11 @@ export type CreateSeminarInput = {
   content?: string | null;
   startsAt: string;
   endsAt?: string | null;
-  location: string;
-  selectionMethod: SelectionMethod;
-  selectionMethodDetail?: string | null;
-  capacity?: number | null;
-  registrationDeadline?: string | null;
+  location?: string | null;
   applicationUrl?: string | null;
   status?: ContentStatus;
   publishedAt?: string | null;
+  isFeatured?: boolean;
   files?: SaveSeminarFileInput[];
 };
 export type UpdateSeminarInput = Required<CreateSeminarInput> & {
@@ -43,20 +37,17 @@ export type UpdateSeminarInput = Required<CreateSeminarInput> & {
 export type LinkSeminarFileInput = {
   seminarId: string;
   fileId: string;
-  role: SeminarFileRole;
   showInGallery?: boolean;
   sortOrder?: number;
 };
 export type UpdateSeminarFileInput = {
   seminarId: string;
   fileId: string;
-  role?: SeminarFileRole;
   showInGallery?: boolean;
   sortOrder?: number;
 };
 export type ReorderSeminarFilesInput = {
   seminarId: string;
-  role: SeminarFileRole;
   items: Array<{ fileId: string; sortOrder: number }>;
 };
 export type UnlinkSeminarFileInput = { seminarId: string; fileId: string };
@@ -70,14 +61,8 @@ function validDate(v: string | null | undefined, n: string) {
   return v;
 }
 export function buildSeminarCommand(i: CreateSeminarInput): Json {
-  if (
-    i.capacity !== undefined &&
-    i.capacity !== null &&
-    (!Number.isInteger(i.capacity) || i.capacity < 1)
-  ) {
-    throw new RangeError("capacity는 1 이상의 정수여야 합니다.");
-  }
   const status = i.status ?? "draft";
+  const location = i.location?.trim();
   return {
     title: requireText(i.title, "title", 200),
     introduction: i.introduction ?? "",
@@ -85,15 +70,11 @@ export function buildSeminarCommand(i: CreateSeminarInput): Json {
     content: i.content ?? null,
     startsAt: validDate(i.startsAt, "startsAt")!,
     endsAt: validDate(i.endsAt, "endsAt") ?? null,
-    location: requireText(i.location, "location", 300),
-    selectionMethod: i.selectionMethod,
-    selectionMethodDetail: i.selectionMethodDetail ?? null,
-    capacity: i.capacity ?? null,
-    registrationDeadline:
-      validDate(i.registrationDeadline, "registrationDeadline") ?? null,
+    location: location ? requireText(location, "location", 300) : null,
     applicationUrl: i.applicationUrl ?? null,
     status,
     publishedAt: normalizePublishedAt(status, i.publishedAt) ?? null,
+    isFeatured: i.isFeatured ?? false,
   };
 }
 async function createSeminar(i: CreateSeminarInput) {
@@ -129,12 +110,29 @@ async function deleteSeminar(id: string) {
   if (error) throwContentError(error);
   return data.id;
 }
+async function bulkHideSeminars(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("seminars")
+    .update({ status: "hidden" })
+    .in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
+}
+async function bulkDeleteSeminars(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("seminars")
+    .delete()
+    .in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
+}
 function mapRelation(
   r: Tables<"seminar_files"> & { file: Tables<"files"> },
 ): SeminarFileDto {
   return {
     file: mapFile(r.file),
-    role: r.role as SeminarFileRole,
     showInGallery: r.show_in_gallery,
     sortOrder: r.sort_order,
     createdAt: r.created_at,
@@ -146,7 +144,6 @@ async function linkSeminarFile(i: LinkSeminarFileInput) {
     .insert({
       seminar_id: requireUuid(i.seminarId),
       file_id: requireUuid(i.fileId),
-      role: i.role,
       show_in_gallery: i.showInGallery ?? false,
       sort_order: i.sortOrder ?? 0,
     })
@@ -159,7 +156,6 @@ async function linkSeminarFile(i: LinkSeminarFileInput) {
 }
 async function updateSeminarFile(i: UpdateSeminarFileInput) {
   const patch: TablesUpdate<"seminar_files"> = {};
-  if (i.role !== undefined) patch.role = i.role;
   if (i.showInGallery !== undefined) patch.show_in_gallery = i.showInGallery;
   if (i.sortOrder !== undefined) patch.sort_order = i.sortOrder;
   const { data, error } = await supabase
@@ -189,7 +185,6 @@ async function reorderSeminarFiles(i: ReorderSeminarFilesInput) {
     .from("seminar_files")
     .select("*,file:files!inner(*)")
     .eq("seminar_id", id)
-    .eq("role", i.role)
     .order("sort_order")
     .order("created_at")
     .order("file_id");
@@ -223,6 +218,16 @@ export const deleteSeminarMutationOptions = () =>
   mutationOptions({
     mutationKey: ["seminars", "delete"],
     mutationFn: deleteSeminar,
+  });
+export const bulkHideSeminarsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["seminars", "bulk-hide"],
+    mutationFn: bulkHideSeminars,
+  });
+export const bulkDeleteSeminarsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["seminars", "bulk-delete"],
+    mutationFn: bulkDeleteSeminars,
   });
 export const linkSeminarFileMutationOptions = () =>
   mutationOptions({
