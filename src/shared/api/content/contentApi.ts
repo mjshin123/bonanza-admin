@@ -5,10 +5,14 @@ export type ContentStatus = "draft" | "published" | "hidden";
 export type FileKind = "image" | "attachment";
 export type InstitutionType = "member" | "partner";
 export type PostCategory = "notice" | "association_news" | "member_news";
-export type ResourceCategory = "resource" | "financial_disclosure";
+export type ResourceCategory =
+  | "seminar_material"
+  | "law_policy"
+  | "annual_settlement"
+  | "business_plan_budget"
+  | "donation_usage"
+  | "annual_report";
 export type PostFileRole = "cover" | "content";
-export type SeminarFileRole = "poster" | "photo";
-export type SelectionMethod = "first_come" | "lottery" | "other";
 export type SeminarTiming = "all" | "upcoming" | "past";
 
 export type PageParams = { page?: number; pageSize?: number };
@@ -171,6 +175,24 @@ export function normalizePublishedAt(
   if (status === "published" && publishedAt == null)
     return new Date().toISOString();
   return publishedAt;
+}
+
+export function resolvePublishedDateRange(
+  from: string | undefined,
+  to: string | undefined,
+): { publishedFrom?: string; publishedTo?: string } {
+  const parse = (value: string | undefined, fieldName: string) => {
+    if (!value) return undefined;
+    if (Number.isNaN(Date.parse(value)))
+      throw new TypeError(`${fieldName}은 유효한 일시여야 합니다.`);
+    return new Date(value).toISOString();
+  };
+  const publishedFrom = parse(from, "publishedFrom");
+  const publishedTo = parse(to, "publishedTo");
+  if (publishedFrom && publishedTo && publishedFrom > publishedTo) {
+    throw new RangeError("publishedFrom은 publishedTo보다 늦을 수 없습니다.");
+  }
+  return { publishedFrom, publishedTo };
 }
 
 export function mapFile(

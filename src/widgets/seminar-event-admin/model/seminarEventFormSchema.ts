@@ -42,10 +42,6 @@ export const seminarEventFormSchema: z.ZodType<
         !value || (/^\d+$/.test(value) && Number(value) > 0),
       "신청 인원은 1 이상의 정수여야 합니다.",
     ),
-    caption: z
-      .string()
-      .trim()
-      .max(200, "캡션은 200자 이하여야 합니다."),
     content: z.string(),
     endsAt: OPTIONAL_DATE_TIME_SCHEMA,
     isPinned: z.boolean(),

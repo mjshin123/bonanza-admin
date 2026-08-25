@@ -361,7 +361,6 @@ ON DELETE RESTRICT
 | `id` | `uuid` | N | PK, `gen_random_uuid()` | 게시물 ID |
 | `category` | `text` | N | CHECK | 게시물 카테고리 |
 | `title` | `text` | N | - | 제목 |
-| `summary` | `text` | N | `''` | 목록용 요약 |
 | `content` | `text` | N | `''` | 상세 본문 |
 | `institution_id` | `uuid` | Y | FK | 회원기관 소식의 활동 주체 |
 | `status` | `text` | N | `draft` | 공개 상태 |
@@ -388,7 +387,6 @@ ON DELETE RESTRICT
 ### 7.4 제약조건
 
 - `char_length(btrim(title)) BETWEEN 1 AND 200`
-- `char_length(summary) <= 500`
 - `institution_id → institutions.id ON DELETE RESTRICT`
 - `created_by → auth.users.id ON DELETE SET NULL`
 - `status <> 'published' OR published_at IS NOT NULL`
@@ -494,7 +492,7 @@ UNIQUE (post_id) WHERE role = 'cover'
 
 ### 9.1 용도
 
-자료실과 결산·공시 자료의 제목, 게시일, 설명 및 공개 상태를 관리한다.
+자료실과 결산·공시 자료의 제목, 게시일 및 공개 상태를 관리한다.
 
 파일은 `resource_files`를 통해 연결하며 파일 형식은 제한하지 않는다.
 
@@ -505,7 +503,6 @@ UNIQUE (post_id) WHERE role = 'cover'
 | `id` | `uuid` | N | PK, `gen_random_uuid()` | 자료 ID |
 | `category` | `text` | N | CHECK | 자료 카테고리 |
 | `title` | `text` | N | - | 자료 제목 |
-| `summary` | `text` | N | `''` | 자료 설명 |
 | `reference_year` | `smallint` | Y | NULL, CHECK | 결산·공시 기준연도 |
 | `status` | `text` | N | `draft` | 공개 상태 |
 | `published_at` | `timestamptz` | Y | NULL | 게시일 및 예약 공개 시각 |
@@ -527,7 +524,6 @@ UNIQUE (post_id) WHERE role = 'cover'
 ### 9.4 제약조건
 
 - `char_length(btrim(title)) BETWEEN 1 AND 200`
-- `char_length(summary) <= 500`
 - `reference_year IS NULL OR reference_year BETWEEN 1900 AND 2100`
 - `status <> 'published' OR published_at IS NOT NULL`
 - `created_by → auth.users.id ON DELETE SET NULL`
@@ -595,7 +591,6 @@ UNIQUE (post_id) WHERE role = 'cover'
 예정 행사와 지난 행사를 하나의 세미나 데이터로 관리한다.
 
 - 예정 행사에서는 `introduction`을 주요 소개문으로 사용
-- 지난 행사에서는 `result_summary`를 주요 요약문으로 사용
 - 포스터와 종료 후 사진은 `seminar_files`에서 관리
 
 ### 11.2 컬럼 명세
@@ -605,7 +600,6 @@ UNIQUE (post_id) WHERE role = 'cover'
 | `id` | `uuid` | N | PK, `gen_random_uuid()` | 세미나 ID |
 | `title` | `text` | N | - | 세미나명 |
 | `introduction` | `text` | N | `''` | 예정 행사 소개 |
-| `result_summary` | `text` | N | `''` | 지난 행사 요약 |
 | `content` | `text` | Y | NULL | 선택 상세 본문 |
 | `starts_at` | `timestamptz` | N | - | 시작 일시 |
 | `ends_at` | `timestamptz` | Y | NULL | 종료 일시 |
@@ -1037,9 +1031,9 @@ RLS는 행 접근만 제어한다. `authenticated`의 직접 CRUD에도 15절의
 | `files` | `id`, `file_kind`, `bucket_name`, `storage_path`, `original_name`, `mime_type`, `size_bytes`, `width_px`, `height_px`, `alt_text`, `created_at`, `updated_at` |
 | `institution_categories` | `id`, `code`, `name`, `display_order`, `is_active`, `created_at`, `updated_at` |
 | `institutions` | `id`, `institution_type`, `category_id`, `name`, `logo_file_id`, `description`, `homepage_url`, `display_order`, `is_active`, `created_at`, `updated_at` |
-| `posts` | `id`, `category`, `title`, `summary`, `content`, `institution_id`, `status`, `is_pinned`, `published_at`, `created_at`, `updated_at` |
-| `resources` | `id`, `category`, `title`, `summary`, `reference_year`, `status`, `published_at`, `created_at`, `updated_at` |
-| `seminars` | `id`, `title`, `introduction`, `result_summary`, `content`, `starts_at`, `ends_at`, `location`, `selection_method`, `selection_method_detail`, `capacity`, `registration_deadline`, `application_url`, `status`, `published_at`, `created_at`, `updated_at` |
+| `posts` | `id`, `category`, `title`, `content`, `institution_id`, `status`, `is_pinned`, `published_at`, `created_at`, `updated_at` |
+| `resources` | `id`, `category`, `title`, `reference_year`, `status`, `published_at`, `created_at`, `updated_at` |
+| `seminars` | `id`, `title`, `introduction`, `content`, `starts_at`, `ends_at`, `location`, `selection_method`, `selection_method_detail`, `capacity`, `registration_deadline`, `application_url`, `status`, `published_at`, `created_at`, `updated_at` |
 | `galleries` | `id`, `title`, `description`, `event_date`, `status`, `published_at`, `display_order`, `created_at`, `updated_at` |
 
 `post_files`, `resource_files`, `seminar_files`, `gallery_items`에는 actor 컬럼이 없으므로 해당 관계 테이블의 전체 컬럼을 column-level SELECT로 허용하되, 공개 부모를 확인하는 RLS는 그대로 적용한다.
@@ -1224,7 +1218,7 @@ RPC의 목적은 여러 쓰기를 한 요청과 한 DB transaction으로 묶는 
 | 하나의 `posts`에 모든 콘텐츠 저장 | `posts`, `resources`, `seminars`, `galleries` 분리 | 데이터 이전 및 FSD entity 분리 필요 |
 | `posts.board_id` | `posts.category`, `resources.category` | 기존 FK와 초기 board seed 제거 필요 |
 | `posts.organization_id` 선택값 | 회원기관 소식에만 `posts.institution_id` 허용 | 카테고리별 제약 강화 |
-| `posts.caption` | 소식은 `posts.summary`, 자료는 `resources.summary` | 기존 캡션을 새 요약 필드로 손실 없이 이관 |
+| `posts.caption` | 제거됨 | 콘텐츠 요약 정책 폐기에 따라 레거시 캡션도 함께 제거 |
 | `is_published` boolean | `status + published_at` | draft/published/hidden 및 예약 공개 처리 필요 |
 | `thumbnail_path`, `logo_path` 문자열 | 중앙 `files` FK 및 관계 테이블 | 파일 데이터 이전 필요 |
 | 파일 메타데이터가 `post_files`에 직접 저장 | 메타데이터는 `files`, 관계는 각 파일 관계 테이블 | 업로드·삭제 API 전면 개편 필요 |
@@ -1235,7 +1229,7 @@ RPC의 목적은 여러 쓰기를 한 요청과 한 DB transaction으로 묶는 
 | 모든 게시물에 `is_pinned` | `posts`에만 유지 | 자료·세미나에는 상단 고정 없음 |
 | `posts/{postId}/...` Storage 경로 | 콘텐츠 비종속 중앙 경로 | 객체 이동 또는 신규 경로 매핑 필요 |
 
-기존 `posts.caption`은 도메인 분리 전에 비어 있지 않은 값을 그대로 보존한다. 소식 데이터는 `posts.summary`, 자료 데이터는 `resources.summary`로 이관한다. 기존 세미나 캡션은 행사 시점과 의미를 확인해 예정 행사 소개이면 `seminars.introduction`, 종료 행사 요약이면 `seminars.result_summary`로 매핑하고 자동으로 양쪽에 중복 복사하지 않는다.
+기존 `posts.caption`과 소식·자료·세미나의 요약 컬럼은 `20260825140000_remove_content_summaries.sql`에서 제거한다. 기관의 `description`, 세미나의 `introduction`, 갤러리의 `description`, 사진의 `caption`은 별도 의미를 가지므로 유지한다.
 
 ### 21.1 구현 및 후속 축소 단계의 파일 범주
 
@@ -1264,7 +1258,7 @@ RPC의 목적은 여러 쓰기를 한 요청과 한 DB transaction으로 묶는 
 5. `resources`와 `resource_files` 생성
 6. `seminars`와 `seminar_files` 생성
 7. `galleries`와 `gallery_items` 생성
-8. 기존 `posts.caption`을 대상 도메인의 `summary`, `introduction` 또는 `result_summary`로 이관
+8. 기존 `posts.caption`은 임시 이관 후 콘텐츠 요약 제거 migration에서 삭제
 9. 기존 Storage 경로와 메타데이터를 `files`로 이관
 10. FK, CHECK, 필수 trigger, index 적용
 11. RLS, column grant 및 Storage 정책 적용

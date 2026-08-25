@@ -30,6 +30,7 @@ describe("콘텐츠 command payload", () => {
       }),
     );
     expect(result.command.publishedAt).toEqual(expect.any(String));
+    expect(result.command).not.toHaveProperty("summary");
     expect(result.files).toEqual([
       { fileId: FILE_ID, role: "cover", showInGallery: true },
     ]);
@@ -45,23 +46,22 @@ describe("콘텐츠 command payload", () => {
     ).toThrow("institutionId");
   });
 
-  it("자료 기준연도와 세미나 모집 인원을 검증한다", () => {
-    expect(() =>
-      buildResourceCommand({
-        category: "financial_disclosure",
-        referenceYear: 1800,
-        title: "자료",
-      }),
-    ).toThrow("1900~2100");
+  it("세미나 시작 일시를 검증한다", () => {
     expect(() =>
       buildSeminarCommand({
-        capacity: 0,
-        location: "서울",
-        selectionMethod: "first_come",
-        startsAt: "2026-09-01T00:00:00.000Z",
+        startsAt: "invalid-date",
         title: "세미나",
       }),
-    ).toThrow("1 이상");
+    ).toThrow("유효한 일시");
+  });
+
+  it("자료와 세미나 command에 요약 필드를 포함하지 않는다", () => {
+    expect(
+      buildResourceCommand({ category: "seminar_material", title: "자료" }),
+    ).not.toHaveProperty("summary");
+    expect(
+      buildSeminarCommand({ startsAt: new Date().toISOString(), title: "행사" }),
+    ).not.toHaveProperty("resultSummary");
   });
 
   it("갤러리 command와 caption을 정규화한다", () => {

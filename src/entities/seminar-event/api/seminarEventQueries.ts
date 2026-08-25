@@ -13,7 +13,6 @@ type SeminarPostSummary = Pick<
   Post,
   | "id"
   | "title"
-  | "caption"
   | "content"
   | "thumbnail_path"
   | "tags"
@@ -61,7 +60,6 @@ const SEMINAR_EVENT_SELECT = `
   post:posts!inner (
     id,
     title,
-    caption,
     content,
     thumbnail_path,
     tags,

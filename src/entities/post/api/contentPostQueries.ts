@@ -9,6 +9,7 @@ import {
   pageResult,
   requireUuid,
   resolvePageParams,
+  resolvePublishedDateRange,
   throwContentError,
   type ContentStatus,
   type FileDto,
@@ -31,7 +32,6 @@ export type ContentPostListItem = {
   id: string;
   category: PostCategory;
   title: string;
-  summary: string;
   institution: InstitutionSummary | null;
   cover: FileDto | null;
   isPinned: boolean;
@@ -56,6 +56,8 @@ export type PostListParamsV2 = PageParams & {
 };
 export type AdminPostListParamsV2 = PostListParamsV2 & {
   status?: ContentStatus;
+  publishedFrom?: string;
+  publishedTo?: string;
 };
 export type PostListItem = ContentPostListItem;
 export type PostDetail = ContentPostDetail;
@@ -74,7 +76,7 @@ type JoinedPost = Tables<"posts"> & {
   files: Array<Tables<"post_files"> & { file: Tables<"files"> | null }>;
 };
 const SELECT =
-  "id,category,title,summary,content,institution_id,status,is_pinned,published_at,created_at,updated_at,institution:institutions(id,institution_type,category_id,name,logo_file_id,description,homepage_url,display_order,is_active,created_at,updated_at,category:institution_categories!inner(id,code,name,display_order,is_active,created_at,updated_at),logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)),files:post_files(post_id,file_id,role,show_in_gallery,sort_order,created_at,file:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
+  "id,category,title,content,institution_id,status,is_pinned,published_at,created_at,updated_at,institution:institutions(id,institution_type,category_id,name,logo_file_id,description,homepage_url,display_order,is_active,created_at,updated_at,category:institution_categories!inner(id,code,name,display_order,is_active,created_at,updated_at),logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)),files:post_files(post_id,file_id,role,show_in_gallery,sort_order,created_at,file:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
 
 function mapPost(row: JoinedPost): ContentPostDetail {
   const files = row.files
@@ -104,7 +106,6 @@ function mapPost(row: JoinedPost): ContentPostDetail {
     id: row.id,
     category: row.category as PostCategory,
     title: row.title,
-    summary: row.summary,
     institution: institution
       ? {
           id: institution.id,
@@ -125,6 +126,10 @@ function mapPost(row: JoinedPost): ContentPostDetail {
 }
 
 function resolveParams(params: AdminPostListParamsV2 = {}) {
+  const { publishedFrom, publishedTo } = resolvePublishedDateRange(
+    params.publishedFrom,
+    params.publishedTo,
+  );
   return {
     ...resolvePageParams(params),
     category: params.category,
@@ -133,6 +138,8 @@ function resolveParams(params: AdminPostListParamsV2 = {}) {
       : undefined,
     q: params.q?.trim() || undefined,
     status: params.status,
+    publishedFrom,
+    publishedTo,
   };
 }
 export const contentPostQueryKeys = {
@@ -148,7 +155,7 @@ export const contentPostQueryKeys = {
 };
 
 type RpcPostRow =
-  Database["public"]["Functions"]["list_content_posts"]["Returns"][number];
+  Database["public"]["Functions"]["list_admin_content_posts"]["Returns"][number];
 type RpcInstitution = {
   id: string;
   institution_type: string;
@@ -184,7 +191,6 @@ export function mapContentPostListRow(row: RpcPostRow, admin: boolean) {
     id: row.id,
     category: row.category as PostCategory,
     title: row.title,
-    summary: row.summary,
     institution: mapRpcInstitution(row.institution),
     cover: mapRpcFile(row.cover),
     isPinned: row.is_pinned,
@@ -212,15 +218,27 @@ async function fetchList(
   params: ReturnType<typeof resolveParams>,
   admin: boolean,
 ): Promise<PageResult<ContentPostListItem | AdminContentPostListItem>> {
-  const { data, error } = await supabase.rpc("list_content_posts", {
-    p_admin: admin,
-    p_category: params.category,
-    p_institution_id: params.institutionId,
-    p_page: params.page,
-    p_page_size: params.pageSize,
-    p_q: params.q,
-    p_status: admin ? params.status : undefined,
-  });
+  const { data, error } = admin
+    ? await supabase.rpc("list_admin_content_posts", {
+        p_admin: true,
+        p_category: params.category,
+        p_institution_id: params.institutionId,
+        p_page: params.page,
+        p_page_size: params.pageSize,
+        p_published_from: params.publishedFrom,
+        p_published_to: params.publishedTo,
+        p_q: params.q,
+        p_status: params.status,
+      })
+    : await supabase.rpc("list_content_posts", {
+        p_admin: false,
+        p_category: params.category,
+        p_institution_id: params.institutionId,
+        p_page: params.page,
+        p_page_size: params.pageSize,
+        p_q: params.q,
+        p_status: undefined,
+      });
   if (error) throwContentError(error);
   const rows = data as RpcPostRow[];
   const items = admin

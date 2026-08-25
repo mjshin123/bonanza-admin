@@ -16,10 +16,6 @@ export function createGeneralPostFormSchema(
 ): z.ZodType<GeneralPostFormState, GeneralPostFormState> {
   return z
     .object({
-      caption: z
-        .string()
-        .trim()
-        .max(200, "캡션은 200자 이하여야 합니다."),
       content: z.string(),
       isPinned: z.boolean(),
       isPublished: z.boolean(),

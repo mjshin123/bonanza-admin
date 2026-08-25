@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -7,11 +7,6 @@
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -255,6 +250,7 @@ export type Database = {
           id: string
           institution_type: string
           is_active: boolean
+          is_pending: boolean
           logo_file_id: string | null
           name: string
           updated_at: string
@@ -269,6 +265,7 @@ export type Database = {
           id?: string
           institution_type: string
           is_active?: boolean
+          is_pending?: boolean
           logo_file_id?: string | null
           name: string
           updated_at?: string
@@ -283,6 +280,7 @@ export type Database = {
           id?: string
           institution_type?: string
           is_active?: boolean
+          is_pending?: boolean
           logo_file_id?: string | null
           name?: string
           updated_at?: string
@@ -426,7 +424,6 @@ export type Database = {
       posts: {
         Row: {
           board_id: number
-          caption: string
           category: string | null
           content: string
           created_at: string
@@ -438,7 +435,6 @@ export type Database = {
           organization_id: string | null
           published_at: string | null
           status: string
-          summary: string
           tags: string[]
           thumbnail_path: string | null
           title: string
@@ -446,7 +442,6 @@ export type Database = {
         }
         Insert: {
           board_id: number
-          caption?: string
           category?: string | null
           content?: string
           created_at?: string
@@ -458,7 +453,6 @@ export type Database = {
           organization_id?: string | null
           published_at?: string | null
           status?: string
-          summary?: string
           tags?: string[]
           thumbnail_path?: string | null
           title: string
@@ -466,7 +460,6 @@ export type Database = {
         }
         Update: {
           board_id?: number
-          caption?: string
           category?: string | null
           content?: string
           created_at?: string
@@ -478,7 +471,6 @@ export type Database = {
           organization_id?: string | null
           published_at?: string | null
           status?: string
-          summary?: string
           tags?: string[]
           thumbnail_path?: string | null
           title?: string
@@ -563,7 +555,6 @@ export type Database = {
           published_at: string | null
           reference_year: number | null
           status: string
-          summary: string
           title: string
           updated_at: string
         }
@@ -575,7 +566,6 @@ export type Database = {
           published_at?: string | null
           reference_year?: number | null
           status?: string
-          summary?: string
           title: string
           updated_at?: string
         }
@@ -587,7 +577,6 @@ export type Database = {
           published_at?: string | null
           reference_year?: number | null
           status?: string
-          summary?: string
           title?: string
           updated_at?: string
         }
@@ -702,10 +691,10 @@ export type Database = {
           ends_at: string | null
           id: string
           introduction: string
+          is_featured: boolean
           location: string
           published_at: string | null
           registration_deadline: string | null
-          result_summary: string
           selection_method: string
           selection_method_detail: string | null
           starts_at: string
@@ -722,10 +711,10 @@ export type Database = {
           ends_at?: string | null
           id?: string
           introduction?: string
+          is_featured?: boolean
           location: string
           published_at?: string | null
           registration_deadline?: string | null
-          result_summary?: string
           selection_method: string
           selection_method_detail?: string | null
           starts_at: string
@@ -742,10 +731,10 @@ export type Database = {
           ends_at?: string | null
           id?: string
           introduction?: string
+          is_featured?: boolean
           location?: string
           published_at?: string | null
           registration_deadline?: string | null
-          result_summary?: string
           selection_method?: string
           selection_method_detail?: string | null
           starts_at?: string
@@ -814,7 +803,6 @@ export type Database = {
           p_application_method?: string
           p_application_url?: string
           p_capacity?: number
-          p_caption?: string
           p_content?: string
           p_ends_at?: string
           p_is_pinned?: boolean
@@ -854,6 +842,32 @@ export type Database = {
           width_px: number
         }[]
       }
+      list_admin_content_posts: {
+        Args: {
+          p_admin?: boolean
+          p_category?: string
+          p_institution_id?: string
+          p_page?: number
+          p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
+          p_q?: string
+          p_status?: string
+        }
+        Returns: {
+          category: string
+          cover: Json
+          created_at: string
+          id: string
+          institution: Json
+          is_pinned: boolean
+          published_at: string
+          status: string
+          title: string
+          total_count: number
+          updated_at: string
+        }[]
+      }
       list_admin_files: {
         Args: {
           p_file_kind?: string
@@ -884,6 +898,35 @@ export type Database = {
           width_px: number
         }[]
       }
+      list_admin_seminars: {
+        Args: {
+          p_admin?: boolean
+          p_from?: string
+          p_page?: number
+          p_page_size?: number
+          p_published_from?: string
+          p_published_to?: string
+          p_q?: string
+          p_status?: string
+          p_timing?: string
+          p_to?: string
+        }
+        Returns: {
+          created_at: string
+          ends_at: string
+          id: string
+          introduction: string
+          is_featured: boolean
+          location: string
+          poster: Json
+          published_at: string
+          starts_at: string
+          status: string
+          title: string
+          total_count: number
+          updated_at: string
+        }[]
+      }
       list_content_posts: {
         Args: {
           p_admin?: boolean
@@ -903,7 +946,6 @@ export type Database = {
           is_pinned: boolean
           published_at: string
           status: string
-          summary: string
           title: string
           total_count: number
           updated_at: string
@@ -934,30 +976,53 @@ export type Database = {
           updated_at: string
         }[]
       }
-      list_resources: {
-        Args: {
-          p_admin?: boolean
-          p_category?: string
-          p_page?: number
-          p_page_size?: number
-          p_q?: string
-          p_reference_year?: number
-          p_status?: string
-        }
-        Returns: {
-          category: string
-          created_at: string
-          file_count: number
-          id: string
-          published_at: string
-          reference_year: number
-          status: string
-          summary: string
-          title: string
-          total_count: number
-          updated_at: string
-        }[]
-      }
+      list_resources:
+        | {
+            Args: {
+              p_admin?: boolean
+              p_category?: string
+              p_page?: number
+              p_page_size?: number
+              p_q?: string
+              p_reference_year?: number
+              p_status?: string
+            }
+            Returns: {
+              category: string
+              created_at: string
+              file_count: number
+              id: string
+              published_at: string
+              reference_year: number
+              status: string
+              title: string
+              total_count: number
+              updated_at: string
+            }[]
+          }
+        | {
+            Args: {
+              p_admin?: boolean
+              p_category?: string
+              p_page?: number
+              p_page_size?: number
+              p_published_from?: string
+              p_published_to?: string
+              p_q?: string
+              p_status?: string
+            }
+            Returns: {
+              category: string
+              created_at: string
+              file_count: number
+              id: string
+              published_at: string
+              status: string
+              title: string
+              total_count: number
+              updated_at: string
+            }[]
+          }
       list_seminars: {
         Args: {
           p_admin?: boolean
@@ -977,7 +1042,6 @@ export type Database = {
           location: string
           poster: Json
           published_at: string
-          result_summary: string
           starts_at: string
           status: string
           title: string
@@ -999,7 +1063,6 @@ export type Database = {
         }
         Returns: {
           board_id: number
-          caption: string
           category: string | null
           content: string
           created_at: string
@@ -1011,7 +1074,6 @@ export type Database = {
           organization_id: string | null
           published_at: string | null
           status: string
-          summary: string
           tags: string[]
           thumbnail_path: string | null
           title: string
@@ -1039,6 +1101,8 @@ export type Database = {
           event_date: string | null
           id: string
           published_at: string | null
+          source_id: string | null
+          source_type: string | null
           status: string
           title: string
           updated_at: string
@@ -1065,7 +1129,6 @@ export type Database = {
           published_at: string | null
           reference_year: number | null
           status: string
-          summary: string
           title: string
           updated_at: string
         }
@@ -1092,10 +1155,10 @@ export type Database = {
           ends_at: string | null
           id: string
           introduction: string
+          is_featured: boolean
           location: string
           published_at: string | null
           registration_deadline: string | null
-          result_summary: string
           selection_method: string
           selection_method_detail: string | null
           starts_at: string
@@ -1115,7 +1178,6 @@ export type Database = {
           p_application_method?: string
           p_application_url?: string
           p_capacity?: number
-          p_caption?: string
           p_content?: string
           p_ends_at?: string
           p_is_pinned?: boolean

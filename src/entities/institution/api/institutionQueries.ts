@@ -29,6 +29,7 @@ export type InstitutionDto = {
   homepageUrl: string | null;
   displayOrder: number;
   isActive: boolean;
+  isPending: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -51,7 +52,7 @@ type InstitutionJoinedRow = Tables<"institutions"> & {
 };
 
 const SELECT =
-  "id,institution_type,category_id,name,logo_file_id,description,homepage_url,display_order,is_active,created_at,updated_at,category:institution_categories!inner(id,code,name,display_order,is_active,created_at,updated_at),logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)";
+  "id,institution_type,category_id,name,logo_file_id,description,homepage_url,display_order,is_active,is_pending,created_at,updated_at,category:institution_categories!inner(id,code,name,display_order,is_active,created_at,updated_at),logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)";
 
 export function mapInstitution(row: InstitutionJoinedRow): InstitutionDto {
   return {
@@ -64,6 +65,7 @@ export function mapInstitution(row: InstitutionJoinedRow): InstitutionDto {
     homepageUrl: row.homepage_url,
     displayOrder: row.display_order,
     isActive: row.is_active,
+    isPending: row.is_pending,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

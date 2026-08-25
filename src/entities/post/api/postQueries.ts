@@ -15,7 +15,6 @@ export type LegacyPostListItem = Pick<
   Post,
   | "id"
   | "title"
-  | "caption"
   | "thumbnail_path"
   | "tags"
   | "is_pinned"
@@ -70,7 +69,6 @@ const MAX_PAGE_SIZE = 100;
 const POST_LIST_SELECT = `
   id,
   title,
-  caption,
   thumbnail_path,
   tags,
   is_pinned,
@@ -94,7 +92,6 @@ const POST_DETAIL_SELECT = `
   board_id,
   organization_id,
   title,
-  caption,
   content,
   thumbnail_path,
   tags,
@@ -104,7 +101,6 @@ const POST_DETAIL_SELECT = `
   created_at,
   updated_at,
   category,
-  summary,
   institution_id,
   status,
   board:boards!inner (*),

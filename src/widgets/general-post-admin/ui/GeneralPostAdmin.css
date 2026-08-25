@@ -353,8 +353,6 @@
 .general-admin-list-filters,
 .general-admin-list-actions,
 .general-admin-list-meta,
-.general-admin-list-summary,
-.general-admin-list-summary label,
 .general-admin-list-footer > label {
   display: flex;
   align-items: center;
@@ -435,27 +433,6 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.8;
-}
-
-.general-admin-list-summary {
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--sp-5);
-}
-
-.general-admin-list-summary label {
-  gap: var(--sp-2);
-  color: var(--text-strong);
-  cursor: pointer;
-  font-size: var(--text-body-sm);
-  font-weight: var(--fw-semibold);
-}
-
-.general-admin-list-summary input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--teal-600);
 }
 
 .general-admin-list-footer {
@@ -623,8 +600,7 @@
 @media (max-width: 767px) {
   .general-admin-list-toolbar,
   .general-admin-list-actions,
-  .general-admin-list-meta,
-  .general-admin-list-summary {
+  .general-admin-list-meta {
     align-items: stretch;
     flex-direction: column;
   }
@@ -637,8 +613,7 @@
     width: 100%;
   }
 
-  .general-admin-list-meta,
-  .general-admin-list-summary {
+  .general-admin-list-meta {
     gap: var(--sp-3);
   }
 

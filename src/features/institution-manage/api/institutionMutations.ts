@@ -19,6 +19,7 @@ export type CreateInstitutionInput = {
   homepageUrl?: string | null;
   displayOrder?: number;
   isActive?: boolean;
+  isPending?: boolean;
 };
 export type UpdateInstitutionInput = Partial<CreateInstitutionInput> & {
   id: string;
@@ -66,7 +67,19 @@ function mapInput(
     payload.display_order = input.displayOrder;
   }
   if (input.isActive !== undefined) payload.is_active = input.isActive;
+  if (input.isPending !== undefined) payload.is_pending = input.isPending;
   return payload;
+}
+
+async function nextDisplayOrder() {
+  const { data, error } = await supabase
+    .from("institutions")
+    .select("display_order")
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throwContentError(error);
+  return (data?.display_order ?? -1) + 1;
 }
 
 async function createInstitution(
@@ -75,6 +88,8 @@ async function createInstitution(
   const payload = mapInput(input);
   if (!payload.institution_type || !payload.category_id || !payload.name)
     throw new TypeError("institutionType, categoryId, name은 필수입니다.");
+  if (payload.display_order === undefined)
+    payload.display_order = await nextDisplayOrder();
   const { data, error } = await supabase
     .from("institutions")
     .insert(payload as TablesInsert<"institutions">)
@@ -96,6 +111,26 @@ async function updateInstitution(
   if (error) throwContentError(error);
   return mapInstitution(data as Joined);
 }
+export type SwapInstitutionOrderInput = {
+  first: { id: string; displayOrder: number };
+  second: { id: string; displayOrder: number };
+};
+
+async function swapInstitutionOrder(input: SwapInstitutionOrderInput) {
+  const results = await Promise.all([
+    supabase
+      .from("institutions")
+      .update({ display_order: input.second.displayOrder })
+      .eq("id", requireUuid(input.first.id)),
+    supabase
+      .from("institutions")
+      .update({ display_order: input.first.displayOrder })
+      .eq("id", requireUuid(input.second.id)),
+  ]);
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throwContentError(failed.error);
+}
+
 async function deleteInstitution(id: string) {
   const { data, error } = await supabase
     .from("institutions")
@@ -121,4 +156,9 @@ export const deleteInstitutionMutationOptions = () =>
   mutationOptions({
     mutationKey: ["institutions", "delete"],
     mutationFn: deleteInstitution,
+  });
+export const swapInstitutionOrderMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["institutions", "swap-order"],
+    mutationFn: swapInstitutionOrder,
   });

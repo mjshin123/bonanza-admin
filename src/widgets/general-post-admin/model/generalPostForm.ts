@@ -1,7 +1,6 @@
 import type { LegacyAdminPostListItem } from "@entities/post";
 
 export type GeneralPostFormState = {
-  caption: string;
   content: string;
   isPinned: boolean;
   isPublished: boolean;
@@ -14,7 +13,6 @@ export type GeneralPostMode =
   "gallery" | "member-news" | "resource" | "standard";
 
 export const EMPTY_GENERAL_POST_FORM: GeneralPostFormState = {
-  caption: "",
   content: "",
   isPinned: false,
   isPublished: false,
@@ -49,7 +47,6 @@ export function postToGeneralForm(
   post: LegacyAdminPostListItem,
 ): GeneralPostFormState {
   return {
-    caption: post.caption,
     content: post.content,
     isPinned: post.is_pinned,
     isPublished: post.is_published,

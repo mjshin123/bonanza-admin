@@ -37,20 +37,6 @@ type SeminarEventFormProps = {
   ) => Promise<void> | void;
 };
 
-function FieldLabel({
-  htmlFor,
-  children,
-}: {
-  htmlFor: string;
-  children: string;
-}) {
-  return (
-    <label className="seminar-admin-field-label" htmlFor={htmlFor}>
-      {children}
-    </label>
-  );
-}
-
 export function SeminarEventForm({
   categoryControl,
   currentThumbnailPath,
@@ -121,9 +107,6 @@ export function SeminarEventForm({
     onChange: (event) => updateField("applicationUrl", event.target.value),
   });
   const contentField = register("content");
-  const captionField = register("caption", {
-    onChange: (event) => updateField("caption", event.target.value),
-  });
   const pinnedField = register("isPinned", {
     onChange: (event) => updateField("isPinned", event.target.checked),
   });
@@ -209,25 +192,6 @@ export function SeminarEventForm({
             placeholder="행사의 핵심 주제를 입력하세요"
             value={form.topic}
           />
-        </div>
-
-        <div className="seminar-admin-textarea-field">
-          <FieldLabel htmlFor="seminar-caption">캡션</FieldLabel>
-          <textarea
-            {...captionField}
-            aria-invalid={Boolean(errors.caption)}
-            disabled={disabled}
-            id="seminar-caption"
-            maxLength={200}
-            placeholder="목록에서 행사명 아래에 표시할 요약을 입력하세요"
-            rows={3}
-            value={form.caption}
-          />
-          {errors.caption ? (
-            <span className="seminar-admin-field-error">
-              {errors.caption.message}
-            </span>
-          ) : null}
         </div>
 
         <PostTagSelector

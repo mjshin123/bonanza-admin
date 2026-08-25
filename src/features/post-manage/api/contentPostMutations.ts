@@ -8,7 +8,6 @@ import {
   mapFile,
   normalizeFileItems,
   normalizePublishedAt,
-  optionalText,
   requireExpectedUpdatedAt,
   requireText,
   requireUuid,
@@ -34,7 +33,6 @@ export type SavePostFileInput = {
 export type CreateContentPostInput = {
   category: PostCategory;
   title: string;
-  summary?: string;
   content: string;
   institutionId?: string | null;
   status?: ContentStatus;
@@ -94,7 +92,6 @@ export function buildContentPostCommand(input: CreateContentPostInput) {
   const command = {
     category: input.category,
     title: requireText(input.title, "title", 200),
-    summary: optionalText(input.summary, "summary", 500) ?? "",
     content: input.content,
     institutionId:
       input.category === "member_news"
@@ -102,7 +99,9 @@ export function buildContentPostCommand(input: CreateContentPostInput) {
         : null,
     status,
     isPinned: input.isPinned ?? false,
-    publishedAt: normalizePublishedAt(status, input.publishedAt) ?? null,
+    publishedAt:
+      normalizePublishedAt(status, input.publishedAt) ??
+      new Date().toISOString(),
   } satisfies Json;
   return { command, files: normalizeFileItems(input.files ?? []) };
 }
@@ -142,6 +141,21 @@ async function deleteContentPost(id: string) {
     .single();
   if (error) throwContentError(error);
   return data.id;
+}
+async function bulkHideContentPosts(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("posts")
+    .update({ status: "hidden" })
+    .in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
+}
+async function bulkDeleteContentPosts(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase.from("posts").delete().in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
 }
 function mapRelation(
   row: Tables<"post_files"> & { file: Tables<"files"> },
@@ -235,6 +249,16 @@ export const deleteContentPostMutationOptions = () =>
   mutationOptions({
     mutationKey: ["content-posts", "delete"],
     mutationFn: deleteContentPost,
+  });
+export const bulkHideContentPostsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["content-posts", "bulk-hide"],
+    mutationFn: bulkHideContentPosts,
+  });
+export const bulkDeleteContentPostsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["content-posts", "bulk-delete"],
+    mutationFn: bulkDeleteContentPosts,
   });
 export const createPostMutationOptions = createContentPostMutationOptions;
 export const updatePostMutationOptions = updateContentPostMutationOptions;

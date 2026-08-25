@@ -100,9 +100,6 @@ export function GeneralPostForm({
   const titleField = register("title", {
     onChange: (event) => updateField("title", event.target.value),
   });
-  const captionField = register("caption", {
-    onChange: (event) => updateField("caption", event.target.value),
-  });
   const organizationField = register("organizationId", {
     onChange: (event) => updateField("organizationId", event.target.value),
   });
@@ -207,27 +204,6 @@ export function GeneralPostForm({
           placeholder={`${boardName} 제목을 입력하세요`}
           value={form.title}
         />
-
-        {mode !== "resource" ? (
-          <div className="general-post-textarea-field">
-            <label htmlFor={`general-post-caption-${boardCode}`}>캡션</label>
-            <textarea
-              {...captionField}
-              aria-invalid={Boolean(errors.caption)}
-              disabled={disabled}
-              id={`general-post-caption-${boardCode}`}
-              maxLength={200}
-              placeholder="목록에서 제목 아래에 표시할 요약을 입력하세요"
-              rows={3}
-              value={form.caption}
-            />
-            {errors.caption ? (
-              <span className="general-post-field-error">
-                {errors.caption.message}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
 
         {mode === "member-news" ? (
           <div className="general-post-select-field">

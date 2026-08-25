@@ -17,7 +17,6 @@ async function updateSeminarEvent(input: UpdateSeminarEventInput) {
     p_application_method: values.applicationMethod ?? undefined,
     p_application_url: values.applicationUrl ?? undefined,
     p_capacity: values.capacity ?? undefined,
-    p_caption: values.caption,
     p_content: values.content,
     p_ends_at: values.endsAt ?? undefined,
     p_is_pinned: values.isPinned,

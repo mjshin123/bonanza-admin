@@ -9,7 +9,6 @@ import {
   mapFile,
   normalizeFileItems,
   normalizePublishedAt,
-  optionalText,
   requireExpectedUpdatedAt,
   requireText,
   requireUuid,
@@ -28,8 +27,6 @@ export type SaveResourceFileInput = {
 export type CreateResourceInput = {
   category: ResourceCategory;
   title: string;
-  summary?: string;
-  referenceYear?: number | null;
   status?: ContentStatus;
   publishedAt?: string | null;
   files?: SaveResourceFileInput[];
@@ -58,23 +55,11 @@ const SELECT = "*, files:resource_files(*,file:files!inner(*))";
 type Joined = Tables<"resources"> & {
   files: Array<Tables<"resource_files"> & { file: Tables<"files"> }>;
 };
-function validateReferenceYear(value: number | null | undefined) {
-  if (
-    value !== undefined &&
-    value !== null &&
-    (!Number.isInteger(value) || value < 1900 || value > 2100)
-  ) {
-    throw new RangeError("referenceYear는 1900~2100 정수여야 합니다.");
-  }
-  return value ?? null;
-}
 export function buildResourceCommand(input: CreateResourceInput): Json {
   const status = input.status ?? "draft";
   return {
     category: input.category,
     title: requireText(input.title, "title", 200),
-    summary: optionalText(input.summary, "summary", 500) ?? "",
-    referenceYear: validateReferenceYear(input.referenceYear),
     status,
     publishedAt: normalizePublishedAt(status, input.publishedAt) ?? null,
   };
@@ -118,6 +103,24 @@ async function deleteResource(id: string) {
     .single();
   if (error) throwContentError(error);
   return data.id;
+}
+async function bulkHideResources(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("resources")
+    .update({ status: "hidden" })
+    .in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
+}
+async function bulkDeleteResources(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("resources")
+    .delete()
+    .in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
 }
 function mapRelation(
   row: Tables<"resource_files"> & { file: Tables<"files"> },
@@ -211,6 +214,16 @@ export const deleteResourceMutationOptions = () =>
   mutationOptions({
     mutationKey: ["resources", "delete"],
     mutationFn: deleteResource,
+  });
+export const bulkHideResourcesMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["resources", "bulk-hide"],
+    mutationFn: bulkHideResources,
+  });
+export const bulkDeleteResourcesMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["resources", "bulk-delete"],
+    mutationFn: bulkDeleteResources,
   });
 export const linkResourceFileMutationOptions = () =>
   mutationOptions({

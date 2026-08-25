@@ -365,8 +365,6 @@
 .seminar-admin-list-filters,
 .seminar-admin-list-actions,
 .seminar-admin-list-meta,
-.seminar-admin-list-summary,
-.seminar-admin-list-summary label,
 .seminar-admin-list-footer > label {
   display: flex;
   align-items: center;
@@ -447,27 +445,6 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.8;
-}
-
-.seminar-admin-list-summary {
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--sp-5);
-}
-
-.seminar-admin-list-summary label {
-  gap: var(--sp-2);
-  color: var(--text-strong);
-  cursor: pointer;
-  font-size: var(--text-body-sm);
-  font-weight: var(--fw-semibold);
-}
-
-.seminar-admin-list-summary input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--teal-600);
 }
 
 .seminar-admin-list-footer {
@@ -622,8 +599,7 @@
 @media (max-width: 767px) {
   .seminar-admin-list-toolbar,
   .seminar-admin-list-actions,
-  .seminar-admin-list-meta,
-  .seminar-admin-list-summary {
+  .seminar-admin-list-meta {
     align-items: stretch;
     flex-direction: column;
   }
@@ -636,8 +612,7 @@
     width: 100%;
   }
 
-  .seminar-admin-list-meta,
-  .seminar-admin-list-summary {
+  .seminar-admin-list-meta {
     gap: var(--sp-3);
   }
 

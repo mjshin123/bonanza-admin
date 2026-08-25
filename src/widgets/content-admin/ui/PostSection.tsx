@@ -6,21 +6,25 @@ import {
   adminPostDetailQueryOptions,
   adminPostsQueryOptions,
   contentPostQueryKeys,
-  type AdminContentPostListItem,
+  hasMeaningfulPostContent,
+  sanitizePostContent,
   type PostFileDto,
 } from "@entities/post";
+import { PostContentEditor } from "@features/post-content-editor";
 import {
+  bulkDeleteContentPostsMutationOptions,
+  bulkHideContentPostsMutationOptions,
   createContentPostMutationOptions,
-  deleteContentPostMutationOptions,
   updateContentPostMutationOptions,
 } from "@features/post-manage";
 import type { ContentStatus, FileDto, PostCategory } from "@shared/api/content";
 import { Button, Input } from "@shared/ui";
 
 import {
-  EDIT_STATUS_OPTIONS,
+  endOfDayIso,
   formatDateTime,
   PAGE_SIZE,
+  startOfDayIso,
   STATUS_OPTIONS,
   toDateTimeLocal,
   toIsoOrNull,
@@ -32,7 +36,6 @@ import {
   Field,
   FileUpload,
   FilterBar,
-  FormActions,
   MutationMessage,
   NativeSelect,
   Pager,
@@ -40,7 +43,6 @@ import {
   SectionTitle,
   StatusBadge,
   TableShell,
-  Textarea,
 } from "./AdminCommon";
 
 const EMPTY_ID = "00000000-0000-4000-8000-000000000000";
@@ -57,10 +59,8 @@ type SelectedPostFile = {
 };
 type PostFormState = {
   title: string;
-  summary: string;
   content: string;
   institutionId: string;
-  status: ContentStatus;
   isPinned: boolean;
   publishedAt: string;
 };
@@ -94,24 +94,21 @@ function PostEditor({
   });
   const [form, setForm] = useState<PostFormState>({
     title: "",
-    summary: "",
     content: "",
     institutionId: "",
-    status: "draft",
     isPinned: false,
-    publishedAt: "",
+    publishedAt: toDateTimeLocal(new Date().toISOString()),
   });
   const [files, setFiles] = useState<SelectedPostFile[]>([]);
+  const [contentError, setContentError] = useState<string | null>(null);
 
   useEffect(() => {
     const item = detailQuery.data;
     if (!item) return;
     setForm({
       title: item.title,
-      summary: item.summary,
       content: item.content,
       institutionId: item.institution?.id ?? "",
-      status: item.status,
       isPinned: item.isPinned,
       publishedAt: toDateTimeLocal(item.publishedAt),
     });
@@ -126,13 +123,23 @@ function PostEditor({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!hasMeaningfulPostContent(form.content)) {
+      setContentError("본문을 입력해주세요.");
+      return;
+    }
+
+    setContentError(null);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as
+      | HTMLButtonElement
+      | null;
+    const status = (submitter?.value as ContentStatus | undefined) ?? "draft";
     const input = {
       category,
       title: form.title,
-      summary: form.summary,
-      content: form.content,
+      content: sanitizePostContent(form.content),
       institutionId: category === "member_news" ? form.institutionId : null,
-      status: form.status,
+      status,
       isPinned: form.isPinned,
       publishedAt: toIsoOrNull(form.publishedAt),
       files: files.map((entry) => ({
@@ -182,15 +189,6 @@ function PostEditor({
           onChange={(event) => setForm({ ...form, title: event.target.value })}
         />
       </Field>
-      <Field label="요약" wide>
-        <Textarea
-          maxLength={500}
-          value={form.summary}
-          onChange={(event) =>
-            setForm({ ...form, summary: event.target.value })
-          }
-        />
-      </Field>
       {category === "member_news" ? (
         <>
           <Field label="회원기관 검색">
@@ -219,23 +217,9 @@ function PostEditor({
           </Field>
         </>
       ) : null}
-      <Field label="게시 상태" required>
-        <NativeSelect
-          value={form.status}
-          onChange={(event) =>
-            setForm({ ...form, status: event.target.value as ContentStatus })
-          }
-        >
-          {EDIT_STATUS_OPTIONS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
       <Field
         label="게시 일시"
-        hint="게시 상태에서 비워두면 저장 시점으로 설정됩니다."
+        hint="임시저장은 이 일시를 그대로 저장하고, 게시는 공개 상태로 전환합니다. 미래 일시로 게시하면 예약 발행됩니다."
       >
         <input
           className="content-admin-native-input"
@@ -339,23 +323,48 @@ function PostEditor({
           ))}
         </div>
       </Field>
-      <Field
-        label="본문"
-        required
-        wide
-        hint="현재 v2 본문은 HTML을 저장합니다."
-      >
-        <Textarea
-          required
-          className="is-content"
+      <div className="content-admin-field is-wide">
+        <PostContentEditor
+          currentThumbnailPath={null}
+          enableImages={false}
+          error={contentError ?? undefined}
+          label="본문"
           value={form.content}
-          onChange={(event) =>
-            setForm({ ...form, content: event.target.value })
-          }
+          onChange={(content) => {
+            setContentError(null);
+            setForm((current) => ({ ...current, content }));
+          }}
+          onStateChange={() => {}}
         />
-      </Field>
+      </div>
       <MutationMessage error={mutation.error} />
-      <FormActions isPending={mutation.isPending} onCancel={onClose} />
+      <div className="content-admin-form-actions">
+        <Button
+          disabled={mutation.isPending}
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+        >
+          취소
+        </Button>
+        <Button
+          disabled={mutation.isPending}
+          name="action"
+          type="submit"
+          value="draft"
+          variant="ghost"
+        >
+          {mutation.isPending ? "저장 중..." : "임시저장"}
+        </Button>
+        <Button
+          disabled={mutation.isPending}
+          name="action"
+          type="submit"
+          value="published"
+        >
+          {mutation.isPending ? "저장 중..." : "게시"}
+        </Button>
+      </div>
     </EditorCard>
   );
 }
@@ -367,8 +376,11 @@ export function PostSection() {
   const [search, setSearch] = useState("");
   const q = useDebouncedValue(search);
   const [status, setStatus] = useState("");
+  const [publishedFrom, setPublishedFrom] = useState("");
+  const [publishedTo, setPublishedTo] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminPostsQueryOptions({
       page,
@@ -376,16 +388,47 @@ export function PostSection() {
       category,
       q: q || undefined,
       status: status ? (status as ContentStatus) : undefined,
+      publishedFrom: startOfDayIso(publishedFrom),
+      publishedTo: endOfDayIso(publishedTo),
     }),
   );
-  const deleteMutation = useMutation(deleteContentPostMutationOptions());
-  const remove = async (item: AdminContentPostListItem) => {
-    if (!window.confirm(`'${item.title}' 게시물을 삭제할까요?`)) return;
+  const items = query.data?.items ?? [];
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [category, page, q, status, publishedFrom, publishedTo]);
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
+  };
+  const hideMutation = useMutation(bulkHideContentPostsMutationOptions());
+  const bulkDeleteMutation = useMutation(bulkDeleteContentPostsMutationOptions());
+  const bulkHide = async () => {
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
     try {
-      await deleteMutation.mutateAsync(item.id);
+      await hideMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({
         queryKey: contentPostQueryKeys.all,
       });
+      setSelectedIds(new Set());
+    } catch {
+      /* 표시 */
+    }
+  };
+  const bulkDelete = async () => {
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
+    try {
+      await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+      await queryClient.invalidateQueries({
+        queryKey: contentPostQueryKeys.all,
+      });
+      setSelectedIds(new Set());
     } catch {
       /* 표시 */
     }
@@ -421,38 +464,73 @@ export function PostSection() {
       <FilterBar>
         <Input
           aria-label="게시물 검색"
-          placeholder="제목 또는 요약 검색"
+          placeholder="제목 검색"
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
             setPage(1);
           }}
         />
-        <NativeSelect
-          aria-label="게시 상태"
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
-        >
-          {STATUS_OPTIONS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </NativeSelect>
+        <div className="content-admin-filter-extra">
+          <NativeSelect
+            aria-label="게시 상태"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            {STATUS_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </NativeSelect>
+          <div className="content-admin-date-range">
+            <input
+              aria-label="게시일 시작"
+              className="content-admin-native-input"
+              type="date"
+              value={publishedFrom}
+              onChange={(event) => {
+                setPublishedFrom(event.target.value);
+                setPage(1);
+              }}
+            />
+            <span>~</span>
+            <input
+              aria-label="게시일 종료"
+              className="content-admin-native-input"
+              type="date"
+              value={publishedTo}
+              onChange={(event) => {
+                setPublishedTo(event.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+        </div>
       </FilterBar>
-      <MutationMessage error={deleteMutation.error} />
+      <MutationMessage error={bulkDeleteMutation.error} />
+      <MutationMessage error={hideMutation.error} />
       <TableShell
         isLoading={query.isPending}
         error={query.error}
-        isEmpty={!query.data?.items.length}
+        isEmpty={!items.length}
         emptyMessage="등록된 게시물이 없습니다."
       >
         <table>
           <thead>
             <tr>
+              <th aria-label="선택">
+                <input
+                  aria-label="전체 선택"
+                  checked={items.length > 0 && selectedIds.size === items.length}
+                  className="content-admin-row-checkbox"
+                  type="checkbox"
+                  onChange={(event) => toggleSelectAll(event.target.checked)}
+                />
+              </th>
               <th>제목</th>
               <th>활동 주체</th>
               <th>상태</th>
@@ -461,20 +539,33 @@ export function PostSection() {
             </tr>
           </thead>
           <tbody>
-            {query.data?.items.map((item) => (
+            {items.map((item) => (
               <tr key={item.id}>
+                <td>
+                  <input
+                    aria-label={`${item.title} 선택`}
+                    checked={selectedIds.has(item.id)}
+                    className="content-admin-row-checkbox"
+                    type="checkbox"
+                    onChange={(event) =>
+                      toggleSelected(item.id, event.target.checked)
+                    }
+                  />
+                </td>
                 <td>
                   <div className="content-admin-table-title">
                     <strong>
                       {item.isPinned ? "[고정] " : ""}
                       {item.title}
                     </strong>
-                    <span>{item.summary || "요약 없음"}</span>
                   </div>
                 </td>
                 <td>{item.institution?.name ?? "협회"}</td>
                 <td>
-                  <StatusBadge status={item.status} />
+                  <StatusBadge
+                    status={item.status}
+                    publishedAt={item.publishedAt}
+                  />
                 </td>
                 <td>{formatDateTime(item.publishedAt)}</td>
                 <td>
@@ -489,13 +580,6 @@ export function PostSection() {
                     >
                       수정
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="text"
-                      onClick={() => void remove(item)}
-                    >
-                      삭제
-                    </Button>
                   </div>
                 </td>
               </tr>
@@ -503,6 +587,31 @@ export function PostSection() {
           </tbody>
         </table>
       </TableShell>
+      {selectedIds.size > 0 ? (
+        <FilterBar>
+          <span className="content-admin-muted">
+            {selectedIds.size}건 선택됨
+          </span>
+          <div className="content-admin-table-actions">
+            <Button
+              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkHide()}
+            >
+              선택 숨김
+            </Button>
+            <Button
+              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              size="sm"
+              variant="danger"
+              onClick={() => void bulkDelete()}
+            >
+              선택 삭제
+            </Button>
+          </div>
+        </FilterBar>
+      ) : null}
       <Pager
         page={page}
         total={query.data?.total ?? 0}

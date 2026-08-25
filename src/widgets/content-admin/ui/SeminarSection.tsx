@@ -1,30 +1,29 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { hasMeaningfulPostContent, sanitizePostContent } from "@entities/post";
 import {
   adminSeminarDetailQueryOptions,
   adminSeminarsQueryOptions,
   seminarQueryKeys,
-  type AdminSeminarListItem,
   type SeminarFileDto,
 } from "@entities/seminar";
+import { PostContentEditor } from "@features/post-content-editor";
 import {
+  bulkDeleteSeminarsMutationOptions,
+  bulkHideSeminarsMutationOptions,
   createSeminarMutationOptions,
-  deleteSeminarMutationOptions,
   updateSeminarMutationOptions,
 } from "@features/seminar-manage";
-import type {
-  ContentStatus,
-  FileDto,
-  SelectionMethod,
-  SeminarTiming,
-} from "@shared/api/content";
+import type { ContentStatus, FileDto, SeminarTiming } from "@shared/api/content";
 import { Button, Input } from "@shared/ui";
 
 import {
   EDIT_STATUS_OPTIONS,
+  endOfDayIso,
   formatDateTime,
   PAGE_SIZE,
+  startOfDayIso,
   STATUS_OPTIONS,
   toDateTimeLocal,
   toIsoOrNull,
@@ -48,38 +47,30 @@ import {
 } from "./AdminCommon";
 
 const EMPTY_ID = "00000000-0000-4000-8000-000000000000";
-type SelectedSeminarPhoto = { file: FileDto; showInGallery: boolean };
+type SelectedSeminarImage = { file: FileDto; showInGallery: boolean };
 type SeminarForm = {
   title: string;
   introduction: string;
-  resultSummary: string;
   content: string;
   startsAt: string;
   endsAt: string;
   location: string;
-  selectionMethod: SelectionMethod;
-  selectionMethodDetail: string;
-  capacity: string;
-  registrationDeadline: string;
   applicationUrl: string;
   status: ContentStatus;
   publishedAt: string;
+  isFeatured: boolean;
 };
 const EMPTY_FORM: SeminarForm = {
   title: "",
   introduction: "",
-  resultSummary: "",
   content: "",
   startsAt: "",
   endsAt: "",
   location: "",
-  selectionMethod: "first_come",
-  selectionMethodDetail: "",
-  capacity: "",
-  registrationDeadline: "",
   applicationUrl: "",
   status: "draft",
   publishedAt: "",
+  isFeatured: false,
 };
 
 function SeminarEditor({
@@ -98,8 +89,7 @@ function SeminarEditor({
   const updateMutation = useMutation(updateSeminarMutationOptions());
   const mutation = editingId ? updateMutation : createMutation;
   const [form, setForm] = useState<SeminarForm>(EMPTY_FORM);
-  const [poster, setPoster] = useState<FileDto | null>(null);
-  const [photos, setPhotos] = useState<SelectedSeminarPhoto[]>([]);
+  const [images, setImages] = useState<SelectedSeminarImage[]>([]);
 
   useEffect(() => {
     const item = detailQuery.data;
@@ -107,22 +97,17 @@ function SeminarEditor({
     setForm({
       title: item.title,
       introduction: item.introduction,
-      resultSummary: item.resultSummary,
       content: item.content ?? "",
       startsAt: toDateTimeLocal(item.startsAt),
       endsAt: toDateTimeLocal(item.endsAt),
-      location: item.location,
-      selectionMethod: item.selectionMethod,
-      selectionMethodDetail: item.selectionMethodDetail ?? "",
-      capacity: item.capacity ? String(item.capacity) : "",
-      registrationDeadline: toDateTimeLocal(item.registrationDeadline),
+      location: item.location ?? "",
       applicationUrl: item.applicationUrl ?? "",
       status: item.status,
       publishedAt: toDateTimeLocal(item.publishedAt),
+      isFeatured: item.isFeatured,
     });
-    setPoster(item.poster);
-    setPhotos(
-      item.photos.map((entry: SeminarFileDto) => ({
+    setImages(
+      item.images.map((entry: SeminarFileDto) => ({
         file: entry.file,
         showInGallery: entry.showInGallery,
       })),
@@ -134,27 +119,20 @@ function SeminarEditor({
     const input = {
       title: form.title,
       introduction: form.introduction,
-      resultSummary: form.resultSummary,
-      content: form.content || null,
+      content: hasMeaningfulPostContent(form.content)
+        ? sanitizePostContent(form.content)
+        : null,
       startsAt: new Date(form.startsAt).toISOString(),
       endsAt: toIsoOrNull(form.endsAt),
-      location: form.location,
-      selectionMethod: form.selectionMethod,
-      selectionMethodDetail:
-        form.selectionMethod === "other" ? form.selectionMethodDetail : null,
-      capacity: form.capacity ? Number(form.capacity) : null,
-      registrationDeadline: toIsoOrNull(form.registrationDeadline),
+      location: form.location.trim() || null,
       applicationUrl: form.applicationUrl || null,
       status: form.status,
       publishedAt: toIsoOrNull(form.publishedAt),
-      files: [
-        ...(poster ? [{ fileId: poster.id, role: "poster" as const }] : []),
-        ...photos.map((photo) => ({
-          fileId: photo.file.id,
-          role: "photo" as const,
-          showInGallery: photo.showInGallery,
-        })),
-      ],
+      isFeatured: form.isFeatured,
+      files: images.map((image) => ({
+        fileId: image.file.id,
+        showInGallery: image.showInGallery,
+      })),
     };
     try {
       if (editingId && detailQuery.data)
@@ -182,7 +160,7 @@ function SeminarEditor({
   return (
     <EditorCard
       title={editingId ? "세미나 수정" : "세미나 등록"}
-      description="예정 행사에는 소개를, 종료 행사에는 결과 요약과 현장 사진을 노출합니다. 첨부 사진별로 포토 갤러리 노출 여부를 지정합니다."
+      description="행사 소개와 현장 사진을 노출합니다. 첨부 사진별로 포토 갤러리 노출 여부를 지정합니다."
       onSubmit={(event) => void submit(event)}
     >
       <Field label="세미나명" required wide>
@@ -198,12 +176,6 @@ function SeminarEditor({
         <Textarea
           value={form.introduction}
           onChange={(event) => set("introduction", event.target.value)}
-        />
-      </Field>
-      <Field label="지난 행사 요약" wide>
-        <Textarea
-          value={form.resultSummary}
-          onChange={(event) => set("resultSummary", event.target.value)}
         />
       </Field>
       <Field label="시작 일시" required>
@@ -223,57 +195,18 @@ function SeminarEditor({
           onChange={(event) => set("endsAt", event.target.value)}
         />
       </Field>
-      <Field label="장소" required wide>
+      <Field label="장소" wide>
         <input
-          required
           className="content-admin-native-input"
           maxLength={300}
           value={form.location}
           onChange={(event) => set("location", event.target.value)}
         />
       </Field>
-      <Field label="선발 방식" required>
-        <NativeSelect
-          value={form.selectionMethod}
-          onChange={(event) =>
-            set("selectionMethod", event.target.value as SelectionMethod)
-          }
-        >
-          <option value="first_come">선착순</option>
-          <option value="lottery">추첨</option>
-          <option value="other">기타</option>
-        </NativeSelect>
-      </Field>
-      {form.selectionMethod === "other" ? (
-        <Field label="선발 방식 설명" required>
-          <input
-            required
-            className="content-admin-native-input"
-            value={form.selectionMethodDetail}
-            onChange={(event) =>
-              set("selectionMethodDetail", event.target.value)
-            }
-          />
-        </Field>
-      ) : null}
-      <Field label="선발 인원">
-        <input
-          className="content-admin-native-input"
-          min={1}
-          type="number"
-          value={form.capacity}
-          onChange={(event) => set("capacity", event.target.value)}
-        />
-      </Field>
-      <Field label="접수 마감일">
-        <input
-          className="content-admin-native-input"
-          type="datetime-local"
-          value={form.registrationDeadline}
-          onChange={(event) => set("registrationDeadline", event.target.value)}
-        />
-      </Field>
-      <Field label="신청 링크">
+      <Field
+        label="상세/신청 링크"
+        hint="입력하면 홈페이지에 버튼으로 노출됩니다."
+      >
         <input
           className="content-admin-native-input"
           placeholder="https://"
@@ -304,40 +237,25 @@ function SeminarEditor({
           onChange={(event) => set("publishedAt", event.target.value)}
         />
       </Field>
-      <Field label="포스터" wide>
-        <div className="content-admin-inline">
-          {poster ? (
-            <img
-              alt="세미나 포스터"
-              className="content-admin-image-thumb"
-              src={poster.url}
-            />
-          ) : null}
-          <FileUpload
-            accept="image/*"
-            fileKind="image"
-            label="포스터 업로드"
-            onUploaded={(uploaded) => setPoster(uploaded[0] ?? null)}
-          />
-          {poster ? (
-            <Button size="sm" variant="text" onClick={() => setPoster(null)}>
-              제외
-            </Button>
-          ) : null}
-        </div>
+      <Field label="예정된 행사">
+        <Checkbox
+          checked={form.isFeatured}
+          label="홈페이지 상단에 예정된 행사로 노출"
+          onChange={(isFeatured) => set("isFeatured", isFeatured)}
+        />
       </Field>
       <Field
-        label="종료 후 첨부 사진"
+        label="이미지"
         wide
-        hint="사진은 세미나 상세에 표시되며, 체크한 사진만 홈페이지 포토 갤러리에도 노출됩니다."
+        hint="첫 번째 이미지가 목록의 대표 이미지로 사용됩니다. 체크한 이미지만 홈페이지 포토 갤러리에도 노출됩니다."
       >
         <FileUpload
           accept="image/*"
           fileKind="image"
-          label="사진 추가"
+          label="이미지 추가"
           multiple
           onUploaded={(uploaded) =>
-            setPhotos((current) => [
+            setImages((current) => [
               ...current,
               ...uploaded.map((file) => ({
                 file,
@@ -347,23 +265,23 @@ function SeminarEditor({
           }
         />
         <div className="content-admin-file-list">
-          {photos.map((photo) => (
-            <div className="content-admin-file-row" key={photo.file.id}>
+          {images.map((image, index) => (
+            <div className="content-admin-file-row" key={image.file.id}>
               <img
                 alt=""
                 className="content-admin-image-thumb"
-                src={photo.file.url}
+                src={image.file.url}
               />
               <div>
-                <strong>{photo.file.originalName}</strong>
-                <span>세미나 사진</span>
+                <strong>{image.file.originalName}</strong>
+                <span>{index === 0 ? "대표 이미지" : `${index + 1}번째 이미지`}</span>
                 <Checkbox
-                  checked={photo.showInGallery}
-                  label="포토 갤러리에 노출"
+                  checked={image.showInGallery}
+                  label="홈페이지 포토갤러리에 노출"
                   onChange={(showInGallery) =>
-                    setPhotos((current) =>
+                    setImages((current) =>
                       current.map((candidate) =>
-                        candidate.file.id === photo.file.id
+                        candidate.file.id === image.file.id
                           ? { ...candidate, showInGallery }
                           : candidate,
                       ),
@@ -375,9 +293,9 @@ function SeminarEditor({
                 size="sm"
                 variant="text"
                 onClick={() =>
-                  setPhotos((current) =>
+                  setImages((current) =>
                     current.filter(
-                      (candidate) => candidate.file.id !== photo.file.id,
+                      (candidate) => candidate.file.id !== image.file.id,
                     ),
                   )
                 }
@@ -388,13 +306,16 @@ function SeminarEditor({
           ))}
         </div>
       </Field>
-      <Field label="상세 내용" wide>
-        <Textarea
-          className="is-content"
+      <div className="content-admin-field is-wide">
+        <PostContentEditor
+          currentThumbnailPath={null}
+          enableImages={false}
+          label="상세 내용"
           value={form.content}
-          onChange={(event) => set("content", event.target.value)}
+          onChange={(content) => set("content", content)}
+          onStateChange={() => {}}
         />
-      </Field>
+      </div>
       <MutationMessage error={mutation.error} />
       <FormActions isPending={mutation.isPending} onCancel={onClose} />
     </EditorCard>
@@ -408,8 +329,11 @@ export function SeminarSection() {
   const [search, setSearch] = useState("");
   const q = useDebouncedValue(search);
   const [status, setStatus] = useState("");
+  const [publishedFrom, setPublishedFrom] = useState("");
+  const [publishedTo, setPublishedTo] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminSeminarsQueryOptions({
       page,
@@ -417,14 +341,43 @@ export function SeminarSection() {
       q: q || undefined,
       timing,
       status: status ? (status as ContentStatus) : undefined,
+      publishedFrom: startOfDayIso(publishedFrom),
+      publishedTo: endOfDayIso(publishedTo),
     }),
   );
-  const deleteMutation = useMutation(deleteSeminarMutationOptions());
-  const remove = async (item: AdminSeminarListItem) => {
-    if (!window.confirm(`'${item.title}' 세미나를 삭제할까요?`)) return;
+  const items = query.data?.items ?? [];
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [timing, page, q, status, publishedFrom, publishedTo]);
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
+  };
+  const hideMutation = useMutation(bulkHideSeminarsMutationOptions());
+  const bulkDeleteMutation = useMutation(bulkDeleteSeminarsMutationOptions());
+  const bulkHide = async () => {
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
     try {
-      await deleteMutation.mutateAsync(item.id);
+      await hideMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({ queryKey: seminarQueryKeys.all });
+      setSelectedIds(new Set());
+    } catch {
+      /* 표시 */
+    }
+  };
+  const bulkDelete = async () => {
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
+    try {
+      await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+      await queryClient.invalidateQueries({ queryKey: seminarQueryKeys.all });
+      setSelectedIds(new Set());
     } catch {
       /* 표시 */
     }
@@ -443,7 +396,7 @@ export function SeminarSection() {
     <section className="content-admin-section">
       <SectionTitle
         title="세미나"
-        description="예정·지난 행사 정보와 포스터, 행사 사진을 관리합니다."
+        description="예정·지난 행사 정보와 이미지를 관리합니다."
         action={
           <Button onClick={() => setEditorOpen(true)}>세미나 등록</Button>
         }
@@ -470,31 +423,66 @@ export function SeminarSection() {
             setPage(1);
           }}
         />
-        <NativeSelect
-          aria-label="게시 상태"
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
-        >
-          {STATUS_OPTIONS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </NativeSelect>
+        <div className="content-admin-filter-extra">
+          <NativeSelect
+            aria-label="게시 상태"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            {STATUS_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </NativeSelect>
+          <div className="content-admin-date-range">
+            <input
+              aria-label="게시일 시작"
+              className="content-admin-native-input"
+              type="date"
+              value={publishedFrom}
+              onChange={(event) => {
+                setPublishedFrom(event.target.value);
+                setPage(1);
+              }}
+            />
+            <span>~</span>
+            <input
+              aria-label="게시일 종료"
+              className="content-admin-native-input"
+              type="date"
+              value={publishedTo}
+              onChange={(event) => {
+                setPublishedTo(event.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+        </div>
       </FilterBar>
-      <MutationMessage error={deleteMutation.error} />
+      <MutationMessage error={bulkDeleteMutation.error} />
+      <MutationMessage error={hideMutation.error} />
       <TableShell
         isLoading={query.isPending}
         error={query.error}
-        isEmpty={!query.data?.items.length}
+        isEmpty={!items.length}
         emptyMessage="등록된 세미나가 없습니다."
       >
         <table>
           <thead>
             <tr>
+              <th aria-label="선택">
+                <input
+                  aria-label="전체 선택"
+                  checked={items.length > 0 && selectedIds.size === items.length}
+                  className="content-admin-row-checkbox"
+                  type="checkbox"
+                  onChange={(event) => toggleSelectAll(event.target.checked)}
+                />
+              </th>
               <th>세미나</th>
               <th>일시</th>
               <th>장소</th>
@@ -503,8 +491,19 @@ export function SeminarSection() {
             </tr>
           </thead>
           <tbody>
-            {query.data?.items.map((item) => (
+            {items.map((item) => (
               <tr key={item.id}>
+                <td>
+                  <input
+                    aria-label={`${item.title} 선택`}
+                    checked={selectedIds.has(item.id)}
+                    className="content-admin-row-checkbox"
+                    type="checkbox"
+                    onChange={(event) =>
+                      toggleSelected(item.id, event.target.checked)
+                    }
+                  />
+                </td>
                 <td>
                   <div className="content-admin-inline">
                     {item.poster ? (
@@ -516,9 +515,7 @@ export function SeminarSection() {
                     ) : null}
                     <div className="content-admin-table-title">
                       <strong>{item.title}</strong>
-                      <span>
-                        {item.introduction || item.resultSummary || "소개 없음"}
-                      </span>
+                      <span>{item.introduction || "소개 없음"}</span>
                     </div>
                   </div>
                 </td>
@@ -539,13 +536,6 @@ export function SeminarSection() {
                     >
                       수정
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="text"
-                      onClick={() => void remove(item)}
-                    >
-                      삭제
-                    </Button>
                   </div>
                 </td>
               </tr>
@@ -553,6 +543,31 @@ export function SeminarSection() {
           </tbody>
         </table>
       </TableShell>
+      {selectedIds.size > 0 ? (
+        <FilterBar>
+          <span className="content-admin-muted">
+            {selectedIds.size}건 선택됨
+          </span>
+          <div className="content-admin-table-actions">
+            <Button
+              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkHide()}
+            >
+              선택 숨김
+            </Button>
+            <Button
+              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              size="sm"
+              variant="danger"
+              onClick={() => void bulkDelete()}
+            >
+              선택 삭제
+            </Button>
+          </div>
+        </FilterBar>
+      ) : null}
       <Pager
         page={page}
         total={query.data?.total ?? 0}

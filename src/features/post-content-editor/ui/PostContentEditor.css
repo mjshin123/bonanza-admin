@@ -92,6 +92,95 @@
   opacity: 0.5;
 }
 
+.post-content-editor-color-picker {
+  position: relative;
+}
+
+.post-content-editor-toolbar .post-content-editor-color-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 32px;
+  min-height: 32px;
+  padding: 4px 0 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.post-content-editor-toolbar .post-content-editor-color-trigger:hover:not(:disabled) {
+  border-color: var(--teal-300);
+}
+
+.post-content-editor-toolbar .post-content-editor-color-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.post-content-editor-color-trigger-letter {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+}
+
+.post-content-editor-color-trigger-bar {
+  width: 18px;
+  height: 3px;
+  border-radius: 1px;
+  background-color: var(--ink);
+}
+
+.post-content-editor-color-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--sp-2));
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-2);
+  width: max-content;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.post-content-editor-color-popover .post-content-editor-color-swatch {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background-color: var(--surface);
+  cursor: pointer;
+}
+
+.post-content-editor-color-popover .post-content-editor-color-swatch:hover {
+  border-color: var(--teal-300);
+}
+
+.post-content-editor-color-popover .post-content-editor-color-swatch.is-active {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--teal-600);
+}
+
+.post-content-editor-color-popover .post-content-editor-color-swatch.is-default::after {
+  position: absolute;
+  top: 50%;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: var(--text-muted);
+  content: "";
+  rotate: -45deg;
+}
+
 .post-content-editor-toolbar .post-content-editor-image-button {
   border-color: var(--navy-600);
   background: var(--surface);

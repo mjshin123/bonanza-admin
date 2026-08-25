@@ -1,6 +1,6 @@
 import { useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "text";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "text" | "danger";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -28,6 +28,13 @@ const VARIANTS: Record<ButtonVariant, CSSProperties> = {
     padding: 0,
     height: "auto",
   },
+  danger: {
+    background: "transparent",
+    color: "var(--danger)",
+    border: "1px solid transparent",
+    padding: 0,
+    height: "auto",
+  },
 };
 
 const HOVER: Record<ButtonVariant, CSSProperties> = {
@@ -35,6 +42,7 @@ const HOVER: Record<ButtonVariant, CSSProperties> = {
   secondary: { background: "var(--navy-50)" },
   ghost: { background: "var(--surface)" },
   text: { color: "var(--teal-600)" },
+  danger: { textDecoration: "underline" },
 };
 
 export function Button({
