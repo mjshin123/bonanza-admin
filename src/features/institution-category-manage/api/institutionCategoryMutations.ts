@@ -15,6 +15,7 @@ import type { TablesInsert } from "@shared/api/supabase";
 export type CreateInstitutionCategoryInput = {
   code: string;
   name: string;
+  institutionType: "member" | "partner";
   displayOrder?: number;
   isActive?: boolean;
 };
@@ -25,6 +26,7 @@ function mapInput(input: Partial<CreateInstitutionCategoryInput>) {
   const result: {
     code?: string;
     name?: string;
+    institution_type?: "member" | "partner";
     display_order?: number;
     is_active?: boolean;
   } = {};
@@ -39,6 +41,8 @@ function mapInput(input: Partial<CreateInstitutionCategoryInput>) {
   }
   if (input.name !== undefined)
     result.name = requireText(input.name, "name", 100);
+  if (input.institutionType !== undefined)
+    result.institution_type = input.institutionType;
   if (input.displayOrder !== undefined) {
     if (!Number.isInteger(input.displayOrder) || input.displayOrder < 0) {
       throw new RangeError("displayOrder는 0 이상의 정수여야 합니다.");
@@ -49,10 +53,11 @@ function mapInput(input: Partial<CreateInstitutionCategoryInput>) {
   return result;
 }
 
-async function nextDisplayOrder() {
+async function nextDisplayOrder(institutionType: "member" | "partner") {
   const { data, error } = await supabase
     .from("institution_categories")
     .select("display_order")
+    .eq("institution_type", institutionType)
     .order("display_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -64,10 +69,10 @@ async function createCategory(
   input: CreateInstitutionCategoryInput,
 ): Promise<InstitutionCategoryDto> {
   const payload = mapInput(input);
-  if (!payload.code || !payload.name)
-    throw new TypeError("code와 name은 필수입니다.");
+  if (!payload.code || !payload.name || !payload.institution_type)
+    throw new TypeError("code, name, institutionType은 필수입니다.");
   if (payload.display_order === undefined)
-    payload.display_order = await nextDisplayOrder();
+    payload.display_order = await nextDisplayOrder(payload.institution_type);
   const { data, error } = await supabase
     .from("institution_categories")
     .insert(payload as TablesInsert<"institution_categories">)
@@ -99,18 +104,11 @@ export type SwapInstitutionCategoryOrderInput = {
 };
 
 async function swapCategoryOrder(input: SwapInstitutionCategoryOrderInput) {
-  const results = await Promise.all([
-    supabase
-      .from("institution_categories")
-      .update({ display_order: input.second.displayOrder })
-      .eq("id", requireUuid(input.first.id)),
-    supabase
-      .from("institution_categories")
-      .update({ display_order: input.first.displayOrder })
-      .eq("id", requireUuid(input.second.id)),
-  ]);
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throwContentError(failed.error);
+  const { error } = await supabase.rpc("swap_institution_category_order", {
+    p_first_id: requireUuid(input.first.id),
+    p_second_id: requireUuid(input.second.id),
+  });
+  if (error) throwContentError(error);
 }
 
 async function deleteCategory(id: string): Promise<string> {

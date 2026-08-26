@@ -12,6 +12,7 @@ import { getErrorMessage } from "@shared/lib";
 import { Button, Card, Input, Notice } from "@shared/ui";
 import { AnalyticsDashboard } from "@widgets/analytics-dashboard";
 import {
+  GallerySection,
   InstitutionSection,
   PostSection,
   ResourceSection,
@@ -56,6 +57,12 @@ const NAV_ITEMS: Array<{
     code: "D",
     label: "세미나",
     description: "예정 · 지난 행사",
+  },
+  {
+    section: "galleries",
+    code: "E",
+    label: "포토갤러리",
+    description: "노출 · 순서 · 숨김",
   },
 ];
 
@@ -142,7 +149,8 @@ function Workspace({ section }: { section: AdminSection }) {
   if (section === "institutions") return <InstitutionSection />;
   if (section === "posts") return <PostSection />;
   if (section === "resources") return <ResourceSection />;
-  return <SeminarSection />;
+  if (section === "seminars") return <SeminarSection />;
+  return <GallerySection />;
 }
 
 export function ApiTestPage() {

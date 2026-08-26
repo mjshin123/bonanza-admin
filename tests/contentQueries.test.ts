@@ -21,6 +21,7 @@ import {
   mapGalleryListRow,
 } from "@entities/gallery";
 import { mapAdminFileListRow } from "@entities/file";
+import { mapInstitutionCategory } from "@entities/institution-category";
 
 const ID = "123e4567-e89b-42d3-a456-426614174000";
 const NOW = "2026-08-24T00:00:00.000Z";
@@ -62,6 +63,21 @@ describe("v2 Query key", () => {
 });
 
 describe("목록 RPC DTO 매핑", () => {
+  it("기관 분류의 적용 대상을 DTO로 변환한다", () => {
+    const result = mapInstitutionCategory({
+      code: "bank",
+      created_at: NOW,
+      display_order: 0,
+      id: ID,
+      institution_type: "partner",
+      is_active: true,
+      name: "은행",
+      updated_at: NOW,
+    });
+
+    expect(result.institutionType).toBe("partner");
+  });
+
   it("게시물의 기관과 cover를 목록 DTO로 변환한다", () => {
     const result = mapContentPostListRow(
       {
@@ -131,6 +147,9 @@ describe("목록 RPC DTO 매핑", () => {
         id: ID,
         item_count: 4,
         published_at: NOW,
+        source_category: "notice",
+        source_id: ID,
+        source_type: "post",
         status: "published",
         title: "갤러리",
         total_count: 1,
@@ -141,6 +160,9 @@ describe("목록 RPC DTO 매핑", () => {
     expect(resource.fileCount).toBe(3);
     expect(seminar.poster?.id).toBe(ID);
     expect(gallery.itemCount).toBe(4);
+    expect(gallery.sourceType).toBe("post");
+    expect(gallery.sourceId).toBe(ID);
+    expect(gallery.sourceCategory).toBe("notice");
   });
 
   it("파일 사용량을 합산해 사용 여부를 판정한다", () => {

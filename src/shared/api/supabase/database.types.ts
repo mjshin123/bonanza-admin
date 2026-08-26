@@ -166,6 +166,7 @@ export type Database = {
           created_at: string
           file_id: string
           gallery_id: string
+          is_hidden: boolean
           sort_order: number
         }
         Insert: {
@@ -173,6 +174,7 @@ export type Database = {
           created_at?: string
           file_id: string
           gallery_id: string
+          is_hidden?: boolean
           sort_order?: number
         }
         Update: {
@@ -180,6 +182,7 @@ export type Database = {
           created_at?: string
           file_id?: string
           gallery_id?: string
+          is_hidden?: boolean
           sort_order?: number
         }
         Relationships: [
@@ -213,6 +216,7 @@ export type Database = {
           created_by: string | null
           display_order: number
           id: string
+          institution_type: string
           is_active: boolean
           name: string
           updated_at: string
@@ -223,6 +227,7 @@ export type Database = {
           created_by?: string | null
           display_order?: number
           id?: string
+          institution_type: string
           is_active?: boolean
           name: string
           updated_at?: string
@@ -233,6 +238,7 @@ export type Database = {
           created_by?: string | null
           display_order?: number
           id?: string
+          institution_type?: string
           is_active?: boolean
           name?: string
           updated_at?: string
@@ -970,6 +976,9 @@ export type Database = {
           id: string
           item_count: number
           published_at: string
+          source_category: string | null
+          source_id: string | null
+          source_type: string | null
           status: string
           title: string
           total_count: number
@@ -1050,6 +1059,18 @@ export type Database = {
       }
       reorder_content_files: {
         Args: { p_file_ids: string[]; p_parent_id: string; p_relation: string }
+        Returns: undefined
+      }
+      remove_gallery_item_from_source: {
+        Args: { p_file_id: string; p_gallery_id: string }
+        Returns: undefined
+      }
+      set_gallery_item_hidden: {
+        Args: { p_file_id: string; p_gallery_id: string; p_hidden: boolean }
+        Returns: undefined
+      }
+      swap_institution_category_order: {
+        Args: { p_first_id: string; p_second_id: string }
         Returns: undefined
       }
       restore_file_delete: { Args: { p_operation_id: string }; Returns: string }

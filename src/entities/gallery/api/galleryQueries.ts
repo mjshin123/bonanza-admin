@@ -18,8 +18,10 @@ export type GalleryItemDto = {
   file: FileDto;
   caption: string;
   sortOrder: number;
+  isHidden: boolean;
   createdAt: string;
 };
+export type GallerySourceType = "post" | "resource" | "seminar" | null;
 export type GalleryListItem = {
   id: string;
   title: string;
@@ -29,6 +31,9 @@ export type GalleryListItem = {
   itemCount: number;
   displayOrder: number;
   publishedAt: string | null;
+  sourceType: GallerySourceType;
+  sourceId: string | null;
+  sourceCategory: string | null;
 };
 export type GalleryDetail = GalleryListItem & {
   items: GalleryItemDto[];
@@ -53,13 +58,14 @@ type Joined = Tables<"galleries"> & {
   items: Array<Tables<"gallery_items"> & { file: Tables<"files"> }>;
 };
 const SELECT =
-  "id,title,description,event_date,status,published_at,display_order,created_at,updated_at,items:gallery_items(gallery_id,file_id,caption,sort_order,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
+  "id,title,description,event_date,status,published_at,display_order,source_type,source_id,created_at,updated_at,items:gallery_items(gallery_id,file_id,caption,sort_order,is_hidden,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
 export function mapGallery(r: Joined): GalleryDetail {
   const items = r.items
     .map((x) => ({
       file: mapFile(x.file),
       caption: x.caption,
       sortOrder: x.sort_order,
+      isHidden: x.is_hidden,
       createdAt: x.created_at,
     }))
     .sort(
@@ -77,6 +83,9 @@ export function mapGallery(r: Joined): GalleryDetail {
     itemCount: items.length,
     displayOrder: r.display_order,
     publishedAt: r.published_at,
+    sourceType: r.source_type as GallerySourceType,
+    sourceId: r.source_id,
+    sourceCategory: null,
     items,
     status: r.status as ContentStatus,
     createdAt: r.created_at,
@@ -135,6 +144,9 @@ export function mapGalleryListRow(row: RpcGalleryRow, admin: boolean) {
     itemCount: row.item_count,
     displayOrder: row.display_order,
     publishedAt: row.published_at,
+    sourceType: row.source_type as GallerySourceType,
+    sourceId: row.source_id,
+    sourceCategory: row.source_category,
   };
   return admin
     ? {
