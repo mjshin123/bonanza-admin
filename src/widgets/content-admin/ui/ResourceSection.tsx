@@ -21,7 +21,6 @@ import { Button, Input } from "@shared/ui";
 
 import {
   bytesLabel,
-  EDIT_STATUS_OPTIONS,
   endOfDayIso,
   formatDateTime,
   PAGE_SIZE,
@@ -29,6 +28,7 @@ import {
   STATUS_OPTIONS,
   toDateTimeLocal,
   toIsoOrNull,
+  useBackNavCloses,
   useDebouncedValue,
 } from "../model/adminContent";
 import {
@@ -37,7 +37,6 @@ import {
   Field,
   FileUpload,
   FilterBar,
-  FormActions,
   MutationMessage,
   NativeSelect,
   Pager,
@@ -80,7 +79,6 @@ function ResourceEditor({
   const updateMutation = useMutation(updateResourceMutationOptions());
   const mutation = editingId ? updateMutation : createMutation;
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState<ContentStatus>("draft");
   const [publishedAt, setPublishedAt] = useState("");
   const [files, setFiles] = useState<SelectedResourceFile[]>([]);
 
@@ -88,7 +86,6 @@ function ResourceEditor({
     const item = detailQuery.data;
     if (!item) return;
     setTitle(item.title);
-    setStatus(item.status);
     setPublishedAt(toDateTimeLocal(item.publishedAt));
     setFiles(
       item.files.map((entry) => ({
@@ -100,6 +97,10 @@ function ResourceEditor({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as
+      | HTMLButtonElement
+      | null;
+    const status = (submitter?.value as ContentStatus | undefined) ?? "draft";
     const input = {
       category,
       title,
@@ -148,18 +149,6 @@ function ResourceEditor({
           onChange={(event) => setTitle(event.target.value)}
         />
       </Field>
-      <Field label="게시 상태" required>
-        <NativeSelect
-          value={status}
-          onChange={(event) => setStatus(event.target.value as ContentStatus)}
-        >
-          {EDIT_STATUS_OPTIONS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
       <Field label="게시 일시">
         <input
           className="content-admin-native-input"
@@ -206,7 +195,7 @@ function ResourceEditor({
           />
         </div>
         <div className="content-admin-file-list">
-          {files.map((entry) => (
+          {files.map((entry, index) => (
             <div className="content-admin-file-row" key={entry.file.id}>
               {entry.file.fileKind === "image" ? (
                 <img
@@ -236,25 +225,87 @@ function ResourceEditor({
                   />
                 ) : null}
               </div>
-              <Button
-                size="sm"
-                variant="text"
-                onClick={() =>
-                  setFiles((current) =>
-                    current.filter(
-                      (candidate) => candidate.file.id !== entry.file.id,
-                    ),
-                  )
-                }
-              >
-                제외
-              </Button>
+              <div className="content-admin-table-actions">
+                <Button
+                  disabled={index === 0}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setFiles((current) => {
+                      const next = [...current];
+                      [next[index - 1], next[index]] = [
+                        next[index],
+                        next[index - 1],
+                      ];
+                      return next;
+                    })
+                  }
+                >
+                  ▲
+                </Button>
+                <Button
+                  disabled={index === files.length - 1}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setFiles((current) => {
+                      const next = [...current];
+                      [next[index], next[index + 1]] = [
+                        next[index + 1],
+                        next[index],
+                      ];
+                      return next;
+                    })
+                  }
+                >
+                  ▼
+                </Button>
+                <Button
+                  size="sm"
+                  variant="text"
+                  onClick={() =>
+                    setFiles((current) =>
+                      current.filter(
+                        (candidate) => candidate.file.id !== entry.file.id,
+                      ),
+                    )
+                  }
+                >
+                  제외
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       </Field>
       <MutationMessage error={mutation.error} />
-      <FormActions isPending={mutation.isPending} onCancel={onClose} />
+      <div className="content-admin-form-actions">
+        <Button
+          disabled={mutation.isPending}
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+        >
+          취소
+        </Button>
+        <Button
+          disabled={mutation.isPending}
+          name="action"
+          type="submit"
+          value="draft"
+          variant="ghost"
+        >
+          {mutation.isPending ? "저장 중..." : "임시저장"}
+        </Button>
+        <Button
+          disabled={mutation.isPending}
+          name="action"
+          type="submit"
+          value="published"
+        >
+          {mutation.isPending ? "저장 중..." : "게시"}
+        </Button>
+      </div>
     </EditorCard>
   );
 }
@@ -271,6 +322,10 @@ export function ResourceSection() {
   const [publishedTo, setPublishedTo] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const closeEditor = useBackNavCloses(editorOpen, () => {
+    setEditorOpen(false);
+    setEditingId(null);
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminResourcesQueryOptions({
@@ -325,10 +380,7 @@ export function ResourceSection() {
       <ResourceEditor
         category={category}
         editingId={editingId}
-        onClose={() => {
-          setEditorOpen(false);
-          setEditingId(null);
-        }}
+        onClose={closeEditor}
       />
     );
   return (
@@ -438,9 +490,18 @@ export function ResourceSection() {
                   />
                 </td>
                 <td>
-                  <div className="content-admin-table-title">
-                    <strong>{item.title}</strong>
-                  </div>
+                  <button
+                    className="content-admin-table-title-button"
+                    type="button"
+                    onClick={() => {
+                      setEditingId(item.id);
+                      setEditorOpen(true);
+                    }}
+                  >
+                    <div className="content-admin-table-title">
+                      <strong>{item.title}</strong>
+                    </div>
+                  </button>
                 </td>
                 <td>{item.fileCount}개</td>
                 <td>

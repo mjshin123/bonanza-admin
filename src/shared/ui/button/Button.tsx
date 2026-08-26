@@ -29,11 +29,9 @@ const VARIANTS: Record<ButtonVariant, CSSProperties> = {
     height: "auto",
   },
   danger: {
-    background: "transparent",
-    color: "var(--danger)",
+    background: "var(--danger)",
+    color: "#FFFFFF",
     border: "1px solid transparent",
-    padding: 0,
-    height: "auto",
   },
 };
 
@@ -42,7 +40,7 @@ const HOVER: Record<ButtonVariant, CSSProperties> = {
   secondary: { background: "var(--navy-50)" },
   ghost: { background: "var(--surface)" },
   text: { color: "var(--teal-600)" },
-  danger: { textDecoration: "underline" },
+  danger: { filter: "brightness(0.92)" },
 };
 
 export function Button({
