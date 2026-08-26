@@ -17,7 +17,12 @@ import {
 } from "@entities/seminar";
 import {
   adminGalleriesQueryOptions,
+  adminGalleryPhotosQueryOptions,
   galleriesQueryOptions,
+  getGallerySourceLabel,
+  getGallerySourcePath,
+  getGallerySourceUrl,
+  mapAdminGalleryPhotoListRow,
   mapGalleryListRow,
 } from "@entities/gallery";
 import { mapAdminFileListRow } from "@entities/file";
@@ -59,6 +64,12 @@ describe("v2 Query key", () => {
     expect(adminSeminarsQueryOptions().queryKey[1]).toBe("admin");
     expect(galleriesQueryOptions().queryKey[1]).toBe("public");
     expect(adminGalleriesQueryOptions().queryKey[1]).toBe("admin");
+    expect(adminGalleryPhotosQueryOptions({ q: "  제목  " }).queryKey).toEqual([
+      "galleries",
+      "admin",
+      "photos",
+      expect.objectContaining({ q: "제목" }),
+    ]);
   });
 });
 
@@ -163,6 +174,20 @@ describe("목록 RPC DTO 매핑", () => {
     expect(gallery.sourceType).toBe("post");
     expect(gallery.sourceId).toBe(ID);
     expect(gallery.sourceCategory).toBe("notice");
+
+    const galleryPhoto = mapAdminGalleryPhotoListRow({
+      event_date: "2026-08-24",
+      file_id: ID,
+      gallery_id: ID,
+      photo: FILE_JSON,
+      source_category: "notice",
+      source_id: ID,
+      source_type: "post",
+      title: "갤러리",
+      total_count: 4,
+    });
+    expect(galleryPhoto.photo.originalName).toBe("cover.png");
+    expect(galleryPhoto.galleryId).toBe(ID);
   });
 
   it("파일 사용량을 합산해 사용 여부를 판정한다", () => {
@@ -178,5 +203,34 @@ describe("목록 RPC DTO 매핑", () => {
     });
     expect(result.isUsed).toBe(true);
     expect(result.usage.postCount).toBe(1);
+  });
+});
+
+describe("갤러리 원문 링크", () => {
+  const noticeSource = {
+    sourceType: "post" as const,
+    sourceId: ID,
+    sourceCategory: "notice",
+  };
+
+  it("게시글 카테고리를 공개 상세 경로로 변환한다", () => {
+    expect(getGallerySourceLabel(noticeSource)).toBe("공지사항");
+    expect(getGallerySourcePath(noticeSource)).toBe(`/archive/notice/${ID}`);
+    expect(
+      getGallerySourceUrl(noticeSource, "https://www.example.com/admin"),
+    ).toBe(`https://www.example.com/archive/notice/${ID}`);
+  });
+
+  it("상세 경로가 없는 출처에는 링크를 만들지 않는다", () => {
+    const resourceSource = {
+      sourceType: "resource" as const,
+      sourceId: ID,
+      sourceCategory: null,
+    };
+    expect(getGallerySourceLabel(resourceSource)).toBe("자료실");
+    expect(getGallerySourcePath(resourceSource)).toBeNull();
+    expect(
+      getGallerySourceUrl(resourceSource, "https://www.example.com"),
+    ).toBeNull();
   });
 });

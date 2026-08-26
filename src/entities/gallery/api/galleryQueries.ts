@@ -46,6 +46,16 @@ export type AdminGalleryListItem = GalleryListItem & {
   createdAt: string;
   updatedAt: string;
 };
+export type AdminGalleryPhotoListItem = {
+  galleryId: string;
+  fileId: string;
+  photo: FileDto;
+  title: string;
+  eventDate: string | null;
+  sourceType: GallerySourceType;
+  sourceId: string | null;
+  sourceCategory: string | null;
+};
 export type GalleryListParams = PageParams & {
   from?: string;
   q?: string;
@@ -53,6 +63,9 @@ export type GalleryListParams = PageParams & {
 };
 export type AdminGalleryListParams = GalleryListParams & {
   status?: ContentStatus;
+};
+export type AdminGalleryPhotoListParams = PageParams & {
+  q?: string;
 };
 type Joined = Tables<"galleries"> & {
   items: Array<Tables<"gallery_items"> & { file: Tables<"files"> }>;
@@ -114,6 +127,12 @@ function resolveParams(p: AdminGalleryListParams = {}) {
     status: p.status,
   };
 }
+function resolvePhotoParams(p: AdminGalleryPhotoListParams = {}) {
+  return {
+    ...resolvePageParams(p),
+    q: p.q?.trim() || undefined,
+  };
+}
 export const galleryQueryKeys = {
   all: ["galleries"] as const,
   publicList: (p: ReturnType<typeof resolveParams>) =>
@@ -121,10 +140,14 @@ export const galleryQueryKeys = {
   publicDetail: (id: string) => ["galleries", "public", "detail", id] as const,
   adminList: (p: ReturnType<typeof resolveParams>) =>
     ["galleries", "admin", "list", p] as const,
+  adminPhotos: (p: ReturnType<typeof resolvePhotoParams>) =>
+    ["galleries", "admin", "photos", p] as const,
   adminDetail: (id: string) => ["galleries", "admin", "detail", id] as const,
 };
 type RpcGalleryRow =
   Database["public"]["Functions"]["list_galleries"]["Returns"][number];
+type RpcAdminGalleryPhotoRow =
+  Database["public"]["Functions"]["list_admin_gallery_photos"]["Returns"][number];
 
 export function mapGalleryListRow(
   row: RpcGalleryRow,
@@ -157,6 +180,24 @@ export function mapGalleryListRow(row: RpcGalleryRow, admin: boolean) {
       }
     : item;
 }
+export function mapAdminGalleryPhotoListRow(
+  row: RpcAdminGalleryPhotoRow,
+): AdminGalleryPhotoListItem {
+  const photo = mapRpcFile(row.photo);
+  if (!photo) {
+    throw new TypeError("갤러리 사진 응답에 파일 정보가 없습니다.");
+  }
+  return {
+    galleryId: row.gallery_id,
+    fileId: row.file_id,
+    photo,
+    title: row.title,
+    eventDate: row.event_date,
+    sourceType: row.source_type as GallerySourceType,
+    sourceId: row.source_id,
+    sourceCategory: row.source_category,
+  };
+}
 async function fetchList(
   p: ReturnType<typeof resolveParams>,
   admin: false,
@@ -184,6 +225,22 @@ async function fetchList(
     ? rows.map((row) => mapGalleryListRow(row, true))
     : rows.map((row) => mapGalleryListRow(row, false));
   return pageResult(items, rows[0]?.total_count ?? 0, p);
+}
+async function fetchAdminGalleryPhotos(
+  p: ReturnType<typeof resolvePhotoParams>,
+): Promise<PageResult<AdminGalleryPhotoListItem>> {
+  const { data, error } = await supabase.rpc("list_admin_gallery_photos", {
+    p_page: p.page,
+    p_page_size: p.pageSize,
+    p_q: p.q,
+  });
+  if (error) throwContentError(error);
+  const rows = data as RpcAdminGalleryPhotoRow[];
+  return pageResult(
+    rows.map(mapAdminGalleryPhotoListRow),
+    rows[0]?.total_count ?? 0,
+    p,
+  );
 }
 async function fetchDetail(id: string, admin: boolean) {
   let q = supabase.from("galleries").select(SELECT).eq("id", requireUuid(id));
@@ -217,6 +274,16 @@ export function adminGalleriesQueryOptions(p: AdminGalleryListParams = {}) {
     ...CONTENT_QUERY_OPTIONS,
     queryKey: galleryQueryKeys.adminList(r),
     queryFn: () => fetchList(r, true),
+  });
+}
+export function adminGalleryPhotosQueryOptions(
+  p: AdminGalleryPhotoListParams = {},
+) {
+  const r = resolvePhotoParams(p);
+  return queryOptions({
+    ...CONTENT_QUERY_OPTIONS,
+    queryKey: galleryQueryKeys.adminPhotos(r),
+    queryFn: () => fetchAdminGalleryPhotos(r),
   });
 }
 export function adminGalleryDetailQueryOptions(id: string) {

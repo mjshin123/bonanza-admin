@@ -25,7 +25,8 @@ export type UpdateInstitutionInput = Partial<CreateInstitutionInput> & {
   id: string;
 };
 
-const SELECT = "*, category:institution_categories!inner(*), logo:files(*)";
+const SELECT =
+  "*, category:institution_categories!institutions_category_id_fkey!inner(*), logo:files(*)";
 type Joined = Tables<"institutions"> & {
   category: Tables<"institution_categories">;
   logo: Tables<"files"> | null;

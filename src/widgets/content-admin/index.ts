@@ -1,4 +1,5 @@
 import "./ui/AdminCommon.css";
+import "./ui/GallerySection.css";
 
 export { InstitutionSection } from "./ui/InstitutionSection";
 export { GallerySection } from "./ui/GallerySection";

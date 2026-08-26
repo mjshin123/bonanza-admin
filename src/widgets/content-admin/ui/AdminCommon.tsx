@@ -75,12 +75,14 @@ export function TableShell({
   error,
   isEmpty,
   emptyMessage,
+  className,
 }: {
   children: ReactNode;
   isLoading: boolean;
   error: Error | null;
   isEmpty: boolean;
   emptyMessage: string;
+  className?: string;
 }) {
   if (isLoading)
     return <Card className="content-admin-state">불러오는 중입니다.</Card>;
@@ -92,7 +94,13 @@ export function TableShell({
     );
   if (isEmpty)
     return <Card className="content-admin-state">{emptyMessage}</Card>;
-  return <div className="content-admin-table-shell">{children}</div>;
+  return (
+    <div
+      className={`content-admin-table-shell${className ? ` ${className}` : ""}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function Pager({

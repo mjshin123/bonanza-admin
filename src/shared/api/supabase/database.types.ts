@@ -904,6 +904,20 @@ export type Database = {
           width_px: number
         }[]
       }
+      list_admin_gallery_photos: {
+        Args: { p_page?: number; p_page_size?: number; p_q?: string }
+        Returns: {
+          event_date: string | null
+          file_id: string
+          gallery_id: string
+          photo: Json
+          source_category: string | null
+          source_id: string | null
+          source_type: string | null
+          title: string
+          total_count: number
+        }[]
+      }
       list_admin_seminars: {
         Args: {
           p_admin?: boolean
