@@ -70,10 +70,12 @@ const EMPTY_INSTITUTION: InstitutionFormState = {
 function InstitutionEditor({
   item,
   categories,
+  defaultInstitutionType,
   onClose,
 }: {
   item: InstitutionDto | null;
   categories: InstitutionCategoryDto[];
+  defaultInstitutionType: "member" | "partner";
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -95,9 +97,21 @@ function InstitutionEditor({
             logoFileId: item.logo?.id ?? null,
             logoUrl: item.logo?.url ?? null,
           }
-        : { ...EMPTY_INSTITUTION, categoryId: categories[0]?.id ?? "" },
+        : {
+            ...EMPTY_INSTITUTION,
+            institutionType: defaultInstitutionType,
+            categoryId:
+              categories.find(
+                (category) =>
+                  category.institutionType === defaultInstitutionType,
+              )?.id ?? "",
+          },
     );
-  }, [categories, item]);
+  }, [categories, defaultInstitutionType, item]);
+
+  const availableCategories = categories.filter(
+    (category) => category.institutionType === form.institutionType,
+  );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -131,12 +145,17 @@ function InstitutionEditor({
       <Field label="기관 타입" required>
         <NativeSelect
           value={form.institutionType}
-          onChange={(event) =>
+          onChange={(event) => {
+            const institutionType = event.target.value as "member" | "partner";
             setForm({
               ...form,
-              institutionType: event.target.value as "member" | "partner",
-            })
-          }
+              institutionType,
+              categoryId:
+                categories.find(
+                  (category) => category.institutionType === institutionType,
+                )?.id ?? "",
+            });
+          }}
         >
           <option value="member">회원기관</option>
           <option value="partner">협력기관</option>
@@ -150,7 +169,7 @@ function InstitutionEditor({
             setForm({ ...form, categoryId: event.target.value })
           }
         >
-          {categories.map((category) => (
+          {availableCategories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}
               {category.isActive ? "" : " (비활성)"}
@@ -249,10 +268,15 @@ function CategoryManager({
   const deleteMutation = useMutation(
     deleteInstitutionCategoryMutationOptions(),
   );
-  const orderMutation = useMutation(swapInstitutionCategoryOrderMutationOptions());
+  const orderMutation = useMutation(
+    swapInstitutionCategoryOrderMutationOptions(),
+  );
   const [editing, setEditing] = useState<InstitutionCategoryDto | null>(null);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [institutionType, setInstitutionType] = useState<"member" | "partner">(
+    "member",
+  );
   const [isActive, setIsActive] = useState(true);
 
   const reset = () => {
@@ -265,12 +289,13 @@ function CategoryManager({
     setEditing(category);
     setCode(category.code);
     setName(category.name);
+    setInstitutionType(category.institutionType);
     setIsActive(category.isActive);
   };
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
-      const input = { code, name, isActive };
+      const input = { code, name, institutionType, isActive };
       if (editing)
         await updateMutation.mutateAsync({ id: editing.id, ...input });
       else await createMutation.mutateAsync(input);
@@ -293,9 +318,15 @@ function CategoryManager({
       /* 표시 */
     }
   };
-  const moveCategory = async (category: InstitutionCategoryDto, direction: -1 | 1) => {
-    const index = categories.findIndex((candidate) => candidate.id === category.id);
-    const target = categories[index + direction];
+  const moveCategory = async (
+    category: InstitutionCategoryDto,
+    direction: -1 | 1,
+  ) => {
+    const group = categories.filter(
+      (candidate) => candidate.institutionType === institutionType,
+    );
+    const index = group.findIndex((candidate) => candidate.id === category.id);
+    const target = group[index + direction];
     if (!target) return;
     try {
       await orderMutation.mutateAsync({
@@ -315,136 +346,165 @@ function CategoryManager({
     updateMutation.error ??
     deleteMutation.error ??
     orderMutation.error;
+  const visibleCategories = categories.filter(
+    (category) => category.institutionType === institutionType,
+  );
   return (
-    <div className="content-admin-category-layout">
-      <EditorCard
-        title={editing ? "기관 분류 수정" : "기관 분류 추가"}
-        description="은행·증권 등 기관 분류와 표시 순서를 관리합니다."
-        onSubmit={(event) => void submit(event)}
-      >
-        <Field label="분류 코드" required>
-          <input
-            required
-            className="content-admin-native-input"
-            pattern="[a-z0-9_]+"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
+    <>
+      <SectionTabs
+        value={institutionType}
+        items={[
+          { value: "member", label: "회원기관용 분류" },
+          { value: "partner", label: "협력기관용 분류" },
+        ]}
+        onChange={(value) => {
+          setInstitutionType(value as "member" | "partner");
+          setEditing(null);
+          setCode("");
+          setName("");
+          setIsActive(true);
+        }}
+      />
+      <div className="content-admin-category-layout">
+        <EditorCard
+          title={editing ? "기관 분류 수정" : "기관 분류 추가"}
+          description="은행·증권 등 기관 분류와 표시 순서를 관리합니다."
+          onSubmit={(event) => void submit(event)}
+        >
+          <Field label="분류 용도" required>
+            <NativeSelect disabled value={institutionType}>
+              <option value="member">회원기관용</option>
+              <option value="partner">협력기관용</option>
+            </NativeSelect>
+          </Field>
+          <Field label="분류 코드" required>
+            <input
+              required
+              className="content-admin-native-input"
+              pattern="[a-z0-9_]+"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+          </Field>
+          <Field label="분류명" required>
+            <input
+              required
+              className="content-admin-native-input"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </Field>
+          <Field label="활성 여부">
+            <Checkbox
+              checked={isActive}
+              label="기관 등록 및 공개 필터에 사용"
+              onChange={setIsActive}
+            />
+          </Field>
+          <MutationMessage error={mutationError} />
+          <FormActions
+            isPending={createMutation.isPending || updateMutation.isPending}
+            submitLabel={editing ? "분류 수정" : "분류 추가"}
+            onCancel={reset}
           />
-        </Field>
-        <Field label="분류명" required>
-          <input
-            required
-            className="content-admin-native-input"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </Field>
-        <Field label="활성 여부">
-          <Checkbox
-            checked={isActive}
-            label="기관 등록 및 공개 필터에 사용"
-            onChange={setIsActive}
-          />
-        </Field>
-        <MutationMessage error={mutationError} />
-        <FormActions
-          isPending={createMutation.isPending || updateMutation.isPending}
-          submitLabel={editing ? "분류 수정" : "분류 추가"}
-          onCancel={reset}
-        />
-      </EditorCard>
-      <div className="content-admin-table-shell">
-        <table>
-          <thead>
-            <tr>
-              <th>분류</th>
-              <th>코드</th>
-              <th>순서</th>
-              <th>상태</th>
-              <th aria-label="작업" />
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((category, index) => (
-              <tr key={category.id}>
-                <td>
-                  <strong>{category.name}</strong>
-                </td>
-                <td>{category.code}</td>
-                <td>
-                  <div className="content-admin-inline">
-                    <span>{category.displayOrder}</span>
-                    <Button
-                      disabled={index === 0 || orderMutation.isPending}
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void moveCategory(category, -1)}
-                    >
-                      ▲
-                    </Button>
-                    <Button
-                      disabled={
-                        index === categories.length - 1 || orderMutation.isPending
-                      }
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void moveCategory(category, 1)}
-                    >
-                      ▼
-                    </Button>
-                  </div>
-                </td>
-                <td>{category.isActive ? "활성" : "비활성"}</td>
-                <td>
-                  <div className="content-admin-table-actions">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => edit(category)}
-                    >
-                      수정
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="text"
-                      onClick={() => void remove(category)}
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                </td>
+        </EditorCard>
+        <div className="content-admin-table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>분류</th>
+                <th>코드</th>
+                <th>순서</th>
+                <th>상태</th>
+                <th aria-label="작업" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visibleCategories.map((category, index) => (
+                <tr key={category.id}>
+                  <td>
+                    <strong>{category.name}</strong>
+                  </td>
+                  <td>{category.code}</td>
+                  <td>
+                    <div className="content-admin-inline">
+                      <span>{category.displayOrder}</span>
+                      <Button
+                        disabled={index === 0 || orderMutation.isPending}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void moveCategory(category, -1)}
+                      >
+                        ▲
+                      </Button>
+                      <Button
+                        disabled={
+                          index === visibleCategories.length - 1 ||
+                          orderMutation.isPending
+                        }
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void moveCategory(category, 1)}
+                      >
+                        ▼
+                      </Button>
+                    </div>
+                  </td>
+                  <td>{category.isActive ? "활성" : "비활성"}</td>
+                  <td>
+                    <div className="content-admin-table-actions">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => edit(category)}
+                      >
+                        수정
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="text"
+                        onClick={() => void remove(category)}
+                      >
+                        삭제
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
 export function InstitutionSection() {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState("institutions");
+  const [tab, setTab] = useState<"member" | "partner" | "categories">("member");
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q);
-  const [type, setType] = useState("");
   const [active, setActive] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<InstitutionDto | null>(null);
   const categoriesQuery = useQuery(adminInstitutionCategoriesQueryOptions());
   const categories = categoriesQuery.data ?? [];
-  const institutionsQuery = useQuery(
-    adminInstitutionsQueryOptions({
+  const institutionsQuery = useQuery({
+    ...adminInstitutionsQueryOptions({
       page,
       pageSize: INSTITUTION_LIST_PAGE_SIZE,
       q: debouncedQ || undefined,
-      institutionType: type ? (type as "member" | "partner") : undefined,
+      institutionType: tab === "categories" ? undefined : tab,
       isActive: active === "" ? undefined : active === "true",
     }),
-  );
+    enabled: tab !== "categories",
+  });
   const items = institutionsQuery.data?.items ?? [];
-  const groups = categories
+  const visibleCategories = categories.filter(
+    (category) => tab !== "categories" && category.institutionType === tab,
+  );
+  const groups = visibleCategories
     .map((category) => ({
       category,
       institutions: items.filter((item) => item.category.id === category.id),
@@ -469,7 +529,10 @@ export function InstitutionSection() {
   };
   const toggleActive = async (item: InstitutionDto) => {
     try {
-      await activeMutation.mutateAsync({ id: item.id, isActive: !item.isActive });
+      await activeMutation.mutateAsync({
+        id: item.id,
+        isActive: !item.isActive,
+      });
       await queryClient.invalidateQueries({
         queryKey: institutionQueryKeys.all,
       });
@@ -503,10 +566,10 @@ export function InstitutionSection() {
     category: InstitutionCategoryDto,
     direction: -1 | 1,
   ) => {
-    const index = categories.findIndex(
+    const index = visibleCategories.findIndex(
       (candidate) => candidate.id === category.id,
     );
-    const target = categories[index + direction];
+    const target = visibleCategories[index + direction];
     if (!target) return;
     try {
       await categoryOrderMutation.mutateAsync({
@@ -526,6 +589,7 @@ export function InstitutionSection() {
       <InstitutionEditor
         item={editing}
         categories={categories}
+        defaultInstitutionType={tab === "partner" ? "partner" : "member"}
         onClose={() => {
           setEditorOpen(false);
           setEditing(null);
@@ -535,10 +599,20 @@ export function InstitutionSection() {
   return (
     <section className="content-admin-section">
       <SectionTitle
-        title="회원기관 · 협력기관"
-        description="기관 기본 정보, 분류, 로고와 홈페이지 노출 상태를 관리합니다."
+        title={
+          tab === "member"
+            ? "회원기관"
+            : tab === "partner"
+              ? "협력기관"
+              : "기관 분류"
+        }
+        description={
+          tab === "categories"
+            ? "회원기관용과 협력기관용 분류를 각각 관리합니다."
+            : "기관 기본 정보, 분류, 로고와 홈페이지 노출 상태를 관리합니다."
+        }
         action={
-          tab === "institutions" ? (
+          tab !== "categories" ? (
             <Button onClick={() => setEditorOpen(true)}>기관 등록</Button>
           ) : undefined
         }
@@ -546,10 +620,14 @@ export function InstitutionSection() {
       <SectionTabs
         value={tab}
         items={[
-          { value: "institutions", label: "기관 목록" },
+          { value: "member", label: "회원기관" },
+          { value: "partner", label: "협력기관" },
           { value: "categories", label: "기관 분류" },
         ]}
-        onChange={setTab}
+        onChange={(value) => {
+          setTab(value as "member" | "partner" | "categories");
+          setPage(1);
+        }}
       />
       {tab === "categories" ? (
         categoriesQuery.error ? (
@@ -570,18 +648,6 @@ export function InstitutionSection() {
               }}
             />
             <div className="content-admin-filter-extra">
-              <NativeSelect
-                aria-label="기관 타입"
-                value={type}
-                onChange={(event) => {
-                  setType(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">전체 타입</option>
-                <option value="member">회원기관</option>
-                <option value="partner">협력기관</option>
-              </NativeSelect>
               <NativeSelect
                 aria-label="노출 상태"
                 value={active}
@@ -614,7 +680,6 @@ export function InstitutionSection() {
               <thead>
                 <tr>
                   <th>기관</th>
-                  <th>타입</th>
                   <th>노출</th>
                   <th>등록 상태</th>
                   <th>순서</th>
@@ -625,16 +690,19 @@ export function InstitutionSection() {
                 {groups.map((group, groupIndex) => (
                   <Fragment key={group.category.id}>
                     <tr className="content-admin-group-row">
-                      <td colSpan={6}>
+                      <td colSpan={5}>
                         <div className="content-admin-inline">
                           <strong>{group.category.name}</strong>
                           <Button
                             disabled={
-                              groupIndex === 0 || categoryOrderMutation.isPending
+                              groupIndex === 0 ||
+                              categoryOrderMutation.isPending
                             }
                             size="sm"
                             variant="ghost"
-                            onClick={() => void moveCategory(group.category, -1)}
+                            onClick={() =>
+                              void moveCategory(group.category, -1)
+                            }
                           >
                             ▲
                           </Button>
@@ -672,11 +740,6 @@ export function InstitutionSection() {
                             </div>
                           </div>
                         </td>
-                        <td>
-                          {item.institutionType === "member"
-                            ? "회원기관"
-                            : "협력기관"}
-                        </td>
                         <td>{item.isActive ? "노출" : "미노출"}</td>
                         <td>{item.isPending ? "등록 예정" : "등록 완료"}</td>
                         <td>
@@ -687,7 +750,11 @@ export function InstitutionSection() {
                               size="sm"
                               variant="ghost"
                               onClick={() =>
-                                void moveInstitution(item, group.institutions, -1)
+                                void moveInstitution(
+                                  item,
+                                  group.institutions,
+                                  -1,
+                                )
                               }
                             >
                               ▲
@@ -700,7 +767,11 @@ export function InstitutionSection() {
                               size="sm"
                               variant="ghost"
                               onClick={() =>
-                                void moveInstitution(item, group.institutions, 1)
+                                void moveInstitution(
+                                  item,
+                                  group.institutions,
+                                  1,
+                                )
                               }
                             >
                               ▼

@@ -105,7 +105,7 @@ export const resourceQueryKeys = {
   adminDetail: (id: string) => ["resources", "admin", "detail", id] as const,
 };
 type RpcResourceRow =
-  Database["public"]["Functions"]["list_resources"]["Returns"][number];
+  Database["public"]["Functions"]["list_admin_resources"]["Returns"][number];
 
 export function mapResourceListRow(
   row: RpcResourceRow,
@@ -144,7 +144,7 @@ async function fetchList(
   params: ReturnType<typeof resolveParams>,
   admin: boolean,
 ): Promise<PageResult<ResourceListItem | AdminResourceListItem>> {
-  const { data, error } = await supabase.rpc("list_resources", {
+  const { data, error } = await supabase.rpc("list_admin_resources", {
     p_admin: admin,
     p_category: params.category,
     p_page: params.page,

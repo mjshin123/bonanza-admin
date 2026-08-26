@@ -110,10 +110,11 @@ export function requireUuid(value: string, fieldName = "id"): string {
 }
 
 export function requireExpectedUpdatedAt(value: string): string {
-  if (Number.isNaN(Date.parse(value))) {
+  const normalized = value.trim();
+  if (Number.isNaN(Date.parse(normalized))) {
     throw new TypeError("expectedUpdatedAt은 유효한 ISO 일시여야 합니다.");
   }
-  return new Date(value).toISOString();
+  return normalized;
 }
 
 export function normalizeFileItems<T extends { fileId: string }>(

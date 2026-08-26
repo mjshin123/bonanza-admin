@@ -210,6 +210,7 @@ export type PageResult<T> = {
 |---|---|---|
 | `list_content_posts` | `category`, `institution_id`, `q`, `status` | 기관 요약, cover 1건 |
 | `list_resources` | `category`, `q`, `reference_year`, `status` | `file_count` |
+| `list_admin_resources` | `category`, `q`, `status`, `published_from`, `published_to` | `file_count` |
 | `list_seminars` | `q`, `timing`, `from`, `to`, `status` | poster 1건 |
 | `list_galleries` | `q`, `from`, `to`, `status` | 첫 이미지, `item_count` |
 | `list_admin_files` | `file_kind`, `q`, `usage` | 파일 메타데이터, 도메인별 사용 수 |
