@@ -392,7 +392,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--bg);
-  cursor: grab;
+  cursor: pointer;
   text-align: left;
   transition:
     box-shadow var(--dur-fast) var(--ease),
@@ -401,12 +401,6 @@
 .content-admin-gallery-card:hover {
   border-color: var(--teal-600);
   box-shadow: var(--shadow);
-}
-.content-admin-gallery-card:active {
-  cursor: grabbing;
-}
-.content-admin-gallery-card.is-dragging {
-  opacity: 0.4;
 }
 .content-admin-gallery-card-image {
   position: relative;

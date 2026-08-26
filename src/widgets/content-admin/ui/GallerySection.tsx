@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -10,7 +10,6 @@ import {
 } from "@entities/gallery";
 import {
   removeGalleryItemMutationOptions,
-  reorderGalleriesMutationOptions,
   reorderGalleryItemsMutationOptions,
   setGalleryItemHiddenMutationOptions,
 } from "@features/gallery-manage";
@@ -28,8 +27,8 @@ import {
   TableShell,
 } from "./AdminCommon";
 
-// 이미지 나열형 화면이라 페이지네이션 없이 한 번에 훑어보고 드래그로 순서를
-// 바꿀 수 있도록 페이지 크기를 넉넉하게 잡는다(RPC 허용 최대치).
+// 이미지 나열형 화면이라 페이지네이션 없이 한 번에 훑어볼 수 있도록
+// 페이지 크기를 넉넉하게 잡는다(RPC 허용 최대치). 정렬은 항상 게시일 기준.
 const GALLERY_PAGE_SIZE = 100;
 
 function sourceLabel(item: AdminGalleryListItem): string {
@@ -220,17 +219,13 @@ function GalleryItemManager({
 }
 
 export function GallerySection() {
-  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [selectedGalleryId, setSelectedGalleryId] = useState<string | null>(
     null,
   );
-  const [orderedIds, setOrderedIds] = useState<string[] | null>(null);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
   const debouncedQ = useDebouncedValue(q);
-  const reorderMutation = useMutation(reorderGalleriesMutationOptions());
   const galleriesQuery = useQuery(
     adminGalleriesQueryOptions({
       page,
@@ -239,10 +234,6 @@ export function GallerySection() {
       status: status ? (status as ContentStatus) : undefined,
     }),
   );
-
-  useEffect(() => {
-    setOrderedIds(null);
-  }, [debouncedQ, status, page]);
 
   if (selectedGalleryId)
     return (
@@ -253,45 +244,12 @@ export function GallerySection() {
     );
 
   const items = galleriesQuery.data?.items ?? [];
-  const byId = new Map(items.map((item) => [item.id, item]));
-  const displayItems = orderedIds
-    ? orderedIds
-        .map((id) => byId.get(id))
-        .filter((item): item is AdminGalleryListItem => Boolean(item))
-    : items;
-  const isOrderDirty =
-    orderedIds !== null &&
-    orderedIds.join(",") !== items.map((item) => item.id).join(",");
-
-  const handleDrop = (targetId: string) => {
-    if (!draggedId || draggedId === targetId) return;
-    const base = orderedIds ?? items.map((item) => item.id);
-    const from = base.indexOf(draggedId);
-    const to = base.indexOf(targetId);
-    if (from === -1 || to === -1) return;
-    const next = [...base];
-    next.splice(from, 1);
-    next.splice(to, 0, draggedId);
-    setOrderedIds(next);
-  };
-
-  const cancelOrder = () => setOrderedIds(null);
-  const saveOrder = async () => {
-    if (!orderedIds) return;
-    try {
-      await reorderMutation.mutateAsync(orderedIds);
-      await queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
-      setOrderedIds(null);
-    } catch {
-      /* mutation 상태로 표시 */
-    }
-  };
 
   return (
     <section className="content-admin-section">
       <SectionTitle
         title="포토갤러리 관리"
-        description="사진을 드래그해 노출 순서를 정하고, 클릭하면 이미지 관리 화면으로 이동합니다."
+        description="게시일 순으로 정렬됩니다. 클릭하면 이미지 관리 화면으로 이동합니다."
       />
       <FilterBar>
         <Input
@@ -319,29 +277,6 @@ export function GallerySection() {
           </NativeSelect>
         </div>
       </FilterBar>
-      <MutationMessage error={reorderMutation.error} />
-      {isOrderDirty ? (
-        <FilterBar>
-          <span className="content-admin-muted">순서 변경 사항이 있습니다.</span>
-          <div className="content-admin-table-actions">
-            <Button
-              disabled={reorderMutation.isPending}
-              size="sm"
-              variant="ghost"
-              onClick={cancelOrder}
-            >
-              되돌리기
-            </Button>
-            <Button
-              disabled={reorderMutation.isPending}
-              size="sm"
-              onClick={() => void saveOrder()}
-            >
-              순서 저장
-            </Button>
-          </div>
-        </FilterBar>
-      ) : null}
       <TableShell
         isLoading={galleriesQuery.isPending}
         error={galleriesQuery.error}
@@ -349,23 +284,13 @@ export function GallerySection() {
         emptyMessage="포토갤러리에 노출할 이미지가 없습니다."
       >
         <div className="content-admin-gallery-grid">
-          {displayItems.map((item) => (
+          {items.map((item) => (
             <div
               key={item.id}
-              className={`content-admin-gallery-card${
-                draggedId === item.id ? " is-dragging" : ""
-              }`}
-              draggable
+              className="content-admin-gallery-card"
               role="button"
               tabIndex={0}
               onClick={() => setSelectedGalleryId(item.id)}
-              onDragEnd={() => setDraggedId(null)}
-              onDragOver={(event: DragEvent) => event.preventDefault()}
-              onDragStart={() => setDraggedId(item.id)}
-              onDrop={(event: DragEvent) => {
-                event.preventDefault();
-                handleDrop(item.id);
-              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();

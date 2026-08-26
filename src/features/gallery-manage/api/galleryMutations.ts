@@ -49,7 +49,6 @@ export type ReorderGalleryItemsInput = {
   items: Array<{ fileId: string; sortOrder: number }>;
 };
 export type RemoveGalleryItemInput = { galleryId: string; fileId: string };
-export type ReorderGalleriesInput = string[];
 const SELECT = "*,items:gallery_items(*,file:files!inner(*))";
 type Joined = Tables<"galleries"> & {
   items: Array<Tables<"gallery_items"> & { file: Tables<"files"> }>;
@@ -200,14 +199,6 @@ async function setGalleryItemHidden(i: SetGalleryItemHiddenInput) {
   if (error) throwContentError(error);
   return i;
 }
-async function reorderGalleries(ids: ReorderGalleriesInput) {
-  const normalized = ids.map((id) => requireUuid(id));
-  const { error } = await supabase.rpc("reorder_galleries", {
-    p_ids: normalized,
-  });
-  if (error) throwContentError(error);
-  return normalized;
-}
 export const createGalleryMutationOptions = () =>
   mutationOptions({
     mutationKey: ["galleries", "create"],
@@ -247,9 +238,4 @@ export const setGalleryItemHiddenMutationOptions = () =>
   mutationOptions({
     mutationKey: ["galleries", "item", "hidden"],
     mutationFn: setGalleryItemHidden,
-  });
-export const reorderGalleriesMutationOptions = () =>
-  mutationOptions({
-    mutationKey: ["galleries", "reorder"],
-    mutationFn: reorderGalleries,
   });

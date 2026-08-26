@@ -1061,10 +1061,6 @@ export type Database = {
         Args: { p_file_ids: string[]; p_parent_id: string; p_relation: string }
         Returns: undefined
       }
-      reorder_galleries: {
-        Args: { p_ids: string[] }
-        Returns: undefined
-      }
       remove_gallery_item_from_source: {
         Args: { p_file_id: string; p_gallery_id: string }
         Returns: undefined
