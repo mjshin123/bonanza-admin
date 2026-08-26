@@ -188,7 +188,7 @@ function SeminarEditor({
       </Field>
       {isRange ? (
         <>
-          <Field label="시작 일시" required>
+          <Field label="개최 시작일시" required>
             <input
               required
               className="content-admin-native-input"
@@ -200,14 +200,14 @@ function SeminarEditor({
           <Field label="일정">
             <Checkbox
               checked={isRange}
-              label="기간으로 등록 (시작일시 · 종료일시)"
+              label="기간으로 등록 (개최 시작일시 · 종료일시)"
               onChange={(checked) => {
                 setIsRange(checked);
                 if (!checked) set("endsAt", "");
               }}
             />
           </Field>
-          <Field label="종료 일시">
+          <Field label="개최 종료일시">
             <input
               className="content-admin-native-input"
               type="datetime-local"
@@ -218,7 +218,11 @@ function SeminarEditor({
         </>
       ) : (
         <>
-          <Field label="일시" required>
+          <Field
+            label="개최일시"
+            required
+            hint="세미나가 열리는 날짜와 시간입니다. 미래 일시를 입력해도 게시 시 바로 공개됩니다."
+          >
             <input
               required
               className="content-admin-native-input"
@@ -230,7 +234,7 @@ function SeminarEditor({
           <Field label="일정">
             <Checkbox
               checked={isRange}
-              label="기간으로 등록 (시작일시 · 종료일시)"
+              label="기간으로 등록 (개최 시작일시 · 종료일시)"
               onChange={(checked) => {
                 setIsRange(checked);
                 if (!checked) set("endsAt", "");
@@ -548,7 +552,7 @@ export function SeminarSection() {
                 />
               </th>
               <th>세미나</th>
-              <th>일시</th>
+              <th>개최일시</th>
               <th>장소</th>
               <th>상태</th>
               <th aria-label="작업" />

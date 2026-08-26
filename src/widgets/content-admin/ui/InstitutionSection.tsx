@@ -283,6 +283,7 @@ function CategoryManager({
     setEditing(null);
     setCode("");
     setName("");
+    setInstitutionType("member");
     setIsActive(true);
   };
   const edit = (category: InstitutionCategoryDto) => {
@@ -323,7 +324,7 @@ function CategoryManager({
     direction: -1 | 1,
   ) => {
     const group = categories.filter(
-      (candidate) => candidate.institutionType === institutionType,
+      (candidate) => candidate.institutionType === category.institutionType,
     );
     const index = group.findIndex((candidate) => candidate.id === category.id);
     const target = group[index + direction];
@@ -346,81 +347,38 @@ function CategoryManager({
     updateMutation.error ??
     deleteMutation.error ??
     orderMutation.error;
-  const visibleCategories = categories.filter(
-    (category) => category.institutionType === institutionType,
+  const memberCategories = categories.filter(
+    (category) => category.institutionType === "member",
   );
-  return (
-    <>
-      <SectionTabs
-        value={institutionType}
-        items={[
-          { value: "member", label: "회원기관용 분류" },
-          { value: "partner", label: "협력기관용 분류" },
-        ]}
-        onChange={(value) => {
-          setInstitutionType(value as "member" | "partner");
-          setEditing(null);
-          setCode("");
-          setName("");
-          setIsActive(true);
-        }}
-      />
-      <div className="content-admin-category-layout">
-        <EditorCard
-          title={editing ? "기관 분류 수정" : "기관 분류 추가"}
-          description="은행·증권 등 기관 분류와 표시 순서를 관리합니다."
-          onSubmit={(event) => void submit(event)}
-        >
-          <Field label="분류 용도" required>
-            <NativeSelect disabled value={institutionType}>
-              <option value="member">회원기관용</option>
-              <option value="partner">협력기관용</option>
-            </NativeSelect>
-          </Field>
-          <Field label="분류 코드" required>
-            <input
-              required
-              className="content-admin-native-input"
-              pattern="[a-z0-9_]+"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-            />
-          </Field>
-          <Field label="분류명" required>
-            <input
-              required
-              className="content-admin-native-input"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </Field>
-          <Field label="활성 여부">
-            <Checkbox
-              checked={isActive}
-              label="기관 등록 및 공개 필터에 사용"
-              onChange={setIsActive}
-            />
-          </Field>
-          <MutationMessage error={mutationError} />
-          <FormActions
-            isPending={createMutation.isPending || updateMutation.isPending}
-            submitLabel={editing ? "분류 수정" : "분류 추가"}
-            onCancel={reset}
-          />
-        </EditorCard>
-        <div className="content-admin-table-shell">
-          <table>
-            <thead>
+  const partnerCategories = categories.filter(
+    (category) => category.institutionType === "partner",
+  );
+  const renderCategoryTable = (
+    title: string,
+    group: InstitutionCategoryDto[],
+  ) => (
+    <div className="content-admin-category-group">
+      <h3 className="content-admin-category-group-title">{title}</h3>
+      <div className="content-admin-table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>분류</th>
+              <th>코드</th>
+              <th>순서</th>
+              <th>상태</th>
+              <th aria-label="작업" />
+            </tr>
+          </thead>
+          <tbody>
+            {group.length === 0 ? (
               <tr>
-                <th>분류</th>
-                <th>코드</th>
-                <th>순서</th>
-                <th>상태</th>
-                <th aria-label="작업" />
+                <td className="content-admin-muted" colSpan={5}>
+                  등록된 분류가 없습니다.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {visibleCategories.map((category, index) => (
+            ) : (
+              group.map((category, index) => (
                 <tr key={category.id}>
                   <td>
                     <strong>{category.name}</strong>
@@ -439,8 +397,7 @@ function CategoryManager({
                       </Button>
                       <Button
                         disabled={
-                          index === visibleCategories.length - 1 ||
-                          orderMutation.isPending
+                          index === group.length - 1 || orderMutation.isPending
                         }
                         size="sm"
                         variant="ghost"
@@ -470,12 +427,68 @@ function CategoryManager({
                     </div>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-    </>
+    </div>
+  );
+  return (
+    <div className="content-admin-category-layout">
+      <EditorCard
+        title={editing ? "기관 분류 수정" : "기관 분류 추가"}
+        description="은행·증권 등 기관 분류와 표시 순서를 관리합니다."
+        onSubmit={(event) => void submit(event)}
+      >
+        <Field label="분류 용도" required>
+          <NativeSelect
+            disabled={Boolean(editing)}
+            value={institutionType}
+            onChange={(event) =>
+              setInstitutionType(event.target.value as "member" | "partner")
+            }
+          >
+            <option value="member">회원기관용</option>
+            <option value="partner">협력기관용</option>
+          </NativeSelect>
+        </Field>
+        <Field label="분류 코드" required>
+          <input
+            required
+            className="content-admin-native-input"
+            pattern="[a-z0-9_]+"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+          />
+        </Field>
+        <Field label="분류명" required>
+          <input
+            required
+            className="content-admin-native-input"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </Field>
+        <Field label="활성 여부">
+          <Checkbox
+            checked={isActive}
+            label="기관 등록 및 공개 필터에 사용"
+            onChange={setIsActive}
+          />
+        </Field>
+        <MutationMessage error={mutationError} />
+        <FormActions
+          isPending={createMutation.isPending || updateMutation.isPending}
+          submitLabel={editing ? "분류 수정" : "분류 추가"}
+          onCancel={reset}
+        />
+      </EditorCard>
+      <div className="content-admin-category-groups">
+        {renderCategoryTable("회원기관용 분류", memberCategories)}
+        {renderCategoryTable("협력기관용 분류", partnerCategories)}
+      </div>
+    </div>
   );
 }
 

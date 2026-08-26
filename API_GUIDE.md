@@ -72,7 +72,7 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 
 기관과 기관 분류는 institutions, institution_categories 테이블의 PostgREST API를 사용한다. 기관 분류에는 `institutionType`(`member` 또는 `partner`)이 포함되며 회원기관용·협력기관용 목록을 독립적으로 관리한다. 기관의 `institutionType`과 선택한 분류의 타입이 다르면 DB 제약조건으로 저장이 거부된다. 공개 Query는 활성 데이터만, 관리자 Query는 인증 세션에서 전체 데이터를 조회한다.
 
-`list_galleries`는 원본 콘텐츠 연결을 위해 `sourceType`, `sourceId`, `sourceCategory`를 반환한다. `sourceType`이 `post`인 공개 포토갤러리 이미지는 `sourceCategory`에 맞는 원본 게시글 상세페이지로 이동한다.
+`list_galleries`는 원본 콘텐츠 연결을 위해 `sourceType`, `sourceId`, `sourceCategory`를 반환한다. `sourceType`이 `post`인 공개 포토갤러리 이미지는 `sourceCategory`에 맞는 원본 게시글 상세페이지로 이동한다. 정렬은 `displayOrder`가 1순위이고 `eventDate`는 같은 순서일 때의 보조 기준이다 — 관리자가 수동으로 정렬하기 전까지는 모든 갤러리의 displayOrder가 동일(0)하므로 사실상 eventDate 순으로 보인다.
 
 ## 저장 API
 
@@ -102,6 +102,7 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 - 소식 이미지, 자료 사진, 세미나 이미지의 showInGallery가 true이면 해당 사진이 포토 갤러리에 노출된다.
 - 소식·자료·세미나 저장 시 기존 공개 갤러리 조회용 앨범과 사진 관계가 같은 transaction에서 자동 동기화된다. 별도의 갤러리 등록 요청은 필요하지 않다.
 - 관리자 포토갤러리에서 이미지 순서를 변경하면 `reorder_content_files` RPC가 한 번의 요청으로 전체 순서를 반영한다.
+- 관리자 포토갤러리 목록(갤러리 단위) 순서는 `reorder_galleries` RPC로 변경한다. 화면에 보이는 전체 갤러리 id를 원하는 순서대로 배열로 전달하면 각 갤러리의 displayOrder를 0부터 순서대로 재기록한다.
 - `set_gallery_item_hidden`은 원본 연결을 유지한 채 해당 이미지만 공개 포토갤러리에서 숨기거나 다시 노출한다.
 - `remove_gallery_item_from_source`는 원본 게시글·자료·세미나의 `showInGallery`만 해제한다. 원본 콘텐츠의 파일 관계, 중앙 `files` 행, Storage 객체는 유지된다.
 - 수정 시 expectedUpdatedAt이 다르면 CONFLICT로 처리한다.
@@ -163,5 +164,6 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 | 콘텐츠 요약 필드 제거          | supabase/migrations/20260825140000_remove_content_summaries.sql             |
 | 기관 타입별 분류 분리          | supabase/migrations/20260826100000_split_institution_categories_by_type.sql |
 | 포토갤러리 순서·숨김·원문 연결 | supabase/migrations/20260826110000_add_gallery_management.sql               |
+| 포토갤러리 목록 수동 정렬      | supabase/migrations/20260826120000_gallery_manual_order.sql                 |
 
 API 계약을 변경하면 migration, 생성 DB 타입, entity Query, feature Mutation, 이 문서를 함께 갱신한다.
