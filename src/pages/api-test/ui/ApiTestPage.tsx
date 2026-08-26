@@ -10,6 +10,7 @@ import {
 import kfcpaLogo from "@shared/assets/logo/kfcpa-logo-horizontal.png";
 import { getErrorMessage } from "@shared/lib";
 import { Button, Card, Input, Notice } from "@shared/ui";
+import { AnalyticsDashboard } from "@widgets/analytics-dashboard";
 import {
   InstitutionSection,
   PostSection,
@@ -26,6 +27,12 @@ const NAV_ITEMS: Array<{
   label: string;
   description: string;
 }> = [
+  {
+    section: "dashboard",
+    code: "00",
+    label: "대시보드",
+    description: "홈페이지 방문 통계",
+  },
   {
     section: "institutions",
     code: "A",
@@ -131,6 +138,7 @@ function LoginScreen({
 }
 
 function Workspace({ section }: { section: AdminSection }) {
+  if (section === "dashboard") return <AnalyticsDashboard />;
   if (section === "institutions") return <InstitutionSection />;
   if (section === "posts") return <PostSection />;
   if (section === "resources") return <ResourceSection />;
@@ -142,7 +150,7 @@ export function ApiTestPage() {
   const search = useSearch({ from: "/" });
   const session = useAdminSession();
   const signOutMutation = useMutation(adminSignOutMutationOptions());
-  const section = search.section ?? "institutions";
+  const section = search.section ?? "dashboard";
   if (!session.user)
     return (
       <LoginScreen
@@ -175,8 +183,8 @@ export function ApiTestPage() {
         </div>
       </header>
       <div className="api-admin-layout">
-        <aside className="api-admin-sidebar" aria-label="콘텐츠 관리 메뉴">
-          <p>CONTENT</p>
+        <aside className="api-admin-sidebar" aria-label="관리자 메뉴">
+          <p>ADMIN</p>
           <nav>
             {NAV_ITEMS.map((item) => (
               <button

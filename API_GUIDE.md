@@ -15,6 +15,21 @@ KFCPA v2 콘텐츠 API를 빠르게 연동하기 위한 요약본이다. 전체 
 
 애플리케이션에서는 원시 RPC보다 src/entities의 Query option과 src/features의 Mutation option을 우선 사용한다.
 
+## 방문 통계 Edge Function
+
+관리자 랜딩 대시보드는 `admin-web-analytics` Supabase Edge Function을 호출한다. 이 함수는 Supabase access token을 검증한 뒤 서버 secret으로 Cloudflare GraphQL Analytics API를 조회하며, 방문 원본 로그나 집계 결과를 DB에 저장하지 않는다.
+
+| 항목 | 값 |
+| --- | --- |
+| 메서드 | `POST` |
+| 권한 | `authenticated` |
+| 요청 body | `{ "range": "7d" \| "30d" }` |
+| Query key | `["web-analytics", "admin", range]` |
+| 응답 | 오늘 방문·페이지뷰, 전일 동시간 비교, 일별 추이, 인기 경로, 유입처, 기기 비율 |
+| 클라이언트 캐시 | 10분 |
+
+Cloudflare API Token, Account Tag, Site Tag는 Edge Function secret으로만 관리한다. 프론트 `VITE_` 환경변수에는 Cloudflare API Token을 넣지 않는다.
+
 ## 공통 값
 
 | 항목             | 값                                    |

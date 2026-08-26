@@ -1,8 +1,14 @@
-export type AdminSection = "institutions" | "posts" | "resources" | "seminars";
+export type AdminSection =
+  | "dashboard"
+  | "institutions"
+  | "posts"
+  | "resources"
+  | "seminars";
 
 export type ApiAdminSearch = { section?: AdminSection };
 
 const SECTIONS = new Set<AdminSection>([
+  "dashboard",
   "institutions",
   "posts",
   "resources",
