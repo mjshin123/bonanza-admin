@@ -46,9 +46,13 @@ describe("content API 입력 정규화", () => {
   });
 
   it("optimistic timestamp와 파일 관계 배열을 정규화한다", () => {
+    expect(
+      requireExpectedUpdatedAt(" 2026-08-25T01:56:14.282999+00:00 "),
+    ).toBe("2026-08-25T01:56:14.282999+00:00");
     expect(requireExpectedUpdatedAt("2026-08-24T09:00:00+09:00")).toBe(
-      "2026-08-24T00:00:00.000Z",
+      "2026-08-24T09:00:00+09:00",
     );
+    expect(() => requireExpectedUpdatedAt("invalid-date")).toThrow(TypeError);
     expect(normalizeFileItems([{ fileId: ` ${FILE_ID} ` }])).toEqual([
       { fileId: FILE_ID },
     ]);

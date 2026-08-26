@@ -1309,6 +1309,7 @@ galleries ─ gallery_items ───────┘
 |---|---|---|
 | `list_content_posts` | `anon`, `authenticated` | 기관 요약과 cover 1건 |
 | `list_resources` | `anon`, `authenticated` | 현재 자료의 첨부파일 수 |
+| `list_admin_resources` | `anon`, `authenticated` | 관리자 자료 목록의 첨부파일 수와 게시일 조건 |
 | `list_seminars` | `anon`, `authenticated` | poster 1건, 행사 시점 정렬 |
 | `list_galleries` | `anon`, `authenticated` | 첫 이미지와 항목 수 |
 | `list_admin_files` | `authenticated` | 다섯 사용처 집계와 사용 여부 필터 |

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { adminInstitutionsQueryOptions } from "@entities/institution";
@@ -101,6 +101,7 @@ function PostEditor({
   });
   const [files, setFiles] = useState<SelectedPostFile[]>([]);
   const [contentError, setContentError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     const item = detailQuery.data;
@@ -123,12 +124,15 @@ function PostEditor({
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (submittingRef.current) return;
+
     if (!hasMeaningfulPostContent(form.content)) {
       setContentError("본문을 입력해주세요.");
       return;
     }
 
     setContentError(null);
+    submittingRef.current = true;
     const submitter = (event.nativeEvent as SubmitEvent).submitter as
       | HTMLButtonElement
       | null;
@@ -161,6 +165,8 @@ function PostEditor({
       onClose();
     } catch {
       /* mutation 상태로 표시 */
+    } finally {
+      submittingRef.current = false;
     }
   };
 

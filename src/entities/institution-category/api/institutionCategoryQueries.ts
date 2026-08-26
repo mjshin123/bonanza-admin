@@ -45,6 +45,7 @@ async function fetchCategories(admin: boolean) {
     .select(
       "id,code,name,institution_type,display_order,is_active,created_at,updated_at",
     )
+    .order("institution_type")
     .order("display_order")
     .order("name")
     .order("id");

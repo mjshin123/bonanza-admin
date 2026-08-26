@@ -39,6 +39,11 @@ export type UpdateGalleryItemInput = {
   caption?: string;
   sortOrder?: number;
 };
+export type SetGalleryItemHiddenInput = {
+  galleryId: string;
+  fileId: string;
+  isHidden: boolean;
+};
 export type ReorderGalleryItemsInput = {
   galleryId: string;
   items: Array<{ fileId: string; sortOrder: number }>;
@@ -119,6 +124,7 @@ function mapItem(
     file: mapFile(r.file),
     caption: r.caption,
     sortOrder: r.sort_order,
+    isHidden: r.is_hidden,
     createdAt: r.created_at,
   };
 }
@@ -176,15 +182,22 @@ async function reorderGalleryItems(i: ReorderGalleryItemsInput) {
   );
 }
 async function removeGalleryItem(i: RemoveGalleryItemInput) {
-  const { data, error } = await supabase
-    .from("gallery_items")
-    .delete()
-    .eq("gallery_id", requireUuid(i.galleryId))
-    .eq("file_id", requireUuid(i.fileId))
-    .select("file_id")
-    .single();
+  const fileId = requireUuid(i.fileId);
+  const { error } = await supabase.rpc("remove_gallery_item_from_source", {
+    p_gallery_id: requireUuid(i.galleryId),
+    p_file_id: fileId,
+  });
   if (error) throwContentError(error);
-  return data.file_id;
+  return fileId;
+}
+async function setGalleryItemHidden(i: SetGalleryItemHiddenInput) {
+  const { error } = await supabase.rpc("set_gallery_item_hidden", {
+    p_gallery_id: requireUuid(i.galleryId),
+    p_file_id: requireUuid(i.fileId),
+    p_hidden: i.isHidden,
+  });
+  if (error) throwContentError(error);
+  return i;
 }
 export const createGalleryMutationOptions = () =>
   mutationOptions({
@@ -220,4 +233,9 @@ export const removeGalleryItemMutationOptions = () =>
   mutationOptions({
     mutationKey: ["galleries", "item", "remove"],
     mutationFn: removeGalleryItem,
+  });
+export const setGalleryItemHiddenMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["galleries", "item", "hidden"],
+    mutationFn: setGalleryItemHidden,
   });
