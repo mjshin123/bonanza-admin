@@ -4,14 +4,14 @@ import { supabase } from "@shared/api/supabase";
 
 import {
   webAnalyticsResponseSchema,
-  type WebAnalyticsRange,
+  type WebAnalyticsDateRange,
   type WebAnalyticsResponse,
 } from "../model/webAnalytics";
 
 export const webAnalyticsQueryKeys = {
   all: ["web-analytics"] as const,
-  admin: (range: WebAnalyticsRange) =>
-    [...webAnalyticsQueryKeys.all, "admin", range] as const,
+  admin: (period: WebAnalyticsDateRange) =>
+    [...webAnalyticsQueryKeys.all, "admin", period] as const,
 };
 
 async function readFunctionError(error: unknown): Promise<Error> {
@@ -39,12 +39,12 @@ async function readFunctionError(error: unknown): Promise<Error> {
 }
 
 async function getAdminWebAnalytics(
-  range: WebAnalyticsRange,
+  period: WebAnalyticsDateRange,
 ): Promise<WebAnalyticsResponse> {
   const { data, error } = await supabase.functions.invoke(
     "admin-web-analytics",
     {
-      body: { range },
+      body: period,
     },
   );
 
@@ -61,10 +61,10 @@ async function getAdminWebAnalytics(
   return parsed.data;
 }
 
-export function adminWebAnalyticsQueryOptions(range: WebAnalyticsRange) {
+export function adminWebAnalyticsQueryOptions(period: WebAnalyticsDateRange) {
   return queryOptions({
-    queryKey: webAnalyticsQueryKeys.admin(range),
-    queryFn: () => getAdminWebAnalytics(range),
+    queryKey: webAnalyticsQueryKeys.admin(period),
+    queryFn: () => getAdminWebAnalytics(period),
     staleTime: 10 * 60 * 1_000,
     gcTime: 30 * 60 * 1_000,
     retry: 1,

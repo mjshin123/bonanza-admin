@@ -1,9 +1,13 @@
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
   adminWebAnalyticsQueryOptions,
-  type WebAnalyticsRange,
+  getWebAnalyticsDateBounds,
+  getWebAnalyticsPresetRange,
+  webAnalyticsDateRangeSchema,
+  type WebAnalyticsDateRange,
+  type WebAnalyticsPreset,
   type WebAnalyticsResponse,
 } from "@entities/web-analytics";
 import { getErrorMessage } from "@shared/lib";
@@ -17,6 +21,19 @@ const generatedAtFormatter = new Intl.DateTimeFormat("ko-KR", {
   timeStyle: "short",
   timeZone: "Asia/Seoul",
 });
+const PRESETS: Array<{ label: string; value: WebAnalyticsPreset }> = [
+  { label: "7일", value: "7d" },
+  { label: "30일", value: "30d" },
+  { label: "3개월", value: "3m" },
+  { label: "6개월", value: "6m" },
+];
+
+function isSamePeriod(
+  left: WebAnalyticsDateRange,
+  right: WebAnalyticsDateRange,
+): boolean {
+  return left.from === right.from && left.to === right.to;
+}
 
 function formatDay(date: string): string {
   const [, month, day] = date.split("-");
@@ -52,7 +69,13 @@ function MetricCard({
   );
 }
 
-function DailyChart({ daily }: { daily: WebAnalyticsResponse["daily"] }) {
+function DailyChart({
+  daily,
+  period,
+}: {
+  daily: WebAnalyticsResponse["daily"];
+  period: WebAnalyticsDateRange;
+}) {
   const maxVisits = Math.max(...daily.map((item) => item.visits), 1);
   const chartStyle = {
     "--analytics-day-count": daily.length,
@@ -63,7 +86,9 @@ function DailyChart({ daily }: { daily: WebAnalyticsResponse["daily"] }) {
       <div className="analytics-dashboard-card-heading">
         <div>
           <h2>방문 추이</h2>
-          <p>Cloudflare 기준 일별 방문 수입니다.</p>
+          <p>
+            {period.from} ~ {period.to} · Cloudflare 기준 일별 방문 수입니다.
+          </p>
         </div>
       </div>
       <div className="analytics-dashboard-chart-scroll">
@@ -155,7 +180,8 @@ function DeviceCard({ devices }: { devices: WebAnalyticsResponse["devices"] }) {
               <div>
                 <strong>{device.label}</strong>
                 <span>
-                  {device.share.toFixed(1)}% · {numberFormatter.format(device.pageViews)}회
+                  {device.share.toFixed(1)}% ·{" "}
+                  {numberFormatter.format(device.pageViews)}회
                 </span>
               </div>
               <div className="analytics-dashboard-device-track">
@@ -172,9 +198,49 @@ function DeviceCard({ devices }: { devices: WebAnalyticsResponse["devices"] }) {
 }
 
 export function AnalyticsDashboard() {
-  const [range, setRange] = useState<WebAnalyticsRange>("7d");
-  const analyticsQuery = useQuery(adminWebAnalyticsQueryOptions(range));
+  const [{ bounds, defaultPeriod }] = useState(() => ({
+    bounds: getWebAnalyticsDateBounds(),
+    defaultPeriod: getWebAnalyticsPresetRange("7d"),
+  }));
+  const [period, setPeriod] = useState<WebAnalyticsDateRange>(defaultPeriod);
+  const [draftPeriod, setDraftPeriod] =
+    useState<WebAnalyticsDateRange>(defaultPeriod);
+  const [periodError, setPeriodError] = useState<string | null>(null);
+  const analyticsQuery = useQuery(adminWebAnalyticsQueryOptions(period));
   const data = analyticsQuery.data;
+  const activePreset = PRESETS.find((preset) =>
+    isSamePeriod(period, getWebAnalyticsPresetRange(preset.value)),
+  )?.value;
+
+  const applyPreset = (preset: WebAnalyticsPreset) => {
+    const nextPeriod = getWebAnalyticsPresetRange(preset);
+    setDraftPeriod(nextPeriod);
+    setPeriod(nextPeriod);
+    setPeriodError(null);
+  };
+
+  const applyCustomPeriod = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const parsed = webAnalyticsDateRangeSchema.safeParse(draftPeriod);
+
+    if (!parsed.success) {
+      setPeriodError(
+        parsed.error.issues[0]?.message ?? "조회 기간을 확인해주세요.",
+      );
+      return;
+    }
+    if (parsed.data.from < bounds.earliest) {
+      setPeriodError(`시작일은 ${bounds.earliest} 이후여야 합니다.`);
+      return;
+    }
+    if (parsed.data.to > bounds.yesterday) {
+      setPeriodError("기간 통계는 어제까지만 조회할 수 있습니다.");
+      return;
+    }
+
+    setPeriod(parsed.data);
+    setPeriodError(null);
+  };
 
   return (
     <section className="content-admin-section analytics-dashboard">
@@ -185,19 +251,6 @@ export function AnalyticsDashboard() {
           <p>공개 홈페이지의 Cloudflare Web Analytics 집계입니다.</p>
         </div>
         <div className="analytics-dashboard-actions">
-          <div aria-label="통계 조회 기간" role="group">
-            {(["7d", "30d"] as const).map((value) => (
-              <button
-                key={value}
-                aria-pressed={range === value}
-                className={range === value ? "is-active" : undefined}
-                type="button"
-                onClick={() => setRange(value)}
-              >
-                {value === "7d" ? "최근 7일" : "최근 30일"}
-              </button>
-            ))}
-          </div>
           <Button
             disabled={analyticsQuery.isFetching}
             size="sm"
@@ -208,6 +261,74 @@ export function AnalyticsDashboard() {
           </Button>
         </div>
       </div>
+
+      <Card className="analytics-dashboard-period-controls">
+        <div
+          aria-label="빠른 통계 조회 기간"
+          className="analytics-dashboard-quick-ranges"
+          role="group"
+        >
+          {PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              aria-pressed={activePreset === preset.value}
+              className={
+                activePreset === preset.value ? "is-active" : undefined
+              }
+              type="button"
+              onClick={() => applyPreset(preset.value)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <form
+          className="analytics-dashboard-date-form"
+          onSubmit={applyCustomPeriod}
+        >
+          <label>
+            <span>시작일</span>
+            <input
+              aria-label="통계 시작일"
+              max={draftPeriod.to || bounds.yesterday}
+              min={bounds.earliest}
+              type="date"
+              value={draftPeriod.from}
+              onChange={(event) =>
+                setDraftPeriod((current) => ({
+                  ...current,
+                  from: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <span aria-hidden="true">~</span>
+          <label>
+            <span>종료일</span>
+            <input
+              aria-label="통계 종료일"
+              max={bounds.yesterday}
+              min={draftPeriod.from || bounds.earliest}
+              type="date"
+              value={draftPeriod.to}
+              onChange={(event) =>
+                setDraftPeriod((current) => ({
+                  ...current,
+                  to: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <Button size="sm" type="submit">
+            조회
+          </Button>
+        </form>
+        {periodError ? (
+          <p className="analytics-dashboard-period-error" role="alert">
+            {periodError}
+          </p>
+        ) : null}
+      </Card>
 
       {analyticsQuery.isPending ? (
         <Card className="analytics-dashboard-state">
@@ -255,7 +376,7 @@ export function AnalyticsDashboard() {
             />
           </div>
 
-          <DailyChart daily={data.daily} />
+          <DailyChart daily={data.daily} period={data.period} />
 
           <div className="analytics-dashboard-detail-grid">
             <RankingCard
@@ -275,7 +396,8 @@ export function AnalyticsDashboard() {
 
           <div className="analytics-dashboard-footnote">
             <span>
-              최근 갱신 {generatedAtFormatter.format(new Date(data.generatedAt))}
+              최근 갱신{" "}
+              {generatedAtFormatter.format(new Date(data.generatedAt))}
             </span>
             <p>
               방문 수는 순방문자 수가 아니라 Cloudflare가 외부 유입 또는 직접

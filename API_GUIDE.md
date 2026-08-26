@@ -19,14 +19,18 @@ KFCPA v2 콘텐츠 API를 빠르게 연동하기 위한 요약본이다. 전체 
 
 관리자 랜딩 대시보드는 `admin-web-analytics` Supabase Edge Function을 호출한다. 이 함수는 Supabase access token을 검증한 뒤 서버 secret으로 Cloudflare GraphQL Analytics API를 조회하며, 방문 원본 로그나 집계 결과를 DB에 저장하지 않는다.
 
-| 항목            | 값                                                                            |
-| --------------- | ----------------------------------------------------------------------------- |
-| 메서드          | `POST`                                                                        |
-| 권한            | `authenticated`                                                               |
-| 요청 body       | `{ "range": "7d" \| "30d" }`                                                  |
-| Query key       | `["web-analytics", "admin", range]`                                           |
-| 응답            | 오늘 방문·페이지뷰, 전일 동시간 비교, 일별 추이, 인기 경로, 유입처, 기기 비율 |
-| 클라이언트 캐시 | 10분                                                                          |
+| 항목            | 값                                                                                      |
+| --------------- | --------------------------------------------------------------------------------------- |
+| 메서드          | `POST`                                                                                  |
+| 권한            | `authenticated`                                                                         |
+| 요청 body       | `{ "from": "YYYY-MM-DD", "to": "YYYY-MM-DD" }`                                          |
+| Query key       | `["web-analytics", "admin", { from, to }]`                                              |
+| 응답            | 오늘 방문·페이지뷰, 전일 동시간 비교, 선택 기간 일별 추이, 인기 경로, 유입처, 기기 비율 |
+| 클라이언트 캐시 | 10분                                                                                    |
+
+기간 조회의 종료일은 한국 시간 기준 어제까지이며, 시작일은 어제로부터 최대 6개월 전까지 허용한다. 기존 배포본과의 무중단 호환을 위해 `{ "range": "7d" | "30d" }` 요청도 계속 지원한다. 오늘 방문 수와 오늘 페이지뷰는 선택 기간과 무관하게 항상 한국 시간 오늘 00:00부터 현재 시각까지 집계한다.
+
+Cloudflare GraphQL 요청은 일별 필드를 최대 31일 단위로 묶는다. 따라서 7일과 30일은 1회, 3개월은 최대 3회, 6개월은 최대 6회 요청하며 선택 일수만큼 HTTP 요청을 반복하지 않는다.
 
 Cloudflare API Token, Account Tag, Site Tag는 Edge Function secret으로만 관리한다. 프론트 `VITE_` 환경변수에는 Cloudflare API Token을 넣지 않는다.
 

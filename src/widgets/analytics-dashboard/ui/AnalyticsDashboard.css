@@ -40,7 +40,15 @@
   gap: var(--sp-3);
 }
 
-.analytics-dashboard-actions > div {
+.analytics-dashboard-period-controls {
+  display: flex !important;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.analytics-dashboard-quick-ranges {
   display: flex;
   padding: var(--sp-1);
   border: 1px solid var(--border);
@@ -49,7 +57,7 @@
   gap: var(--sp-1);
 }
 
-.analytics-dashboard-actions > div button {
+.analytics-dashboard-quick-ranges button {
   min-height: 32px;
   padding: 0 var(--sp-3);
   border: 0;
@@ -62,13 +70,61 @@
   font-weight: var(--fw-semibold);
 }
 
-.analytics-dashboard-actions > div button:hover {
+.analytics-dashboard-quick-ranges button:hover {
   background: var(--surface);
 }
 
-.analytics-dashboard-actions > div button.is-active {
+.analytics-dashboard-quick-ranges button.is-active {
   background: var(--teal-600);
   color: var(--text-on-dark);
+}
+
+.analytics-dashboard-date-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.analytics-dashboard-date-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.analytics-dashboard-date-form > label > span {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--fw-semibold);
+}
+
+.analytics-dashboard-date-form > span {
+  min-height: var(--control-h-sm);
+  color: var(--text-muted);
+  line-height: var(--control-h-sm);
+}
+
+.analytics-dashboard-date-form input {
+  height: var(--control-h-sm);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-body-sm);
+}
+
+.analytics-dashboard-date-form input:focus-visible {
+  border-color: var(--teal-500);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.analytics-dashboard-period-error {
+  width: 100%;
+  color: var(--danger);
+  font-size: var(--text-caption);
 }
 
 .analytics-dashboard-state {
@@ -327,17 +383,22 @@
 @media (max-width: 767px) {
   .analytics-dashboard-header,
   .analytics-dashboard-actions,
+  .analytics-dashboard-period-controls,
   .analytics-dashboard-footnote {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .analytics-dashboard-actions > div {
+  .analytics-dashboard-quick-ranges {
     flex: 1;
   }
 
-  .analytics-dashboard-actions > div button {
+  .analytics-dashboard-quick-ranges button {
     flex: 1;
+  }
+
+  .analytics-dashboard-date-form {
+    align-items: flex-end;
   }
 
   .analytics-dashboard-metrics,
