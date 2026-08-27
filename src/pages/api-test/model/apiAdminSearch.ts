@@ -2,6 +2,7 @@ export type AdminSection =
   | "dashboard"
   | "institutions"
   | "galleries"
+  | "history"
   | "posts"
   | "resources"
   | "seminars";
@@ -16,6 +17,7 @@ const SECTIONS = new Set<AdminSection>([
   "dashboard",
   "institutions",
   "galleries",
+  "history",
   "posts",
   "resources",
   "seminars",

@@ -73,6 +73,10 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 
 기관과 기관 분류는 institutions, institution_categories 테이블의 PostgREST API를 사용한다. 기관 분류에는 `institutionType`(`member` 또는 `partner`)이 포함되며 회원기관용·협력기관용 목록을 독립적으로 관리한다. 기관의 `institutionType`과 선택한 분류의 타입이 다르면 DB 제약조건으로 저장이 거부된다. 공개 Query는 활성 데이터만, 관리자 Query는 인증 세션에서 전체 데이터를 조회한다.
 
+연혁은 `history_entries` 테이블의 PostgREST API를 사용한다. 공개 Query는 `is_visible = true`인 행만 `year DESC, position ASC`로 조회하고, 관리자 Query는 연도와 노출 상태 필터 및 서버 페이징을 적용한다. `content`는 일반 문자열이며 `**문구**` 형식만 굵은 강조로 해석한다. HTML이나 다른 Markdown 문법은 렌더링하지 않는다.
+
+연혁 등록·수정은 `save_history_entry` RPC를 사용한다. 등록 시 해당 연도의 마지막 `position`을 DB가 계산하고, 수정으로 연도가 바뀌면 이동한 연도의 마지막 순서로 배치한다. `move_history_entry`는 같은 연도의 인접한 두 행만 transaction 안에서 교환한다. 따라서 연혁이 1만 건이어도 순서 이동은 전체 재정렬 없이 최대 2행만 갱신한다.
+
 `list_galleries`는 원본 콘텐츠 연결을 위해 `sourceType`, `sourceId`, `sourceCategory`를 반환한다. `sourceType`이 `post`인 공개 포토갤러리 이미지는 `sourceCategory`에 맞는 원본 게시글 상세페이지로 이동한다. 정렬은 항상 `eventDate` 기준이다.
 
 관리자 포토갤러리는 `list_admin_gallery_photos`를 사용한다. 이 RPC는 게시 완료 및 게시 시각 도달, 이미지 숨김 여부를 DB에서 먼저 판정한 뒤 `gallery_items` 한 행당 한 행을 반환한다. 검색·정렬·페이징도 DB에서 수행하며 관리자 화면은 현재 페이지 이미지만 렌더링한다.
@@ -169,5 +173,6 @@ member_news는 활성 member 기관 연결이 필수다. 다른 게시물 분류
 | 기관 타입별 분류 분리          | supabase/migrations/20260826100000_split_institution_categories_by_type.sql |
 | 포토갤러리 순서·숨김·원문 연결 | supabase/migrations/20260826110000_add_gallery_management.sql               |
 | 관리자 이미지 단위 갤러리 조회 | supabase/migrations/20260826130000_add_admin_gallery_photo_list.sql         |
+| 연혁 테이블·권한·저장·순서 이동 | supabase/migrations/20260827100000_add_history_entries.sql                 |
 
 API 계약을 변경하면 migration, 생성 DB 타입, entity Query, feature Mutation, 이 문서를 함께 갱신한다.

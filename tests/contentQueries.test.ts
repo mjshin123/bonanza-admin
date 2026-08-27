@@ -25,6 +25,12 @@ import {
 } from "@entities/gallery";
 import { mapAdminFileListRow } from "@entities/file";
 import { mapInstitutionCategory } from "@entities/institution-category";
+import {
+  adminHistoryEntriesQueryOptions,
+  mapHistoryEntry,
+  parseHistoryContent,
+  validateHistoryContent,
+} from "@entities/history-entry";
 
 const ID = "123e4567-e89b-42d3-a456-426614174000";
 const NOW = "2026-08-24T00:00:00.000Z";
@@ -68,6 +74,49 @@ describe("v2 Query key", () => {
       "photos",
       expect.objectContaining({ q: "제목" }),
     ]);
+    expect(adminHistoryEntriesQueryOptions({ year: 2026 }).queryKey).toEqual([
+      "history-entries",
+      "admin",
+      "list",
+      expect.objectContaining({ year: 2026 }),
+    ]);
+  });
+
+  it("연혁 행을 DTO로 변환한다", () => {
+    expect(
+      mapHistoryEntry({
+        content: "**협회 설립** (1월)",
+        created_at: NOW,
+        id: ID,
+        is_visible: true,
+        position: 0,
+        updated_at: NOW,
+        year: 2023,
+      }),
+    ).toEqual({
+      content: "**협회 설립** (1월)",
+      createdAt: NOW,
+      id: ID,
+      isVisible: true,
+      position: 0,
+      updatedAt: NOW,
+      year: 2023,
+    });
+  });
+});
+
+describe("연혁 강조 문법", () => {
+  it("**로 감싼 부분만 강조 조각으로 변환한다", () => {
+    expect(parseHistoryContent("협회 **본사무소 이전** (2월)")).toEqual([
+      { text: "협회 ", emphasized: false },
+      { text: "본사무소 이전", emphasized: true },
+      { text: " (2월)", emphasized: false },
+    ]);
+  });
+
+  it("닫히지 않거나 비어 있는 강조 문법을 거부한다", () => {
+    expect(validateHistoryContent("협회 **설립")).toContain("닫아주세요");
+    expect(validateHistoryContent("협회 **** 설립")).toContain("문구");
   });
 });
 
