@@ -133,6 +133,35 @@ async function bulkHideContentPosts(ids: string[]) {
   if (error) throwContentError(error);
   return normalized;
 }
+async function bulkPublishContentPosts(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { data: rows, error: fetchError } = await supabase
+    .from("posts")
+    .select("id, published_at")
+    .in("id", normalized);
+  if (fetchError) throwContentError(fetchError);
+  const needsPublishedAt = (rows ?? [])
+    .filter((row) => !row.published_at)
+    .map((row) => row.id);
+  const hasPublishedAt = (rows ?? [])
+    .filter((row) => row.published_at)
+    .map((row) => row.id);
+  if (needsPublishedAt.length) {
+    const { error } = await supabase
+      .from("posts")
+      .update({ status: "published", published_at: new Date().toISOString() })
+      .in("id", needsPublishedAt);
+    if (error) throwContentError(error);
+  }
+  if (hasPublishedAt.length) {
+    const { error } = await supabase
+      .from("posts")
+      .update({ status: "published" })
+      .in("id", hasPublishedAt);
+    if (error) throwContentError(error);
+  }
+  return normalized;
+}
 async function bulkDeleteContentPosts(ids: string[]) {
   const normalized = ids.map((id) => requireUuid(id));
   const { error } = await supabase.from("posts").delete().in("id", normalized);
@@ -236,6 +265,11 @@ export const bulkHideContentPostsMutationOptions = () =>
   mutationOptions({
     mutationKey: ["content-posts", "bulk-hide"],
     mutationFn: bulkHideContentPosts,
+  });
+export const bulkPublishContentPostsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["content-posts", "bulk-publish"],
+    mutationFn: bulkPublishContentPosts,
   });
 export const bulkDeleteContentPostsMutationOptions = () =>
   mutationOptions({

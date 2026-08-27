@@ -20,8 +20,6 @@ import {
   adminGalleryPhotosQueryOptions,
   galleriesQueryOptions,
   getGallerySourceLabel,
-  getGallerySourcePath,
-  getGallerySourceUrl,
   mapAdminGalleryPhotoListRow,
   mapGalleryListRow,
 } from "@entities/gallery";
@@ -206,31 +204,28 @@ describe("목록 RPC DTO 매핑", () => {
   });
 });
 
-describe("갤러리 원문 링크", () => {
-  const noticeSource = {
-    sourceType: "post" as const,
-    sourceId: ID,
-    sourceCategory: "notice",
-  };
-
-  it("게시글 카테고리를 공개 상세 경로로 변환한다", () => {
-    expect(getGallerySourceLabel(noticeSource)).toBe("공지사항");
-    expect(getGallerySourcePath(noticeSource)).toBe(`/archive/notice/${ID}`);
+describe("갤러리 원문 라벨", () => {
+  it("출처 유형과 게시글 카테고리를 라벨로 변환한다", () => {
     expect(
-      getGallerySourceUrl(noticeSource, "https://www.example.com/admin"),
-    ).toBe(`https://www.example.com/archive/notice/${ID}`);
-  });
-
-  it("상세 경로가 없는 출처에는 링크를 만들지 않는다", () => {
-    const resourceSource = {
-      sourceType: "resource" as const,
-      sourceId: ID,
-      sourceCategory: null,
-    };
-    expect(getGallerySourceLabel(resourceSource)).toBe("자료실");
-    expect(getGallerySourcePath(resourceSource)).toBeNull();
+      getGallerySourceLabel({
+        sourceType: "post",
+        sourceId: ID,
+        sourceCategory: "notice",
+      }),
+    ).toBe("공지사항");
     expect(
-      getGallerySourceUrl(resourceSource, "https://www.example.com"),
-    ).toBeNull();
+      getGallerySourceLabel({
+        sourceType: "resource",
+        sourceId: ID,
+        sourceCategory: null,
+      }),
+    ).toBe("자료실");
+    expect(
+      getGallerySourceLabel({
+        sourceType: "seminar",
+        sourceId: ID,
+        sourceCategory: null,
+      }),
+    ).toBe("세미나");
   });
 });

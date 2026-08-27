@@ -113,6 +113,35 @@ async function bulkHideResources(ids: string[]) {
   if (error) throwContentError(error);
   return normalized;
 }
+async function bulkPublishResources(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { data: rows, error: fetchError } = await supabase
+    .from("resources")
+    .select("id, published_at")
+    .in("id", normalized);
+  if (fetchError) throwContentError(fetchError);
+  const needsPublishedAt = (rows ?? [])
+    .filter((row) => !row.published_at)
+    .map((row) => row.id);
+  const hasPublishedAt = (rows ?? [])
+    .filter((row) => row.published_at)
+    .map((row) => row.id);
+  if (needsPublishedAt.length) {
+    const { error } = await supabase
+      .from("resources")
+      .update({ status: "published", published_at: new Date().toISOString() })
+      .in("id", needsPublishedAt);
+    if (error) throwContentError(error);
+  }
+  if (hasPublishedAt.length) {
+    const { error } = await supabase
+      .from("resources")
+      .update({ status: "published" })
+      .in("id", hasPublishedAt);
+    if (error) throwContentError(error);
+  }
+  return normalized;
+}
 async function bulkDeleteResources(ids: string[]) {
   const normalized = ids.map((id) => requireUuid(id));
   const { error } = await supabase
@@ -219,6 +248,11 @@ export const bulkHideResourcesMutationOptions = () =>
   mutationOptions({
     mutationKey: ["resources", "bulk-hide"],
     mutationFn: bulkHideResources,
+  });
+export const bulkPublishResourcesMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["resources", "bulk-publish"],
+    mutationFn: bulkPublishResources,
   });
 export const bulkDeleteResourcesMutationOptions = () =>
   mutationOptions({

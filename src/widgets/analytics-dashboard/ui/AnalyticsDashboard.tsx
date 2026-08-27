@@ -71,30 +71,35 @@ function MetricCard({
 
 function DailyChart({
   daily,
-  period,
 }: {
   daily: WebAnalyticsResponse["daily"];
-  period: WebAnalyticsDateRange;
 }) {
   const maxVisits = Math.max(...daily.map((item) => item.visits), 1);
+  const totalVisits = daily.reduce((sum, item) => sum + item.visits, 0);
+  const isDense = daily.length > 31;
   const chartStyle = {
     "--analytics-day-count": daily.length,
   } as CSSProperties;
+  const [hover, setHover] = useState<{
+    item: WebAnalyticsResponse["daily"][number];
+    x: number;
+    y: number;
+  } | null>(null);
 
   return (
     <Card className="analytics-dashboard-chart-card">
-      <div className="analytics-dashboard-card-heading">
-        <div>
-          <h2>방문 추이</h2>
-          <p>
-            {period.from} ~ {period.to} · Cloudflare 기준 일별 방문 수입니다.
-          </p>
-        </div>
+      <div className="analytics-dashboard-chart-total">
+        <span>최근 {daily.length}일 방문 수 합계</span>
+        <strong>{numberFormatter.format(totalVisits)}</strong>
       </div>
       <div className="analytics-dashboard-chart-scroll">
         <div
           aria-label="일별 방문 수 막대 차트"
-          className="analytics-dashboard-chart"
+          className={
+            isDense
+              ? "analytics-dashboard-chart is-dense"
+              : "analytics-dashboard-chart"
+          }
           role="img"
           style={chartStyle}
         >
@@ -110,9 +115,17 @@ function DailyChart({
               <div
                 key={item.date}
                 className="analytics-dashboard-chart-column"
-                title={`${formatDay(item.date)} 방문 ${numberFormatter.format(item.visits)}회 · 페이지뷰 ${numberFormatter.format(item.pageViews)}회`}
+                onMouseEnter={(event) =>
+                  setHover({ item, x: event.clientX, y: event.clientY })
+                }
+                onMouseLeave={() => setHover(null)}
+                onMouseMove={(event) =>
+                  setHover({ item, x: event.clientX, y: event.clientY })
+                }
               >
-                <span>{numberFormatter.format(item.visits)}</span>
+                <span>
+                  {showLabel ? numberFormatter.format(item.visits) : ""}
+                </span>
                 <div className="analytics-dashboard-chart-track">
                   <div style={{ height: `${height}%` }} />
                 </div>
@@ -122,6 +135,18 @@ function DailyChart({
           })}
         </div>
       </div>
+      {hover ? (
+        <div
+          className="analytics-dashboard-chart-tooltip"
+          style={{ left: hover.x + 14, top: hover.y + 14 }}
+        >
+          <strong>{formatDay(hover.item.date)}</strong>
+          <span>방문 {numberFormatter.format(hover.item.visits)}회</span>
+          <span>
+            페이지뷰 {numberFormatter.format(hover.item.pageViews)}회
+          </span>
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -262,7 +287,36 @@ export function AnalyticsDashboard() {
         </div>
       </div>
 
-      <Card className="analytics-dashboard-period-controls">
+      {data ? (
+        <div className="analytics-dashboard-metrics">
+          <MetricCard
+            description={formatChangeRate(data.summary.visitChangeRate)}
+            label="오늘 방문 수"
+            tone={
+              data.summary.visitChangeRate === null
+                ? undefined
+                : data.summary.visitChangeRate >= 0
+                  ? "positive"
+                  : "negative"
+            }
+            value={data.summary.visits}
+          />
+          <MetricCard
+            description="오늘 00:00부터 현재까지"
+            label="오늘 페이지뷰"
+            value={data.summary.pageViews}
+          />
+        </div>
+      ) : null}
+
+      <div className="analytics-dashboard-card-heading">
+        <h2>방문 추이</h2>
+        <p>
+          {period.from} ~ {period.to} · Cloudflare 기준 일별 방문 수입니다.
+        </p>
+      </div>
+
+      <div className="analytics-dashboard-period-controls">
         <div
           aria-label="빠른 통계 조회 기간"
           className="analytics-dashboard-quick-ranges"
@@ -328,7 +382,7 @@ export function AnalyticsDashboard() {
             {periodError}
           </p>
         ) : null}
-      </Card>
+      </div>
 
       {analyticsQuery.isPending ? (
         <Card className="analytics-dashboard-state">
@@ -356,27 +410,7 @@ export function AnalyticsDashboard() {
 
       {data ? (
         <>
-          <div className="analytics-dashboard-metrics">
-            <MetricCard
-              description={formatChangeRate(data.summary.visitChangeRate)}
-              label="오늘 방문 수"
-              tone={
-                data.summary.visitChangeRate === null
-                  ? undefined
-                  : data.summary.visitChangeRate >= 0
-                    ? "positive"
-                    : "negative"
-              }
-              value={data.summary.visits}
-            />
-            <MetricCard
-              description="오늘 00:00부터 현재까지"
-              label="오늘 페이지뷰"
-              value={data.summary.pageViews}
-            />
-          </div>
-
-          <DailyChart daily={data.daily} period={data.period} />
+          <DailyChart daily={data.daily} />
 
           <div className="analytics-dashboard-detail-grid">
             <RankingCard

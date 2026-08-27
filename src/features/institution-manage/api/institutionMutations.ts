@@ -143,6 +143,36 @@ async function deleteInstitution(id: string) {
   return data.id;
 }
 
+async function bulkHideInstitutions(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("institutions")
+    .update({ is_active: false })
+    .in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
+}
+
+async function bulkShowInstitutions(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("institutions")
+    .update({ is_active: true })
+    .in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
+}
+
+async function bulkDeleteInstitutions(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("institutions")
+    .delete()
+    .in("id", normalized);
+  if (error) throwContentError(error);
+  return normalized;
+}
+
 export const createInstitutionMutationOptions = () =>
   mutationOptions({
     mutationKey: ["institutions", "create"],
@@ -162,4 +192,19 @@ export const swapInstitutionOrderMutationOptions = () =>
   mutationOptions({
     mutationKey: ["institutions", "swap-order"],
     mutationFn: swapInstitutionOrder,
+  });
+export const bulkHideInstitutionsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["institutions", "bulk-hide"],
+    mutationFn: bulkHideInstitutions,
+  });
+export const bulkShowInstitutionsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["institutions", "bulk-show"],
+    mutationFn: bulkShowInstitutions,
+  });
+export const bulkDeleteInstitutionsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["institutions", "bulk-delete"],
+    mutationFn: bulkDeleteInstitutions,
   });

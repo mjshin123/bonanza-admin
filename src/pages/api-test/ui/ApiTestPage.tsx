@@ -7,6 +7,8 @@ import {
   adminSignOutMutationOptions,
   useAdminSession,
 } from "@features/admin-auth";
+import type { GallerySourceType } from "@entities/gallery";
+import type { PostCategory } from "@shared/api/content";
 import kfcpaLogo from "@shared/assets/logo/kfcpa-logo-horizontal.png";
 import { getErrorMessage } from "@shared/lib";
 import { Button, Card, Input, Notice } from "@shared/ui";
@@ -144,14 +146,55 @@ function LoginScreen({
   );
 }
 
-function Workspace({ section }: { section: AdminSection }) {
+function Workspace({
+  section,
+  openId,
+  openCategory,
+  onOpenIdConsumed,
+  onOpenSource,
+}: {
+  section: AdminSection;
+  openId?: string;
+  openCategory?: string;
+  onOpenIdConsumed: () => void;
+  onOpenSource: (source: {
+    sourceType: GallerySourceType;
+    sourceId: string;
+    sourceCategory: string | null;
+  }) => void;
+}) {
   if (section === "dashboard") return <AnalyticsDashboard />;
   if (section === "institutions") return <InstitutionSection />;
-  if (section === "posts") return <PostSection />;
-  if (section === "resources") return <ResourceSection />;
-  if (section === "seminars") return <SeminarSection />;
-  return <GallerySection />;
+  if (section === "posts")
+    return (
+      <PostSection
+        initialCategory={openCategory as PostCategory | undefined}
+        initialEditingId={openId}
+        onInitialEditingConsumed={onOpenIdConsumed}
+      />
+    );
+  if (section === "resources")
+    return (
+      <ResourceSection
+        initialEditingId={openId}
+        onInitialEditingConsumed={onOpenIdConsumed}
+      />
+    );
+  if (section === "seminars")
+    return (
+      <SeminarSection
+        initialEditingId={openId}
+        onInitialEditingConsumed={onOpenIdConsumed}
+      />
+    );
+  return <GallerySection onOpenSource={onOpenSource} />;
 }
+
+const GALLERY_SOURCE_SECTION: Partial<Record<GallerySourceType & string, AdminSection>> = {
+  post: "posts",
+  resource: "resources",
+  seminar: "seminars",
+};
 
 export function ApiTestPage() {
   const navigate = useNavigate({ from: "/" });
@@ -159,6 +202,33 @@ export function ApiTestPage() {
   const session = useAdminSession();
   const signOutMutation = useMutation(adminSignOutMutationOptions());
   const section = search.section ?? "dashboard";
+  const clearOpenId = () => {
+    void navigate({
+      search: (prev) => ({ ...prev, openId: undefined, openCategory: undefined }),
+      replace: true,
+    });
+  };
+  const openSource = (source: {
+    sourceType: GallerySourceType;
+    sourceId: string;
+    sourceCategory: string | null;
+  }) => {
+    const target = source.sourceType
+      ? GALLERY_SOURCE_SECTION[source.sourceType]
+      : undefined;
+    if (!target) return;
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        section: target,
+        openId: source.sourceId,
+        openCategory:
+          source.sourceType === "post"
+            ? (source.sourceCategory ?? undefined)
+            : undefined,
+      }),
+    });
+  };
   if (!session.user)
     return (
       <LoginScreen
@@ -218,7 +288,13 @@ export function ApiTestPage() {
               {getErrorMessage(signOutMutation.error)}
             </Notice>
           ) : null}
-          <Workspace section={section} />
+          <Workspace
+            section={section}
+            openCategory={search.openCategory}
+            openId={search.openId}
+            onOpenIdConsumed={clearOpenId}
+            onOpenSource={openSource}
+          />
         </div>
       </div>
     </main>

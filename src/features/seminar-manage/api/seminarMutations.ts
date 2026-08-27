@@ -117,6 +117,35 @@ async function bulkHideSeminars(ids: string[]) {
   if (error) throwContentError(error);
   return normalized;
 }
+async function bulkPublishSeminars(ids: string[]) {
+  const normalized = ids.map((id) => requireUuid(id));
+  const { data: rows, error: fetchError } = await supabase
+    .from("seminars")
+    .select("id, published_at")
+    .in("id", normalized);
+  if (fetchError) throwContentError(fetchError);
+  const needsPublishedAt = (rows ?? [])
+    .filter((row) => !row.published_at)
+    .map((row) => row.id);
+  const hasPublishedAt = (rows ?? [])
+    .filter((row) => row.published_at)
+    .map((row) => row.id);
+  if (needsPublishedAt.length) {
+    const { error } = await supabase
+      .from("seminars")
+      .update({ status: "published", published_at: new Date().toISOString() })
+      .in("id", needsPublishedAt);
+    if (error) throwContentError(error);
+  }
+  if (hasPublishedAt.length) {
+    const { error } = await supabase
+      .from("seminars")
+      .update({ status: "published" })
+      .in("id", hasPublishedAt);
+    if (error) throwContentError(error);
+  }
+  return normalized;
+}
 async function bulkDeleteSeminars(ids: string[]) {
   const normalized = ids.map((id) => requireUuid(id));
   const { error } = await supabase
@@ -222,6 +251,11 @@ export const bulkHideSeminarsMutationOptions = () =>
   mutationOptions({
     mutationKey: ["seminars", "bulk-hide"],
     mutationFn: bulkHideSeminars,
+  });
+export const bulkPublishSeminarsMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["seminars", "bulk-publish"],
+    mutationFn: bulkPublishSeminars,
   });
 export const bulkDeleteSeminarsMutationOptions = () =>
   mutationOptions({

@@ -14,6 +14,7 @@ import { PostContentEditor } from "@features/post-content-editor";
 import {
   bulkDeleteContentPostsMutationOptions,
   bulkHideContentPostsMutationOptions,
+  bulkPublishContentPostsMutationOptions,
   createContentPostMutationOptions,
   updateContentPostMutationOptions,
 } from "@features/post-manage";
@@ -79,6 +80,8 @@ function PostEditor({
     ...adminPostDetailQueryOptions(editingId ?? EMPTY_ID),
     enabled: Boolean(editingId),
   });
+  const effectiveCategory =
+    editingId && detailQuery.data ? detailQuery.data.category : category;
   const createMutation = useMutation(createContentPostMutationOptions());
   const updateMutation = useMutation(updateContentPostMutationOptions());
   const mutation = editingId ? updateMutation : createMutation;
@@ -90,7 +93,7 @@ function PostEditor({
       q: debouncedInstitutionSearch || undefined,
       isActive: true,
     }),
-    enabled: category === "member_news",
+    enabled: effectiveCategory === "member_news",
   });
   const [form, setForm] = useState<PostFormState>({
     title: "",
@@ -138,10 +141,11 @@ function PostEditor({
       | null;
     const status = (submitter?.value as ContentStatus | undefined) ?? "draft";
     const input = {
-      category,
+      category: effectiveCategory,
       title: form.title,
       content: sanitizePostContent(form.content),
-      institutionId: category === "member_news" ? form.institutionId : null,
+      institutionId:
+        effectiveCategory === "member_news" ? form.institutionId : null,
       status,
       isPinned: form.isPinned,
       publishedAt: toIsoOrNull(form.publishedAt),
@@ -178,7 +182,8 @@ function PostEditor({
     );
   if (detailQuery.error) return <MutationMessage error={detailQuery.error} />;
   const categoryLabel =
-    CATEGORIES.find((item) => item.value === category)?.label ?? "게시물";
+    CATEGORIES.find((item) => item.value === effectiveCategory)?.label ??
+    "게시물";
   return (
     <EditorCard
       title={editingId ? `${categoryLabel} 수정` : `${categoryLabel} 등록`}
@@ -194,7 +199,7 @@ function PostEditor({
           onChange={(event) => setForm({ ...form, title: event.target.value })}
         />
       </Field>
-      {category === "member_news" ? (
+      {effectiveCategory === "member_news" ? (
         <>
           <Field label="회원기관 검색">
             <input
@@ -385,7 +390,15 @@ function PostEditor({
   );
 }
 
-export function PostSection() {
+export function PostSection({
+  initialEditingId,
+  initialCategory,
+  onInitialEditingConsumed,
+}: {
+  initialEditingId?: string | null;
+  initialCategory?: PostCategory;
+  onInitialEditingConsumed?: () => void;
+} = {}) {
   const queryClient = useQueryClient();
   const [category, setCategory] = useState<PostCategory>("notice");
   const [page, setPage] = useState(1);
@@ -400,6 +413,13 @@ export function PostSection() {
     setEditorOpen(false);
     setEditingId(null);
   });
+  useEffect(() => {
+    if (!initialEditingId) return;
+    if (initialCategory) setCategory(initialCategory);
+    setEditingId(initialEditingId);
+    setEditorOpen(true);
+    onInitialEditingConsumed?.();
+  }, [initialEditingId]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminPostsQueryOptions({
@@ -416,6 +436,12 @@ export function PostSection() {
   useEffect(() => {
     setSelectedIds(new Set());
   }, [category, page, q, status, publishedFrom, publishedTo]);
+  const canHide = items.some(
+    (item) => selectedIds.has(item.id) && item.status !== "hidden",
+  );
+  const canShow = items.some(
+    (item) => selectedIds.has(item.id) && item.status !== "published",
+  );
   const toggleSelected = (id: string, checked: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -428,11 +454,23 @@ export function PostSection() {
     setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
   };
   const hideMutation = useMutation(bulkHideContentPostsMutationOptions());
+  const showMutation = useMutation(bulkPublishContentPostsMutationOptions());
   const bulkDeleteMutation = useMutation(bulkDeleteContentPostsMutationOptions());
   const bulkHide = async () => {
     if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
     try {
       await hideMutation.mutateAsync(Array.from(selectedIds));
+      await queryClient.invalidateQueries({
+        queryKey: contentPostQueryKeys.all,
+      });
+      setSelectedIds(new Set());
+    } catch {
+      /* 표시 */
+    }
+  };
+  const bulkShow = async () => {
+    try {
+      await showMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({
         queryKey: contentPostQueryKeys.all,
       });
@@ -530,6 +568,7 @@ export function PostSection() {
       </FilterBar>
       <MutationMessage error={bulkDeleteMutation.error} />
       <MutationMessage error={hideMutation.error} />
+      <MutationMessage error={showMutation.error} />
       <TableShell
         isLoading={query.isPending}
         error={query.error}
@@ -619,16 +658,40 @@ export function PostSection() {
             {selectedIds.size}건 선택됨
           </span>
           <div className="content-admin-table-actions">
+            {canShow ? (
+              <Button
+                disabled={
+                  hideMutation.isPending ||
+                  showMutation.isPending ||
+                  bulkDeleteMutation.isPending
+                }
+                size="sm"
+                variant="ghost"
+                onClick={() => void bulkShow()}
+              >
+                선택 게시
+              </Button>
+            ) : null}
+            {canHide ? (
+              <Button
+                disabled={
+                  hideMutation.isPending ||
+                  showMutation.isPending ||
+                  bulkDeleteMutation.isPending
+                }
+                size="sm"
+                variant="ghost"
+                onClick={() => void bulkHide()}
+              >
+                선택 숨김
+              </Button>
+            ) : null}
             <Button
-              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
-              size="sm"
-              variant="ghost"
-              onClick={() => void bulkHide()}
-            >
-              선택 숨김
-            </Button>
-            <Button
-              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending
+              }
               size="sm"
               variant="danger"
               onClick={() => void bulkDelete()}

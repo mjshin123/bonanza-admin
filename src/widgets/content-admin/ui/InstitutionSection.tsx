@@ -18,12 +18,14 @@ import {
   updateInstitutionCategoryMutationOptions,
 } from "@features/institution-category-manage";
 import {
+  bulkDeleteInstitutionsMutationOptions,
+  bulkHideInstitutionsMutationOptions,
+  bulkShowInstitutionsMutationOptions,
   createInstitutionMutationOptions,
-  deleteInstitutionMutationOptions,
   swapInstitutionOrderMutationOptions,
   updateInstitutionMutationOptions,
 } from "@features/institution-manage";
-import { Button, Input } from "@shared/ui";
+import { Badge, Button, Input } from "@shared/ui";
 
 import { useDebouncedValue } from "../model/adminContent";
 import {
@@ -501,6 +503,7 @@ export function InstitutionSection() {
   const [active, setActive] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<InstitutionDto | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const categoriesQuery = useQuery(adminInstitutionCategoriesQueryOptions());
   const categories = categoriesQuery.data ?? [];
   const institutionsQuery = useQuery({
@@ -514,6 +517,12 @@ export function InstitutionSection() {
     enabled: tab !== "categories",
   });
   const items = institutionsQuery.data?.items ?? [];
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [tab, page, debouncedQ, active]);
+  const selectedItems = items.filter((item) => selectedIds.has(item.id));
+  const canShow = selectedItems.some((item) => !item.isActive);
+  const canHide = selectedItems.some((item) => item.isActive);
   const visibleCategories = categories.filter(
     (category) => tab !== "categories" && category.institutionType === tab,
   );
@@ -523,32 +532,55 @@ export function InstitutionSection() {
       institutions: items.filter((item) => item.category.id === category.id),
     }))
     .filter((group) => group.institutions.length > 0);
-  const deleteMutation = useMutation(deleteInstitutionMutationOptions());
-  const activeMutation = useMutation(updateInstitutionMutationOptions());
   const orderMutation = useMutation(swapInstitutionOrderMutationOptions());
   const categoryOrderMutation = useMutation(
     swapInstitutionCategoryOrderMutationOptions(),
   );
-  const remove = async (item: InstitutionDto) => {
-    if (!window.confirm(`'${item.name}' 기관을 삭제할까요?`)) return;
+  const hideMutation = useMutation(bulkHideInstitutionsMutationOptions());
+  const showMutation = useMutation(bulkShowInstitutionsMutationOptions());
+  const bulkDeleteMutation = useMutation(bulkDeleteInstitutionsMutationOptions());
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
+  };
+  const bulkHide = async () => {
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
     try {
-      await deleteMutation.mutateAsync(item.id);
+      await hideMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({
         queryKey: institutionQueryKeys.all,
       });
+      setSelectedIds(new Set());
     } catch {
       /* 표시 */
     }
   };
-  const toggleActive = async (item: InstitutionDto) => {
+  const bulkShow = async () => {
     try {
-      await activeMutation.mutateAsync({
-        id: item.id,
-        isActive: !item.isActive,
-      });
+      await showMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({
         queryKey: institutionQueryKeys.all,
       });
+      setSelectedIds(new Set());
+    } catch {
+      /* 표시 */
+    }
+  };
+  const bulkDelete = async () => {
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
+    try {
+      await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+      await queryClient.invalidateQueries({
+        queryKey: institutionQueryKeys.all,
+      });
+      setSelectedIds(new Set());
     } catch {
       /* 표시 */
     }
@@ -662,7 +694,7 @@ export function InstitutionSection() {
             />
             <div className="content-admin-filter-extra">
               <NativeSelect
-                aria-label="노출 상태"
+                aria-label="게시 상태"
                 value={active}
                 onChange={(event) => {
                   setActive(event.target.value);
@@ -670,15 +702,16 @@ export function InstitutionSection() {
                 }}
               >
                 <option value="">전체 상태</option>
-                <option value="true">노출</option>
-                <option value="false">미노출</option>
+                <option value="true">게시</option>
+                <option value="false">숨김</option>
               </NativeSelect>
             </div>
           </FilterBar>
           <MutationMessage
             error={
-              deleteMutation.error ??
-              activeMutation.error ??
+              hideMutation.error ??
+              showMutation.error ??
+              bulkDeleteMutation.error ??
               orderMutation.error ??
               categoryOrderMutation.error
             }
@@ -692,8 +725,21 @@ export function InstitutionSection() {
             <table>
               <thead>
                 <tr>
+                  <th aria-label="선택">
+                    <input
+                      aria-label="전체 선택"
+                      checked={
+                        items.length > 0 && selectedIds.size === items.length
+                      }
+                      className="content-admin-row-checkbox"
+                      type="checkbox"
+                      onChange={(event) =>
+                        toggleSelectAll(event.target.checked)
+                      }
+                    />
+                  </th>
                   <th>기관</th>
-                  <th>노출</th>
+                  <th>상태</th>
                   <th>등록 상태</th>
                   <th>순서</th>
                   <th aria-label="작업" />
@@ -703,7 +749,7 @@ export function InstitutionSection() {
                 {groups.map((group, groupIndex) => (
                   <Fragment key={group.category.id}>
                     <tr className="content-admin-group-row">
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <div className="content-admin-inline">
                           <strong>{group.category.name}</strong>
                           <Button
@@ -736,7 +782,25 @@ export function InstitutionSection() {
                     {group.institutions.map((item, index) => (
                       <tr key={item.id}>
                         <td>
-                          <div className="content-admin-inline">
+                          <input
+                            aria-label={`${item.name} 선택`}
+                            checked={selectedIds.has(item.id)}
+                            className="content-admin-row-checkbox"
+                            type="checkbox"
+                            onChange={(event) =>
+                              toggleSelected(item.id, event.target.checked)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <button
+                            className="content-admin-table-title-button"
+                            type="button"
+                            onClick={() => {
+                              setEditing(item);
+                              setEditorOpen(true);
+                            }}
+                          >
                             {item.logo ? (
                               <img
                                 alt=""
@@ -751,10 +815,14 @@ export function InstitutionSection() {
                                   (item.description || "설명 없음")}
                               </span>
                             </div>
-                          </div>
+                          </button>
                         </td>
-                        <td>{item.isActive ? "노출" : "미노출"}</td>
-                        <td>{item.isPending ? "등록 예정" : "등록 완료"}</td>
+                        <td>
+                          <Badge tone={item.isActive ? "success" : "warning"}>
+                            {item.isActive ? "게시" : "숨김"}
+                          </Badge>
+                        </td>
+                        <td>{item.isPending ? "등록 예정" : ""}</td>
                         <td>
                           <div className="content-admin-inline">
                             <span>{item.displayOrder}</span>
@@ -803,21 +871,6 @@ export function InstitutionSection() {
                             >
                               수정
                             </Button>
-                            <Button
-                              disabled={activeMutation.isPending}
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => void toggleActive(item)}
-                            >
-                              {item.isActive ? "숨김" : "공개"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="text"
-                              onClick={() => void remove(item)}
-                            >
-                              삭제
-                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -827,6 +880,55 @@ export function InstitutionSection() {
               </tbody>
             </table>
           </TableShell>
+          {selectedIds.size > 0 ? (
+            <FilterBar>
+              <span className="content-admin-muted">
+                {selectedIds.size}건 선택됨
+              </span>
+              <div className="content-admin-table-actions">
+                {canShow ? (
+                  <Button
+                    disabled={
+                      hideMutation.isPending ||
+                      showMutation.isPending ||
+                      bulkDeleteMutation.isPending
+                    }
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void bulkShow()}
+                  >
+                    선택 게시
+                  </Button>
+                ) : null}
+                {canHide ? (
+                  <Button
+                    disabled={
+                      hideMutation.isPending ||
+                      showMutation.isPending ||
+                      bulkDeleteMutation.isPending
+                    }
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void bulkHide()}
+                  >
+                    선택 숨김
+                  </Button>
+                ) : null}
+                <Button
+                  disabled={
+                    hideMutation.isPending ||
+                    showMutation.isPending ||
+                    bulkDeleteMutation.isPending
+                  }
+                  size="sm"
+                  variant="danger"
+                  onClick={() => void bulkDelete()}
+                >
+                  선택 삭제
+                </Button>
+              </div>
+            </FilterBar>
+          ) : null}
           <Pager
             page={page}
             total={institutionsQuery.data?.total ?? 0}

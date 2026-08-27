@@ -21,30 +21,3 @@ export function getGallerySourceLabel({
   return "독립 갤러리";
 }
 
-export function getGallerySourcePath({
-  sourceType,
-  sourceId,
-  sourceCategory,
-}: GallerySource): string | null {
-  if (sourceType !== "post" || !sourceId) return null;
-  if (sourceCategory === "notice") return `/archive/notice/${sourceId}`;
-  if (sourceCategory === "association_news")
-    return `/archive/news/${sourceId}`;
-  if (sourceCategory === "member_news") return `/members/${sourceId}`;
-  return null;
-}
-
-export function getGallerySourceUrl(
-  source: GallerySource,
-  publicSiteUrl = import.meta.env.VITE_PUBLIC_SITE_URL,
-): string | null {
-  const path = getGallerySourcePath(source);
-  const baseUrl = publicSiteUrl?.trim();
-  if (!path || !baseUrl) return null;
-
-  try {
-    return new URL(path, baseUrl).toString();
-  } catch {
-    return null;
-  }
-}

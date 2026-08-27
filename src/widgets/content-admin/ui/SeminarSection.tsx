@@ -11,6 +11,7 @@ import {
 import {
   bulkDeleteSeminarsMutationOptions,
   bulkHideSeminarsMutationOptions,
+  bulkPublishSeminarsMutationOptions,
   createSeminarMutationOptions,
   updateSeminarMutationOptions,
 } from "@features/seminar-manage";
@@ -392,7 +393,13 @@ function SeminarEditor({
   );
 }
 
-export function SeminarSection() {
+export function SeminarSection({
+  initialEditingId,
+  onInitialEditingConsumed,
+}: {
+  initialEditingId?: string | null;
+  onInitialEditingConsumed?: () => void;
+} = {}) {
   const queryClient = useQueryClient();
   const [timing, setTiming] = useState<SeminarTiming>("all");
   const [page, setPage] = useState(1);
@@ -407,6 +414,12 @@ export function SeminarSection() {
     setEditorOpen(false);
     setEditingId(null);
   });
+  useEffect(() => {
+    if (!initialEditingId) return;
+    setEditingId(initialEditingId);
+    setEditorOpen(true);
+    onInitialEditingConsumed?.();
+  }, [initialEditingId]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminSeminarsQueryOptions({
@@ -423,6 +436,12 @@ export function SeminarSection() {
   useEffect(() => {
     setSelectedIds(new Set());
   }, [timing, page, q, status, publishedFrom, publishedTo]);
+  const canHide = items.some(
+    (item) => selectedIds.has(item.id) && item.status !== "hidden",
+  );
+  const canShow = items.some(
+    (item) => selectedIds.has(item.id) && item.status !== "published",
+  );
   const toggleSelected = (id: string, checked: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -435,11 +454,21 @@ export function SeminarSection() {
     setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
   };
   const hideMutation = useMutation(bulkHideSeminarsMutationOptions());
+  const showMutation = useMutation(bulkPublishSeminarsMutationOptions());
   const bulkDeleteMutation = useMutation(bulkDeleteSeminarsMutationOptions());
   const bulkHide = async () => {
     if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
     try {
       await hideMutation.mutateAsync(Array.from(selectedIds));
+      await queryClient.invalidateQueries({ queryKey: seminarQueryKeys.all });
+      setSelectedIds(new Set());
+    } catch {
+      /* 표시 */
+    }
+  };
+  const bulkShow = async () => {
+    try {
+      await showMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({ queryKey: seminarQueryKeys.all });
       setSelectedIds(new Set());
     } catch {
@@ -533,6 +562,7 @@ export function SeminarSection() {
       </FilterBar>
       <MutationMessage error={bulkDeleteMutation.error} />
       <MutationMessage error={hideMutation.error} />
+      <MutationMessage error={showMutation.error} />
       <TableShell
         isLoading={query.isPending}
         error={query.error}
@@ -624,16 +654,40 @@ export function SeminarSection() {
             {selectedIds.size}건 선택됨
           </span>
           <div className="content-admin-table-actions">
+            {canShow ? (
+              <Button
+                disabled={
+                  hideMutation.isPending ||
+                  showMutation.isPending ||
+                  bulkDeleteMutation.isPending
+                }
+                size="sm"
+                variant="ghost"
+                onClick={() => void bulkShow()}
+              >
+                선택 게시
+              </Button>
+            ) : null}
+            {canHide ? (
+              <Button
+                disabled={
+                  hideMutation.isPending ||
+                  showMutation.isPending ||
+                  bulkDeleteMutation.isPending
+                }
+                size="sm"
+                variant="ghost"
+                onClick={() => void bulkHide()}
+              >
+                선택 숨김
+              </Button>
+            ) : null}
             <Button
-              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
-              size="sm"
-              variant="ghost"
-              onClick={() => void bulkHide()}
-            >
-              선택 숨김
-            </Button>
-            <Button
-              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending
+              }
               size="sm"
               variant="danger"
               onClick={() => void bulkDelete()}

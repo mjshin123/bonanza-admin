@@ -5,8 +5,8 @@ import {
   adminGalleryPhotosQueryOptions,
   galleryQueryKeys,
   getGallerySourceLabel,
-  getGallerySourceUrl,
   type AdminGalleryPhotoListItem,
+  type GallerySourceType,
 } from "@entities/gallery";
 import { removeGalleryItemMutationOptions } from "@features/gallery-manage";
 import { Button, Input } from "@shared/ui";
@@ -26,13 +26,19 @@ function GalleryPhotoTile({
   item,
   isHiding,
   onHide,
+  onOpenSource,
 }: {
   item: AdminGalleryPhotoListItem;
   isHiding: boolean;
   onHide: (item: AdminGalleryPhotoListItem) => void;
+  onOpenSource?: (source: {
+    sourceType: GallerySourceType;
+    sourceId: string;
+    sourceCategory: string | null;
+  }) => void;
 }) {
   const sourceLabel = getGallerySourceLabel(item);
-  const sourceUrl = getGallerySourceUrl(item);
+  const canOpenSource = Boolean(onOpenSource && item.sourceId && item.sourceType);
   const image = (
     <img
       alt={item.photo.altText || item.title}
@@ -43,16 +49,21 @@ function GalleryPhotoTile({
 
   return (
     <article className="content-admin-gallery-tile">
-      {sourceUrl ? (
-        <a
-          aria-label={`${sourceLabel} '${item.title}' 원문을 새 창에서 엽니다.`}
+      {canOpenSource ? (
+        <button
+          aria-label={`${sourceLabel} '${item.title}' 원본 게시글로 이동합니다.`}
           className="content-admin-gallery-link"
-          href={sourceUrl}
-          rel="noopener noreferrer"
-          target="_blank"
+          type="button"
+          onClick={() =>
+            onOpenSource?.({
+              sourceType: item.sourceType,
+              sourceId: item.sourceId as string,
+              sourceCategory: item.sourceCategory,
+            })
+          }
         >
           {image}
-        </a>
+        </button>
       ) : (
         <div className="content-admin-gallery-media">{image}</div>
       )}
@@ -77,7 +88,15 @@ function GalleryPhotoTile({
   );
 }
 
-export function GallerySection() {
+export function GallerySection({
+  onOpenSource,
+}: {
+  onOpenSource?: (source: {
+    sourceType: GallerySourceType;
+    sourceId: string;
+    sourceCategory: string | null;
+  }) => void;
+} = {}) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
@@ -148,6 +167,7 @@ export function GallerySection() {
               item={item}
               isHiding={hideMutation.isPending}
               onHide={(target) => void hide(target)}
+              onOpenSource={onOpenSource}
             />
           ))}
         </div>

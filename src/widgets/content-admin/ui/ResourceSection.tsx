@@ -9,6 +9,7 @@ import {
 import {
   bulkDeleteResourcesMutationOptions,
   bulkHideResourcesMutationOptions,
+  bulkPublishResourcesMutationOptions,
   createResourceMutationOptions,
   updateResourceMutationOptions,
 } from "@features/resource-manage";
@@ -75,6 +76,8 @@ function ResourceEditor({
     ...adminResourceDetailQueryOptions(editingId ?? EMPTY_ID),
     enabled: Boolean(editingId),
   });
+  const effectiveCategory =
+    editingId && detailQuery.data ? detailQuery.data.category : category;
   const createMutation = useMutation(createResourceMutationOptions());
   const updateMutation = useMutation(updateResourceMutationOptions());
   const mutation = editingId ? updateMutation : createMutation;
@@ -102,7 +105,7 @@ function ResourceEditor({
       | null;
     const status = (submitter?.value as ContentStatus | undefined) ?? "draft";
     const input = {
-      category,
+      category: effectiveCategory,
       title,
       status,
       publishedAt: toIsoOrNull(publishedAt),
@@ -133,7 +136,8 @@ function ResourceEditor({
     );
   if (detailQuery.error) return <MutationMessage error={detailQuery.error} />;
   const label =
-    CATEGORIES.find((item) => item.value === category)?.label ?? "자료";
+    CATEGORIES.find((item) => item.value === effectiveCategory)?.label ??
+    "자료";
   return (
     <EditorCard
       title={editingId ? `${label} 수정` : `${label} 등록`}
@@ -310,7 +314,13 @@ function ResourceEditor({
   );
 }
 
-export function ResourceSection() {
+export function ResourceSection({
+  initialEditingId,
+  onInitialEditingConsumed,
+}: {
+  initialEditingId?: string | null;
+  onInitialEditingConsumed?: () => void;
+} = {}) {
   const queryClient = useQueryClient();
   const [category, setCategory] =
     useState<ResourceCategory>("seminar_material");
@@ -326,6 +336,12 @@ export function ResourceSection() {
     setEditorOpen(false);
     setEditingId(null);
   });
+  useEffect(() => {
+    if (!initialEditingId) return;
+    setEditingId(initialEditingId);
+    setEditorOpen(true);
+    onInitialEditingConsumed?.();
+  }, [initialEditingId]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminResourcesQueryOptions({
@@ -342,6 +358,12 @@ export function ResourceSection() {
   useEffect(() => {
     setSelectedIds(new Set());
   }, [category, page, q, status, publishedFrom, publishedTo]);
+  const canHide = items.some(
+    (item) => selectedIds.has(item.id) && item.status !== "hidden",
+  );
+  const canShow = items.some(
+    (item) => selectedIds.has(item.id) && item.status !== "published",
+  );
   const toggleSelected = (id: string, checked: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -354,11 +376,21 @@ export function ResourceSection() {
     setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
   };
   const hideMutation = useMutation(bulkHideResourcesMutationOptions());
+  const showMutation = useMutation(bulkPublishResourcesMutationOptions());
   const bulkDeleteMutation = useMutation(bulkDeleteResourcesMutationOptions());
   const bulkHide = async () => {
     if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
     try {
       await hideMutation.mutateAsync(Array.from(selectedIds));
+      await queryClient.invalidateQueries({ queryKey: resourceQueryKeys.all });
+      setSelectedIds(new Set());
+    } catch {
+      /* 표시 */
+    }
+  };
+  const bulkShow = async () => {
+    try {
+      await showMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({ queryKey: resourceQueryKeys.all });
       setSelectedIds(new Set());
     } catch {
@@ -450,6 +482,7 @@ export function ResourceSection() {
       </FilterBar>
       <MutationMessage error={bulkDeleteMutation.error} />
       <MutationMessage error={hideMutation.error} />
+      <MutationMessage error={showMutation.error} />
       <TableShell
         isLoading={query.isPending}
         error={query.error}
@@ -533,16 +566,40 @@ export function ResourceSection() {
             {selectedIds.size}건 선택됨
           </span>
           <div className="content-admin-table-actions">
+            {canShow ? (
+              <Button
+                disabled={
+                  hideMutation.isPending ||
+                  showMutation.isPending ||
+                  bulkDeleteMutation.isPending
+                }
+                size="sm"
+                variant="ghost"
+                onClick={() => void bulkShow()}
+              >
+                선택 게시
+              </Button>
+            ) : null}
+            {canHide ? (
+              <Button
+                disabled={
+                  hideMutation.isPending ||
+                  showMutation.isPending ||
+                  bulkDeleteMutation.isPending
+                }
+                size="sm"
+                variant="ghost"
+                onClick={() => void bulkHide()}
+              >
+                선택 숨김
+              </Button>
+            ) : null}
             <Button
-              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
-              size="sm"
-              variant="ghost"
-              onClick={() => void bulkHide()}
-            >
-              선택 숨김
-            </Button>
-            <Button
-              disabled={hideMutation.isPending || bulkDeleteMutation.isPending}
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending
+              }
               size="sm"
               variant="danger"
               onClick={() => void bulkDelete()}
