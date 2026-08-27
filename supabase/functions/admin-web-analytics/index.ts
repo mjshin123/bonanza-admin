@@ -3,7 +3,9 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.1";
 const CLOUDFLARE_GRAPHQL_URL = "https://api.cloudflare.com/client/v4/graphql";
 const KST_OFFSET_MS = 9 * 60 * 60 * 1_000;
 const DAY_MS = 24 * 60 * 60 * 1_000;
-const MAX_DAYS_PER_QUERY = 31;
+const MAX_DAYS_PER_QUERY = 92;
+const RANKED_CANDIDATE_LIMIT = 1_000;
+const RANKED_RESULT_LIMIT = 10;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,6 +39,7 @@ type OverviewWindows = {
 type AnalyticsGroup = {
   count?: number | string | null;
   dimensions?: {
+    datetimeHour?: string | null;
     deviceType?: string | null;
     refererHost?: string | null;
     requestPath?: string | null;
@@ -239,21 +242,27 @@ function buildCloudflareQuery(
   accountTag: string,
   siteTag: string,
   days: DayWindow[],
-  overview?: OverviewWindows,
+  overview: OverviewWindows,
+  includeSummary: boolean,
+  rankedCandidateLimit: number,
 ): string {
-  const dailySelections = days
-    .map(
-      (day, index) => `
-        day${index}: rumPageloadEventsAdaptiveGroups(
-          limit: 1
-          filter: ${analyticsFilter(siteTag, day.start, day.end)}
+  const firstDay = days.at(0);
+  const lastDay = days.at(-1);
+
+  if (!firstDay || !lastDay) {
+    throw new FunctionError("통계 조회 기간을 계산하지 못했습니다.", 500);
+  }
+
+  const dailySelection = `
+        daily: rumPageloadEventsAdaptiveGroups(
+          limit: ${days.length * 24}
+          filter: ${analyticsFilter(siteTag, firstDay.start, lastDay.end)}
         ) {
           count
           sum { visits }
-        }`,
-    )
-    .join("\n");
-  const overviewSelections = overview
+          dimensions { datetimeHour }
+        }`;
+  const summarySelections = includeSummary
     ? `
         today: rumPageloadEventsAdaptiveGroups(
           limit: 1
@@ -268,9 +277,11 @@ function buildCloudflareQuery(
         ) {
           count
           sum { visits }
-        }
+        }`
+    : "";
+  const overviewSelections = `
         topPages: rumPageloadEventsAdaptiveGroups(
-          limit: 10
+          limit: ${rankedCandidateLimit}
           orderBy: [count_DESC]
           filter: ${analyticsFilter(siteTag, overview.periodStart, overview.periodEnd)}
         ) {
@@ -278,7 +289,7 @@ function buildCloudflareQuery(
           dimensions { requestPath }
         }
         topReferrers: rumPageloadEventsAdaptiveGroups(
-          limit: 10
+          limit: ${rankedCandidateLimit}
           orderBy: [sum_visits_DESC]
           filter: ${analyticsFilter(siteTag, overview.periodStart, overview.periodEnd)}
         ) {
@@ -292,25 +303,31 @@ function buildCloudflareQuery(
         ) {
           count
           dimensions { deviceType }
-        }`
-    : "";
+        }`;
 
   return `query AdminWebAnalytics {
     viewer {
       accounts(filter: { accountTag: ${graphqlString(accountTag)} }) {
-        ${dailySelections}
+        ${dailySelection}
+        ${summarySelections}
         ${overviewSelections}
       }
     }
   }`;
 }
 
-function toNonnegativeNumber(
+function toNonnegativeValue(
   value: number | string | null | undefined,
 ): number {
   const number = typeof value === "number" ? value : Number(value ?? 0);
 
-  return Number.isFinite(number) && number > 0 ? Math.round(number) : 0;
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+function toNonnegativeNumber(
+  value: number | string | null | undefined,
+): number {
+  return Math.round(toNonnegativeValue(value));
 }
 
 function readMetric(groups: AnalyticsGroup[] | undefined) {
@@ -333,6 +350,66 @@ function getDeviceLabel(value: string | null | undefined): string {
     default:
       return "기타";
   }
+}
+
+function mergeDailyMetrics(
+  days: DayWindow[],
+  accounts: CloudflareAccount[],
+): Array<{ date: string; pageViews: number; visits: number }> {
+  const totals = new Map<string, { pageViews: number; visits: number }>();
+
+  for (const account of accounts) {
+    for (const group of account.daily ?? []) {
+      const datetimeHour = group.dimensions?.datetimeHour;
+      const timestamp = datetimeHour ? Date.parse(datetimeHour) : Number.NaN;
+
+      if (Number.isNaN(timestamp)) continue;
+
+      const date = toDateLabel(timestamp + KST_OFFSET_MS);
+      const current = totals.get(date) ?? { pageViews: 0, visits: 0 };
+      current.pageViews += toNonnegativeValue(group.count);
+      current.visits += toNonnegativeValue(group.sum?.visits);
+      totals.set(date, current);
+    }
+  }
+
+  return days.map((day) => {
+    const total = totals.get(day.date);
+
+    return {
+      date: day.date,
+      pageViews: Math.round(total?.pageViews ?? 0),
+      visits: Math.round(total?.visits ?? 0),
+    };
+  });
+}
+
+function mergeRankedMetrics(
+  accounts: CloudflareAccount[],
+  key: "topPages" | "topReferrers",
+): Array<{ label: string; value: number }> {
+  const totals = new Map<string, number>();
+
+  for (const account of accounts) {
+    for (const group of account[key] ?? []) {
+      const label =
+        key === "topPages"
+          ? group.dimensions?.requestPath?.trim() || "/"
+          : group.dimensions?.refererHost?.trim() || "직접 방문";
+      const value = toNonnegativeNumber(
+        key === "topPages" ? group.count : group.sum?.visits,
+      );
+
+      if (value > 0) {
+        totals.set(label, (totals.get(label) ?? 0) + value);
+      }
+    }
+  }
+
+  return Array.from(totals.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((left, right) => right.value - left.value)
+    .slice(0, RANKED_RESULT_LIMIT);
 }
 
 async function authenticateAdmin(request: Request): Promise<void> {
@@ -446,26 +523,36 @@ async function fetchCloudflareAnalytics(
     periodStart,
     periodEnd,
   };
+  const rankedCandidateLimit =
+    dayChunks.length > 1 ? RANKED_CANDIDATE_LIMIT : RANKED_RESULT_LIMIT;
   const accounts = await Promise.all(
-    dayChunks.map((chunk, index) =>
-      requestCloudflareAnalytics(
+    dayChunks.map((chunk, index) => {
+      const chunkStart = chunk.at(0)?.start;
+      const chunkEnd = chunk.at(-1)?.end;
+
+      if (!chunkStart || !chunkEnd) {
+        throw new FunctionError("통계 조회 기간을 계산하지 못했습니다.", 500);
+      }
+
+      return requestCloudflareAnalytics(
         apiToken,
         buildCloudflareQuery(
           accountTag,
           siteTag,
           chunk,
-          index === 0 ? overview : undefined,
+          {
+            ...overview,
+            periodStart: chunkStart,
+            periodEnd: chunkEnd,
+          },
+          index === 0,
+          rankedCandidateLimit,
         ),
-      ),
-    ),
+      );
+    }),
   );
   const overviewAccount = accounts[0];
-  const daily = dayChunks.flatMap((chunk, chunkIndex) =>
-    chunk.map((day, dayIndex) => ({
-      date: day.date,
-      ...readMetric(accounts[chunkIndex]?.[`day${dayIndex}`]),
-    })),
-  );
+  const daily = mergeDailyMetrics(days, accounts);
   const today = readMetric(overviewAccount?.today);
   const previous = readMetric(overviewAccount?.previous);
   const visitChangeRate =
@@ -474,24 +561,16 @@ async function fetchCloudflareAnalytics(
           ((today.visits - previous.visits) / previous.visits) * 1_000,
         ) / 10
       : null;
-  const topPages = (overviewAccount?.topPages ?? [])
-    .map((group) => ({
-      label: group.dimensions?.requestPath?.trim() || "/",
-      value: toNonnegativeNumber(group.count),
-    }))
-    .filter((item) => item.value > 0);
-  const topReferrers = (overviewAccount?.topReferrers ?? [])
-    .map((group) => ({
-      label: group.dimensions?.refererHost?.trim() || "직접 방문",
-      value: toNonnegativeNumber(group.sum?.visits),
-    }))
-    .filter((item) => item.value > 0);
+  const topPages = mergeRankedMetrics(accounts, "topPages");
+  const topReferrers = mergeRankedMetrics(accounts, "topReferrers");
   const deviceTotals = new Map<string, number>();
 
-  for (const group of overviewAccount?.devices ?? []) {
-    const label = getDeviceLabel(group.dimensions?.deviceType);
-    const pageViews = toNonnegativeNumber(group.count);
-    deviceTotals.set(label, (deviceTotals.get(label) ?? 0) + pageViews);
+  for (const account of accounts) {
+    for (const group of account.devices ?? []) {
+      const label = getDeviceLabel(group.dimensions?.deviceType);
+      const pageViews = toNonnegativeNumber(group.count);
+      deviceTotals.set(label, (deviceTotals.get(label) ?? 0) + pageViews);
+    }
   }
 
   const totalDevicePageViews = Array.from(deviceTotals.values()).reduce(
