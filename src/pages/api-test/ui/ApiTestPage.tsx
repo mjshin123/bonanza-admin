@@ -194,6 +194,7 @@ function Workspace({
         onInitialEditingConsumed={onOpenIdConsumed}
       />
     );
+  if (section === "history") return <HistorySection />;
   return <GallerySection onOpenSource={onOpenSource} />;
 }
 
