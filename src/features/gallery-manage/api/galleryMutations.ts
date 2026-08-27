@@ -39,11 +39,6 @@ export type UpdateGalleryItemInput = {
   caption?: string;
   sortOrder?: number;
 };
-export type SetGalleryItemHiddenInput = {
-  galleryId: string;
-  fileId: string;
-  isHidden: boolean;
-};
 export type ReorderGalleryItemsInput = {
   galleryId: string;
   items: Array<{ fileId: string; sortOrder: number }>;
@@ -190,15 +185,6 @@ async function removeGalleryItem(i: RemoveGalleryItemInput) {
   if (error) throwContentError(error);
   return fileId;
 }
-async function setGalleryItemHidden(i: SetGalleryItemHiddenInput) {
-  const { error } = await supabase.rpc("set_gallery_item_hidden", {
-    p_gallery_id: requireUuid(i.galleryId),
-    p_file_id: requireUuid(i.fileId),
-    p_hidden: i.isHidden,
-  });
-  if (error) throwContentError(error);
-  return i;
-}
 export const createGalleryMutationOptions = () =>
   mutationOptions({
     mutationKey: ["galleries", "create"],
@@ -233,9 +219,4 @@ export const removeGalleryItemMutationOptions = () =>
   mutationOptions({
     mutationKey: ["galleries", "item", "remove"],
     mutationFn: removeGalleryItem,
-  });
-export const setGalleryItemHiddenMutationOptions = () =>
-  mutationOptions({
-    mutationKey: ["galleries", "item", "hidden"],
-    mutationFn: setGalleryItemHidden,
   });

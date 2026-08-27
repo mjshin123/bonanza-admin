@@ -2,342 +2,160 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-  adminGalleriesQueryOptions,
-  adminGalleryDetailQueryOptions,
+  adminGalleryPhotosQueryOptions,
   galleryQueryKeys,
-  type AdminGalleryListItem,
-  type GalleryItemDto,
+  getGallerySourceLabel,
+  getGallerySourceUrl,
+  type AdminGalleryPhotoListItem,
 } from "@entities/gallery";
-import {
-  removeGalleryItemMutationOptions,
-  reorderGalleryItemsMutationOptions,
-  setGalleryItemHiddenMutationOptions,
-} from "@features/gallery-manage";
-import type { ContentStatus } from "@shared/api/content";
+import { removeGalleryItemMutationOptions } from "@features/gallery-manage";
 import { Button, Input } from "@shared/ui";
 
 import { useDebouncedValue } from "../model/adminContent";
 import {
   FilterBar,
   MutationMessage,
-  NativeSelect,
   Pager,
   SectionTitle,
-  StatusBadge,
   TableShell,
 } from "./AdminCommon";
 
-const GALLERY_PAGE_SIZE = 20;
+const GALLERY_PAGE_SIZE = 24;
 
-function sourceLabel(item: AdminGalleryListItem): string {
-  if (item.sourceType === "post") return "게시글";
-  if (item.sourceType === "resource") return "자료실";
-  if (item.sourceType === "seminar") return "세미나";
-  return "독립 갤러리";
-}
-
-function GalleryItemManager({
-  galleryId,
-  onClose,
+function GalleryPhotoTile({
+  item,
+  isHiding,
+  onHide,
 }: {
-  galleryId: string;
-  onClose: () => void;
+  item: AdminGalleryPhotoListItem;
+  isHiding: boolean;
+  onHide: (item: AdminGalleryPhotoListItem) => void;
 }) {
-  const queryClient = useQueryClient();
-  const detailQuery = useQuery(adminGalleryDetailQueryOptions(galleryId));
-  const reorderMutation = useMutation(reorderGalleryItemsMutationOptions());
-  const hiddenMutation = useMutation(setGalleryItemHiddenMutationOptions());
-  const removeMutation = useMutation(removeGalleryItemMutationOptions());
-  const gallery = detailQuery.data;
-
-  const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
-  };
-
-  const move = async (item: GalleryItemDto, direction: -1 | 1) => {
-    if (!gallery) return;
-    const currentIndex = gallery.items.findIndex(
-      (candidate) => candidate.file.id === item.file.id,
-    );
-    const targetIndex = currentIndex + direction;
-    if (
-      currentIndex < 0 ||
-      targetIndex < 0 ||
-      targetIndex >= gallery.items.length
-    )
-      return;
-    const reordered = [...gallery.items];
-    [reordered[currentIndex], reordered[targetIndex]] = [
-      reordered[targetIndex],
-      reordered[currentIndex],
-    ];
-    try {
-      await reorderMutation.mutateAsync({
-        galleryId,
-        items: reordered.map((candidate, index) => ({
-          fileId: candidate.file.id,
-          sortOrder: index,
-        })),
-      });
-      await refresh();
-    } catch {
-      /* mutation 상태로 표시 */
-    }
-  };
-
-  const toggleHidden = async (item: GalleryItemDto) => {
-    try {
-      await hiddenMutation.mutateAsync({
-        galleryId,
-        fileId: item.file.id,
-        isHidden: !item.isHidden,
-      });
-      await refresh();
-    } catch {
-      /* mutation 상태로 표시 */
-    }
-  };
-
-  const remove = async (item: GalleryItemDto) => {
-    if (
-      !window.confirm(
-        `'${item.file.originalName}' 이미지를 포토갤러리에서 삭제할까요?\n원본 게시글과 업로드 파일은 유지됩니다.`,
-      )
-    )
-      return;
-    try {
-      await removeMutation.mutateAsync({
-        galleryId,
-        fileId: item.file.id,
-      });
-      if (gallery?.items.length === 1) onClose();
-      await refresh();
-    } catch {
-      /* mutation 상태로 표시 */
-    }
-  };
-
-  const mutationError =
-    reorderMutation.error ?? hiddenMutation.error ?? removeMutation.error;
+  const sourceLabel = getGallerySourceLabel(item);
+  const sourceUrl = getGallerySourceUrl(item);
+  const image = (
+    <img
+      alt={item.photo.altText || item.title}
+      className="content-admin-gallery-image"
+      src={item.photo.url}
+    />
+  );
 
   return (
-    <section className="content-admin-section">
-      <SectionTitle
-        title={gallery?.title ?? "포토갤러리 이미지 관리"}
-        description="홈페이지 노출 순서와 이미지별 숨김 상태를 관리합니다."
-        action={
-          <Button variant="ghost" onClick={onClose}>
-            목록으로
+    <article className="content-admin-gallery-tile">
+      {sourceUrl ? (
+        <a
+          aria-label={`${sourceLabel} '${item.title}' 원문을 새 창에서 엽니다.`}
+          className="content-admin-gallery-link"
+          href={sourceUrl}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {image}
+        </a>
+      ) : (
+        <div className="content-admin-gallery-media">{image}</div>
+      )}
+      <div className="content-admin-gallery-overlay">
+        <div className="content-admin-gallery-copy">
+          <span>{sourceLabel}</span>
+          <strong>{item.title}</strong>
+        </div>
+        <div className="content-admin-gallery-actions">
+          <Button
+            aria-label={`'${item.title}' 이미지를 포토갤러리에서 숨깁니다.`}
+            disabled={isHiding}
+            size="sm"
+            variant="secondary"
+            onClick={() => onHide(item)}
+          >
+            숨김
           </Button>
-        }
-      />
-      <MutationMessage error={mutationError} />
-      <TableShell
-        isLoading={detailQuery.isPending}
-        error={detailQuery.error}
-        isEmpty={detailQuery.isSuccess && !gallery}
-        emptyMessage="갤러리를 찾을 수 없습니다."
-      >
-        <table>
-          <thead>
-            <tr>
-              <th>이미지</th>
-              <th>노출 상태</th>
-              <th>순서</th>
-              <th aria-label="작업" />
-            </tr>
-          </thead>
-          <tbody>
-            {(gallery?.items ?? []).map((item, index, items) => (
-              <tr key={item.file.id}>
-                <td>
-                  <div className="content-admin-inline">
-                    <img
-                      alt=""
-                      className="content-admin-image-thumb"
-                      src={item.file.url}
-                    />
-                    <div className="content-admin-table-title">
-                      <strong>{item.file.originalName}</strong>
-                      <span>{item.caption || gallery?.title}</span>
-                    </div>
-                  </div>
-                </td>
-                <td>{item.isHidden ? "숨김" : "노출"}</td>
-                <td>
-                  <div className="content-admin-inline">
-                    <span>{index + 1}</span>
-                    <Button
-                      disabled={index === 0 || reorderMutation.isPending}
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void move(item, -1)}
-                    >
-                      ▲
-                    </Button>
-                    <Button
-                      disabled={
-                        index === items.length - 1 || reorderMutation.isPending
-                      }
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void move(item, 1)}
-                    >
-                      ▼
-                    </Button>
-                  </div>
-                </td>
-                <td>
-                  <div className="content-admin-table-actions">
-                    <Button
-                      disabled={hiddenMutation.isPending}
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void toggleHidden(item)}
-                    >
-                      {item.isHidden ? "다시 노출" : "숨김"}
-                    </Button>
-                    <Button
-                      disabled={removeMutation.isPending}
-                      size="sm"
-                      variant="danger"
-                      onClick={() => void remove(item)}
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableShell>
-    </section>
+        </div>
+      </div>
+    </article>
   );
 }
 
 export function GallerySection() {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("");
-  const [selectedGalleryId, setSelectedGalleryId] = useState<string | null>(
-    null,
-  );
+  const [success, setSuccess] = useState<string | null>(null);
   const debouncedQ = useDebouncedValue(q);
-  const galleriesQuery = useQuery(
-    adminGalleriesQueryOptions({
+  const photosQuery = useQuery(
+    adminGalleryPhotosQueryOptions({
       page,
       pageSize: GALLERY_PAGE_SIZE,
       q: debouncedQ || undefined,
-      status: status ? (status as ContentStatus) : undefined,
     }),
   );
+  const hideMutation = useMutation(removeGalleryItemMutationOptions());
+  const items = photosQuery.data?.items ?? [];
 
-  if (selectedGalleryId)
-    return (
-      <GalleryItemManager
-        galleryId={selectedGalleryId}
-        onClose={() => setSelectedGalleryId(null)}
-      />
-    );
+  const hide = async (item: AdminGalleryPhotoListItem) => {
+    if (
+      !window.confirm(
+        `'${item.title}' 이미지를 포토갤러리에서 숨길까요?\n원본 콘텐츠와 업로드 파일은 유지됩니다.`,
+      )
+    )
+      return;
 
-  const items = galleriesQuery.data?.items ?? [];
+    setSuccess(null);
+    try {
+      await hideMutation.mutateAsync({
+        galleryId: item.galleryId,
+        fileId: item.fileId,
+      });
+      if (items.length === 1 && page > 1) setPage(page - 1);
+      await queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
+      setSuccess("선택한 이미지를 포토갤러리에서 숨겼습니다.");
+    } catch {
+      /* mutation 상태로 표시 */
+    }
+  };
+
   return (
     <section className="content-admin-section">
       <SectionTitle
         title="포토갤러리 관리"
-        description="게시글에서 포토갤러리 노출을 선택한 이미지를 관리합니다."
+        description="게시된 콘텐츠에서 포토갤러리 노출을 선택한 이미지를 관리합니다."
       />
       <FilterBar>
         <Input
-          aria-label="갤러리 검색"
-          placeholder="제목 검색"
+          aria-label="갤러리 이미지 검색"
+          placeholder="원본 제목 검색"
           value={q}
           onChange={(event) => {
             setQ(event.target.value);
             setPage(1);
+            setSuccess(null);
           }}
         />
-        <div className="content-admin-filter-extra">
-          <NativeSelect
-            aria-label="게시 상태"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">전체 상태</option>
-            <option value="published">게시</option>
-            <option value="draft">임시저장</option>
-            <option value="hidden">숨김</option>
-          </NativeSelect>
-        </div>
       </FilterBar>
+      <MutationMessage error={hideMutation.error} success={success} />
       <TableShell
-        isLoading={galleriesQuery.isPending}
-        error={galleriesQuery.error}
+        className="content-admin-gallery-shell"
+        isLoading={photosQuery.isPending}
+        error={photosQuery.error}
         isEmpty={items.length === 0}
         emptyMessage="포토갤러리에 노출할 이미지가 없습니다."
       >
-        <table>
-          <thead>
-            <tr>
-              <th>콘텐츠</th>
-              <th>출처</th>
-              <th>이미지</th>
-              <th>상태</th>
-              <th>기준일</th>
-              <th aria-label="작업" />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <div className="content-admin-inline">
-                    {item.coverImage ? (
-                      <img
-                        alt=""
-                        className="content-admin-image-thumb"
-                        src={item.coverImage.url}
-                      />
-                    ) : null}
-                    <div className="content-admin-table-title">
-                      <strong>{item.title}</strong>
-                      <span>{item.description || "설명 없음"}</span>
-                    </div>
-                  </div>
-                </td>
-                <td>{sourceLabel(item)}</td>
-                <td>{item.itemCount.toLocaleString()}장</td>
-                <td>
-                  <StatusBadge
-                    status={item.status}
-                    publishedAt={item.publishedAt}
-                  />
-                </td>
-                <td>{item.eventDate ?? "-"}</td>
-                <td>
-                  <div className="content-admin-table-actions">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setSelectedGalleryId(item.id)}
-                    >
-                      이미지 관리
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="content-admin-gallery-grid">
+          {items.map((item) => (
+            <GalleryPhotoTile
+              key={`${item.galleryId}-${item.fileId}`}
+              item={item}
+              isHiding={hideMutation.isPending}
+              onHide={(target) => void hide(target)}
+            />
+          ))}
+        </div>
       </TableShell>
       <Pager
         page={page}
-        total={galleriesQuery.data?.total ?? 0}
-        totalPages={galleriesQuery.data?.totalPages ?? 0}
+        total={photosQuery.data?.total ?? 0}
+        totalPages={photosQuery.data?.totalPages ?? 0}
         onChange={setPage}
       />
     </section>

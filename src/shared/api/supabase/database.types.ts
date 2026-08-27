@@ -209,6 +209,36 @@ export type Database = {
           },
         ]
       }
+      history_entries: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_visible: boolean
+          position: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          position: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          position?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       institution_categories: {
         Row: {
           code: string
@@ -904,6 +934,20 @@ export type Database = {
           width_px: number
         }[]
       }
+      list_admin_gallery_photos: {
+        Args: { p_page?: number; p_page_size?: number; p_q?: string }
+        Returns: {
+          event_date: string | null
+          file_id: string
+          gallery_id: string
+          photo: Json
+          source_category: string | null
+          source_id: string | null
+          source_type: string | null
+          title: string
+          total_count: number
+        }[]
+      }
       list_admin_seminars: {
         Args: {
           p_admin?: boolean
@@ -1057,6 +1101,24 @@ export type Database = {
           updated_at: string
         }[]
       }
+      move_history_entry: {
+        Args: { p_direction: number; p_id: string }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          is_visible: boolean
+          position: number
+          updated_at: string
+          year: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "history_entries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       reorder_content_files: {
         Args: { p_file_ids: string[]; p_parent_id: string; p_relation: string }
         Returns: undefined
@@ -1130,6 +1192,30 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "galleries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      save_history_entry: {
+        Args: {
+          p_content: string
+          p_expected_updated_at?: string
+          p_id?: string
+          p_is_visible?: boolean
+          p_year: number
+        }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          is_visible: boolean
+          position: number
+          updated_at: string
+          year: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "history_entries"
           isOneToOne: true
           isSetofReturn: false
         }

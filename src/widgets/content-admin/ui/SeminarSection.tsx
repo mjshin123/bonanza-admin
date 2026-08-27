@@ -8,7 +8,6 @@ import {
   seminarQueryKeys,
   type SeminarFileDto,
 } from "@entities/seminar";
-import { PostContentEditor } from "@features/post-content-editor";
 import {
   bulkDeleteSeminarsMutationOptions,
   bulkHideSeminarsMutationOptions,
@@ -19,7 +18,6 @@ import type { ContentStatus, FileDto, SeminarTiming } from "@shared/api/content"
 import { Button, Input } from "@shared/ui";
 
 import {
-  EDIT_STATUS_OPTIONS,
   endOfDayIso,
   formatDateTime,
   PAGE_SIZE,
@@ -27,6 +25,7 @@ import {
   STATUS_OPTIONS,
   toDateTimeLocal,
   toIsoOrNull,
+  useBackNavCloses,
   useDebouncedValue,
 } from "../model/adminContent";
 import {
@@ -35,7 +34,6 @@ import {
   Field,
   FileUpload,
   FilterBar,
-  FormActions,
   MutationMessage,
   NativeSelect,
   Pager,
@@ -56,7 +54,6 @@ type SeminarForm = {
   endsAt: string;
   location: string;
   applicationUrl: string;
-  status: ContentStatus;
   publishedAt: string;
   isFeatured: boolean;
 };
@@ -68,7 +65,6 @@ const EMPTY_FORM: SeminarForm = {
   endsAt: "",
   location: "",
   applicationUrl: "",
-  status: "draft",
   publishedAt: "",
   isFeatured: false,
 };
@@ -90,6 +86,7 @@ function SeminarEditor({
   const mutation = editingId ? updateMutation : createMutation;
   const [form, setForm] = useState<SeminarForm>(EMPTY_FORM);
   const [images, setImages] = useState<SelectedSeminarImage[]>([]);
+  const [isRange, setIsRange] = useState(false);
 
   useEffect(() => {
     const item = detailQuery.data;
@@ -102,10 +99,10 @@ function SeminarEditor({
       endsAt: toDateTimeLocal(item.endsAt),
       location: item.location ?? "",
       applicationUrl: item.applicationUrl ?? "",
-      status: item.status,
       publishedAt: toDateTimeLocal(item.publishedAt),
       isFeatured: item.isFeatured,
     });
+    setIsRange(Boolean(item.endsAt));
     setImages(
       item.images.map((entry: SeminarFileDto) => ({
         file: entry.file,
@@ -116,6 +113,10 @@ function SeminarEditor({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as
+      | HTMLButtonElement
+      | null;
+    const status = (submitter?.value as ContentStatus | undefined) ?? "draft";
     const input = {
       title: form.title,
       introduction: form.introduction,
@@ -123,10 +124,10 @@ function SeminarEditor({
         ? sanitizePostContent(form.content)
         : null,
       startsAt: new Date(form.startsAt).toISOString(),
-      endsAt: toIsoOrNull(form.endsAt),
+      endsAt: isRange ? toIsoOrNull(form.endsAt) : null,
       location: form.location.trim() || null,
       applicationUrl: form.applicationUrl || null,
-      status: form.status,
+      status,
       publishedAt: toIsoOrNull(form.publishedAt),
       isFeatured: form.isFeatured,
       files: images.map((image) => ({
@@ -163,7 +164,7 @@ function SeminarEditor({
       description="행사 소개와 현장 사진을 노출합니다. 첨부 사진별로 포토 갤러리 노출 여부를 지정합니다."
       onSubmit={(event) => void submit(event)}
     >
-      <Field label="세미나명" required wide>
+      <Field label="세미나명" required>
         <input
           required
           className="content-admin-native-input"
@@ -172,29 +173,76 @@ function SeminarEditor({
           onChange={(event) => set("title", event.target.value)}
         />
       </Field>
+      <Field label="예정된 행사">
+        <Checkbox
+          checked={form.isFeatured}
+          label="홈페이지 상단에 예정된 행사로 노출"
+          onChange={(isFeatured) => set("isFeatured", isFeatured)}
+        />
+      </Field>
       <Field label="세미나 소개" wide>
         <Textarea
           value={form.introduction}
           onChange={(event) => set("introduction", event.target.value)}
         />
       </Field>
-      <Field label="시작 일시" required>
-        <input
-          required
-          className="content-admin-native-input"
-          type="datetime-local"
-          value={form.startsAt}
-          onChange={(event) => set("startsAt", event.target.value)}
-        />
-      </Field>
-      <Field label="종료 일시">
-        <input
-          className="content-admin-native-input"
-          type="datetime-local"
-          value={form.endsAt}
-          onChange={(event) => set("endsAt", event.target.value)}
-        />
-      </Field>
+      {isRange ? (
+        <>
+          <Field label="개최 시작일시" required>
+            <input
+              required
+              className="content-admin-native-input"
+              type="datetime-local"
+              value={form.startsAt}
+              onChange={(event) => set("startsAt", event.target.value)}
+            />
+          </Field>
+          <Field label="일정">
+            <Checkbox
+              checked={isRange}
+              label="기간으로 등록 (개최 시작일시 · 종료일시)"
+              onChange={(checked) => {
+                setIsRange(checked);
+                if (!checked) set("endsAt", "");
+              }}
+            />
+          </Field>
+          <Field label="개최 종료일시">
+            <input
+              className="content-admin-native-input"
+              type="datetime-local"
+              value={form.endsAt}
+              onChange={(event) => set("endsAt", event.target.value)}
+            />
+          </Field>
+        </>
+      ) : (
+        <>
+          <Field
+            label="개최일시"
+            required
+            hint="세미나가 열리는 날짜와 시간입니다. 미래 일시를 입력해도 게시 시 바로 공개됩니다."
+          >
+            <input
+              required
+              className="content-admin-native-input"
+              type="datetime-local"
+              value={form.startsAt}
+              onChange={(event) => set("startsAt", event.target.value)}
+            />
+          </Field>
+          <Field label="일정">
+            <Checkbox
+              checked={isRange}
+              label="기간으로 등록 (개최 시작일시 · 종료일시)"
+              onChange={(checked) => {
+                setIsRange(checked);
+                if (!checked) set("endsAt", "");
+              }}
+            />
+          </Field>
+        </>
+      )}
       <Field label="장소" wide>
         <input
           className="content-admin-native-input"
@@ -213,35 +261,6 @@ function SeminarEditor({
           type="url"
           value={form.applicationUrl}
           onChange={(event) => set("applicationUrl", event.target.value)}
-        />
-      </Field>
-      <Field label="게시 상태">
-        <NativeSelect
-          value={form.status}
-          onChange={(event) =>
-            set("status", event.target.value as ContentStatus)
-          }
-        >
-          {EDIT_STATUS_OPTIONS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
-      <Field label="게시 일시">
-        <input
-          className="content-admin-native-input"
-          type="datetime-local"
-          value={form.publishedAt}
-          onChange={(event) => set("publishedAt", event.target.value)}
-        />
-      </Field>
-      <Field label="예정된 행사">
-        <Checkbox
-          checked={form.isFeatured}
-          label="홈페이지 상단에 예정된 행사로 노출"
-          onChange={(isFeatured) => set("isFeatured", isFeatured)}
         />
       </Field>
       <Field
@@ -274,7 +293,6 @@ function SeminarEditor({
               />
               <div>
                 <strong>{image.file.originalName}</strong>
-                <span>{index === 0 ? "대표 이미지" : `${index + 1}번째 이미지`}</span>
                 <Checkbox
                   checked={image.showInGallery}
                   label="홈페이지 포토갤러리에 노출"
@@ -289,35 +307,87 @@ function SeminarEditor({
                   }
                 />
               </div>
-              <Button
-                size="sm"
-                variant="text"
-                onClick={() =>
-                  setImages((current) =>
-                    current.filter(
-                      (candidate) => candidate.file.id !== image.file.id,
-                    ),
-                  )
-                }
-              >
-                제외
-              </Button>
+              <div className="content-admin-table-actions">
+                <Button
+                  disabled={index === 0}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setImages((current) => {
+                      const next = [...current];
+                      [next[index - 1], next[index]] = [
+                        next[index],
+                        next[index - 1],
+                      ];
+                      return next;
+                    })
+                  }
+                >
+                  ▲
+                </Button>
+                <Button
+                  disabled={index === images.length - 1}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setImages((current) => {
+                      const next = [...current];
+                      [next[index], next[index + 1]] = [
+                        next[index + 1],
+                        next[index],
+                      ];
+                      return next;
+                    })
+                  }
+                >
+                  ▼
+                </Button>
+                <Button
+                  size="sm"
+                  variant="text"
+                  onClick={() =>
+                    setImages((current) =>
+                      current.filter(
+                        (candidate) => candidate.file.id !== image.file.id,
+                      ),
+                    )
+                  }
+                >
+                  제외
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       </Field>
-      <div className="content-admin-field is-wide">
-        <PostContentEditor
-          currentThumbnailPath={null}
-          enableImages={false}
-          label="상세 내용"
-          value={form.content}
-          onChange={(content) => set("content", content)}
-          onStateChange={() => {}}
-        />
-      </div>
       <MutationMessage error={mutation.error} />
-      <FormActions isPending={mutation.isPending} onCancel={onClose} />
+      <div className="content-admin-form-actions">
+        <Button
+          disabled={mutation.isPending}
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+        >
+          취소
+        </Button>
+        <Button
+          disabled={mutation.isPending}
+          name="action"
+          type="submit"
+          value="draft"
+          variant="ghost"
+        >
+          {mutation.isPending ? "저장 중..." : "임시저장"}
+        </Button>
+        <Button
+          disabled={mutation.isPending}
+          name="action"
+          type="submit"
+          value="published"
+        >
+          {mutation.isPending ? "저장 중..." : "게시"}
+        </Button>
+      </div>
     </EditorCard>
   );
 }
@@ -333,6 +403,10 @@ export function SeminarSection() {
   const [publishedTo, setPublishedTo] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const closeEditor = useBackNavCloses(editorOpen, () => {
+    setEditorOpen(false);
+    setEditingId(null);
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const query = useQuery(
     adminSeminarsQueryOptions({
@@ -384,13 +458,7 @@ export function SeminarSection() {
   };
   if (editorOpen)
     return (
-      <SeminarEditor
-        editingId={editingId}
-        onClose={() => {
-          setEditorOpen(false);
-          setEditingId(null);
-        }}
-      />
+      <SeminarEditor editingId={editingId} onClose={closeEditor} />
     );
   return (
     <section className="content-admin-section">
@@ -484,7 +552,7 @@ export function SeminarSection() {
                 />
               </th>
               <th>세미나</th>
-              <th>일시</th>
+              <th>개최일시</th>
               <th>장소</th>
               <th>상태</th>
               <th aria-label="작업" />
@@ -505,7 +573,14 @@ export function SeminarSection() {
                   />
                 </td>
                 <td>
-                  <div className="content-admin-inline">
+                  <button
+                    className="content-admin-table-title-button"
+                    type="button"
+                    onClick={() => {
+                      setEditingId(item.id);
+                      setEditorOpen(true);
+                    }}
+                  >
                     {item.poster ? (
                       <img
                         alt=""
@@ -517,7 +592,7 @@ export function SeminarSection() {
                       <strong>{item.title}</strong>
                       <span>{item.introduction || "소개 없음"}</span>
                     </div>
-                  </div>
+                  </button>
                 </td>
                 <td>{formatDateTime(item.startsAt)}</td>
                 <td>{item.location}</td>

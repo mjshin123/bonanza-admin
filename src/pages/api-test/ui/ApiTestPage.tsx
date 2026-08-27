@@ -13,6 +13,7 @@ import { Button, Card, Input, Notice } from "@shared/ui";
 import { AnalyticsDashboard } from "@widgets/analytics-dashboard";
 import {
   GallerySection,
+  HistorySection,
   InstitutionSection,
   PostSection,
   ResourceSection,
@@ -63,6 +64,12 @@ const NAV_ITEMS: Array<{
     code: "E",
     label: "포토갤러리",
     description: "노출 · 순서 · 숨김",
+  },
+  {
+    section: "history",
+    code: "F",
+    label: "연혁",
+    description: "내용 · 노출 · 순서",
   },
 ];
 
@@ -150,7 +157,8 @@ function Workspace({ section }: { section: AdminSection }) {
   if (section === "posts") return <PostSection />;
   if (section === "resources") return <ResourceSection />;
   if (section === "seminars") return <SeminarSection />;
-  return <GallerySection />;
+  if (section === "galleries") return <GallerySection />;
+  return <HistorySection />;
 }
 
 export function ApiTestPage() {
