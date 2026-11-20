@@ -19,7 +19,7 @@ import {
   createContentPostMutationOptions,
   updateContentPostMutationOptions,
 } from "@features/post-manage";
-import type { ContentStatus, FileDto, PostCategory } from "@shared/api/content";
+import { isDemoMode as isGlobalDemoMode, type ContentStatus, type FileDto, type PostCategory } from "@shared/api/content";
 import { Button, Input, Notice } from "@shared/ui";
 
 import {
@@ -667,7 +667,7 @@ export function PostSection({
       publishedTo: endOfDayIso(publishedTo),
     }),
   );
-  const isDemoMode = Boolean(query.error);
+  const isDemoMode = isGlobalDemoMode || Boolean(query.error);
   const items = (isDemoMode ? demoItems : query.data?.items ?? []).filter(
     (item) =>
       item.category === category &&
@@ -801,7 +801,7 @@ export function PostSection({
         title="뉴스룸"
         description="소식 유형별 게시물과 활동 주체, 대표 이미지를 관리합니다."
         action={
-          <Button disabled={isDemoMode} onClick={() => setEditorOpen(true)}>
+          <Button onClick={() => setEditorOpen(true)}>
             게시물 등록
           </Button>
         }

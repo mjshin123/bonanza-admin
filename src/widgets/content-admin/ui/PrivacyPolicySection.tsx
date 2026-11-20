@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { PostContentEditor } from "@features/post-content-editor";
 import { supabase } from "@shared/api/supabase";
+import { isDemoMode as isGlobalDemoMode } from "@shared/api/content";
 import { Button, Notice } from "@shared/ui";
 
 import { EditorCard, Field, MutationMessage, SectionTabs, SectionTitle, TableShell } from "./AdminCommon";
@@ -143,6 +144,7 @@ export function PrivacyPolicySection({ onEditorOpenChange }: { onEditorOpenChang
   useEffect(() => onEditorOpenChange?.(Boolean(editing)), [editing, onEditorOpenChange]);
   const query = useQuery({
     queryKey: key,
+    enabled: !isGlobalDemoMode,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("privacy_policies")
@@ -160,8 +162,8 @@ export function PrivacyPolicySection({ onEditorOpenChange }: { onEditorOpenChang
     onSuccess: () => client.invalidateQueries({ queryKey: key }),
   });
   const { items, isDemoMode } = useMemo(() => ({
-    items: query.data ?? (query.error ? demoItems : []),
-    isDemoMode: Boolean(query.error),
+    items: query.data ?? (query.error || isGlobalDemoMode ? demoItems : []),
+    isDemoMode: isGlobalDemoMode || Boolean(query.error),
   }), [query.data, query.error, demoItems]);
 
   const saveDemo = (policy: PrivacyPolicy) => setDemoItems((current) => {

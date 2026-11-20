@@ -14,6 +14,7 @@ import {
   swapInstitutionOrderMutationOptions,
   updateInstitutionMutationOptions,
 } from "@features/institution-manage";
+import { isDemoMode as isGlobalDemoMode } from "@shared/api/content";
 import { Badge, Button, Input, Notice } from "@shared/ui";
 
 import { useDebouncedValue } from "../model/adminContent";
@@ -285,7 +286,7 @@ export function InstitutionSection({
       isActive: active === "" ? undefined : active === "true",
     }),
   );
-  const demoMode = Boolean(institutionsQuery.error);
+  const demoMode = isGlobalDemoMode || Boolean(institutionsQuery.error);
   const sourceItems = demoMode
     ? demoInstitutions
     : (institutionsQuery.data?.items ?? []);
@@ -379,7 +380,7 @@ export function InstitutionSection({
         title="기관 로고"
         description={`${tab === "member" ? "첫째" : "둘째"} 줄에 표시할 홈페이지 기관 로고를 관리합니다.`}
         action={
-          <Button disabled={demoMode} onClick={() => setEditorOpen(true)}>
+          <Button onClick={() => setEditorOpen(true)}>
             로고 등록
           </Button>
         }

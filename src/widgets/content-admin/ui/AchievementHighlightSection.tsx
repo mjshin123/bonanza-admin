@@ -11,6 +11,7 @@ import {
   moveAchievementHighlightMutationOptions,
   saveAchievementHighlightMutationOptions,
 } from "@features/achievement-highlight-manage";
+import { isDemoMode as isGlobalDemoMode } from "@shared/api/content";
 import { Button, Notice } from "@shared/ui";
 
 import {
@@ -198,7 +199,7 @@ export function AchievementHighlightSection() {
   const [editing, setEditing] = useState<
     AchievementHighlightDto | null | "new"
   >(null);
-  const demoMode = Boolean(query.error);
+  const demoMode = isGlobalDemoMode || Boolean(query.error);
   const highlights = query.data ?? (demoMode ? demoHighlights : []);
   const refresh = () =>
     queryClient.invalidateQueries({

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { achievementQueryKeys, achievementSectionsQueryOptions, homeAchievementSettingsQueryKey, homeAchievementSettingsQueryOptions, type AchievementSectionDto } from "@entities/achievement";
 import { updateAchievementMetricMutationOptions, updateAchievementSectionMutationOptions, updateHomeAchievementSettingsMutationOptions } from "@features/achievement-manage";
+import { isDemoMode as isGlobalDemoMode } from "@shared/api/content";
 import { Button, Card, Notice } from "@shared/ui";
 
 import { MutationMessage, SectionTabs, SectionTitle } from "./AdminCommon";
@@ -46,7 +47,7 @@ function HomeEditor({ sections, demoMode }: { sections: AchievementSectionDto[];
 }
 
 export function AchievementSection({ initialTab = "company", onTabChange }: { initialTab?: Tab; onTabChange?: (tab: Tab) => void } = {}) {
-  const query = useQuery(achievementSectionsQueryOptions()); const demoMode = Boolean(query.error); const sections = query.data ?? (demoMode ? demoSections : []); const [tab, setTab] = useState<Tab>(initialTab);
+  const query = useQuery(achievementSectionsQueryOptions()); const demoMode = isGlobalDemoMode || Boolean(query.error); const sections = query.data ?? (demoMode ? demoSections : []); const [tab, setTab] = useState<Tab>(initialTab);
   useEffect(() => setTab(initialTab), [initialTab]);
   let number = 1;
   return <section className="content-admin-section achievement-section"><SectionTitle title="주요 지표" description="회사소개 지표 값과 메인화면 기준을 관리합니다." /><SectionTabs value={tab} items={[{ value: "company", label: "회사소개" }, { value: "home", label: "메인화면" }]} onChange={(value) => { const next = value as Tab; setTab(next); onTabChange?.(next); }} />{demoMode ? <Notice tone="warning" title="데모 데이터 표시 중">Supabase에 연결할 수 없어 예시 값을 표시합니다.</Notice> : null}<div className="achievement-editor-list">{tab === "company" ? sections.map((section) => { const startNumber = number; number += section.metrics.length; return <CompanyEditor key={section.id} demoMode={demoMode} section={section} startNumber={startNumber} />; }) : <HomeEditor demoMode={demoMode} sections={sections} />}</div></section>;

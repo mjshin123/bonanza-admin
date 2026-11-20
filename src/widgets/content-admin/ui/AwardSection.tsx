@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { awardQueryKeys, awardsQueryOptions, type AwardDto } from "@entities/award";
 import { deleteAwardMutationOptions, saveAwardMutationOptions } from "@features/award-manage";
 import { Button, Notice } from "@shared/ui";
+import { isDemoMode as isGlobalDemoMode } from "@shared/api/content";
 
 import { MutationMessage, SectionTitle, TableShell } from "./AdminCommon";
 
@@ -22,7 +23,7 @@ function AwardEditor({ item, onClose, demoMode }: { item: AwardDto | null; onClo
 }
 
 export function AwardSection({ onEditorOpenChange }: { onEditorOpenChange?: (isOpen: boolean) => void } = {}) {
-  const client = useQueryClient(); const query = useQuery(awardsQueryOptions()); const deletion = useMutation(deleteAwardMutationOptions()); const [editing, setEditing] = useState<AwardDto | null | "new">(null); const demoMode = Boolean(query.error); const items = query.data ?? (demoMode ? DEMO_AWARDS : []);
+  const client = useQueryClient(); const query = useQuery(awardsQueryOptions()); const deletion = useMutation(deleteAwardMutationOptions()); const [editing, setEditing] = useState<AwardDto | null | "new">(null); const demoMode = isGlobalDemoMode || Boolean(query.error); const items = query.data ?? (demoMode ? DEMO_AWARDS : []);
   useEffect(() => onEditorOpenChange?.(Boolean(editing)), [editing, onEditorOpenChange]);
   const remove = async (item: AwardDto) => { if (!window.confirm(`“${item.title}” 항목을 제거할까요?`)) return; if (demoMode) { window.alert("데모 데이터는 DB 연결 전에만 제거할 수 없습니다."); return; } try { await deletion.mutateAsync(item.id); await client.invalidateQueries({ queryKey: awardQueryKeys.all }); } catch {} };
   if (editing) return <AwardEditor demoMode={demoMode} item={editing === "new" ? null : editing} onClose={() => setEditing(null)} />;

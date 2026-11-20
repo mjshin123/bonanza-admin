@@ -279,8 +279,11 @@ export function throwContentError(error: unknown): never {
   throw error;
 }
 
+export const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true";
+
 export const CONTENT_QUERY_OPTIONS = {
   staleTime: 30_000,
-  retry: 1,
+  enabled: !isDemoMode,
+  retry: isDemoMode ? false : 1,
   refetchOnWindowFocus: false,
 } as const;

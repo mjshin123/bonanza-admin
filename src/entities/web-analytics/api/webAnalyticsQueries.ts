@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { supabase } from "@shared/api/supabase";
+import { isDemoMode } from "@shared/api/content";
 
 import {
   webAnalyticsResponseSchema,
@@ -67,6 +68,7 @@ export function adminWebAnalyticsQueryOptions(period: WebAnalyticsDateRange) {
     queryFn: () => getAdminWebAnalytics(period),
     staleTime: 10 * 60 * 1_000,
     gcTime: 30 * 60 * 1_000,
-    retry: 1,
+    enabled: !isDemoMode,
+    retry: isDemoMode ? false : 1,
   });
 }
