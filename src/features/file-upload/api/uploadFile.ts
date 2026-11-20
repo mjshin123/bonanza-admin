@@ -42,6 +42,8 @@ async function uploadFile(input: UploadFileInput): Promise<AdminFileDto> {
     throw new RangeError("altText는 500자 이하여야 합니다.");
   if (input.fileKind === "image" && !input.file.type.startsWith("image/"))
     throw new TypeError("이미지 MIME 파일만 업로드할 수 있습니다.");
+  if (input.fileKind === "video" && !input.file.type.startsWith("video/"))
+    throw new TypeError("동영상 MIME 파일만 업로드할 수 있습니다.");
 
   const fileId = crypto.randomUUID();
   const now = new Date();

@@ -1,6 +1,6 @@
-# KFCPA Admin
+# Bonanza Factory Admin
 
-KFCPA 관리자 SPA와 Supabase migration을 관리하는 독립 저장소입니다.
+Bonanza Factory 관리자 SPA와 Supabase migration을 관리하는 독립 저장소입니다.
 
 ## 로컬 실행
 
@@ -9,6 +9,16 @@ KFCPA 관리자 SPA와 Supabase migration을 관리하는 독립 저장소입니
 3. `npm run dev`
 
 관리자 화면은 `/`에서 실행됩니다. 공개 회원가입은 비활성화되어 있으며, 승인된 Supabase Auth 계정만 로그인할 수 있습니다.
+
+### 개발 전용 로그인 우회
+
+로컬에서 관리자 레이아웃을 확인할 때만 `.env`에 아래 값을 설정할 수 있습니다.
+
+```bash
+VITE_DEV_BYPASS_AUTH=true
+```
+
+이 설정은 Vite 개발 모드에서만 동작하며, 프로덕션 빌드에서는 무시됩니다. 인증만 우회하므로 Supabase 데이터 조회·저장은 별도의 로컬 또는 호스팅 Supabase 연결이 필요합니다.
 
 ## 방문 통계 대시보드
 
@@ -39,7 +49,7 @@ DB migration은 이 저장소의 `supabase/migrations`에서만 관리합니다.
 ## API 문서
 
 - [빠른 API 가이드](./API_GUIDE.md): 인증, 조회·저장 RPC, 파일 처리, 오류 코드
-- [상세 API 명세](./kfcpa-api-명세.md)
-- [DB 명세](./KFCPA_DB_명세서_v1.md)
+- [상세 API 명세](./bonanza-api-명세.md)
+- [DB 명세](./BONANZA_DB_명세서_v1.md)
 
-# kfcpa-admin
+# bonanza-admin

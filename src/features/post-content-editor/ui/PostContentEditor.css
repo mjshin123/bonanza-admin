@@ -263,6 +263,26 @@
   outline: 3px solid var(--focus-ring);
 }
 
+.post-content-editor-shell .tiptap table {
+  width: 100%;
+  margin: 16px 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.post-content-editor-shell .tiptap th,
+.post-content-editor-shell .tiptap td {
+  min-width: 72px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.post-content-editor-shell .tiptap th {
+  background: var(--surface-subtle);
+  font-weight: var(--fw-semibold);
+}
+
 .post-content-editor-error {
   color: var(--danger);
   font-size: var(--text-caption);

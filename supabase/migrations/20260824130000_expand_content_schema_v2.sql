@@ -1,4 +1,4 @@
--- KFCPA content schema v2
+-- BONANZA FACTORY content schema v2
 --
 -- This is the expand/migrate phase of an expand-contract migration.  The
 -- legacy boards/organizations/seminar_events tables and the legacy columns on

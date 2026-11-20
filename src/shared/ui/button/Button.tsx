@@ -18,28 +18,28 @@ const SIZES: Record<ButtonSize, CSSProperties> = {
 };
 
 const VARIANTS: Record<ButtonVariant, CSSProperties> = {
-  primary: { background: "linear-gradient(135deg, var(--teal-500), var(--teal-600))", color: "#FFFFFF", border: "1px solid transparent" },
-  secondary: { background: "var(--bg)", color: "var(--navy-600)", border: "1px solid var(--navy-600)" },
-  ghost: { background: "transparent", color: "var(--ink)", border: "1px solid var(--border)" },
+  primary: { background: "var(--primary)", color: "var(--text-on-primary)", border: "1px solid transparent" },
+  secondary: { background: "var(--background)", color: "var(--primary-text)", border: "1px solid var(--primary)" },
+  ghost: { background: "transparent", color: "var(--text-strong)", border: "1px solid var(--border)" },
   text: {
     background: "transparent",
-    color: "var(--teal-700)",
+    color: "var(--primary-text)",
     border: "1px solid transparent",
     padding: 0,
     height: "auto",
   },
   danger: {
     background: "var(--danger)",
-    color: "#FFFFFF",
+    color: "var(--text-on-primary)",
     border: "1px solid transparent",
   },
 };
 
 const HOVER: Record<ButtonVariant, CSSProperties> = {
-  primary: { background: "linear-gradient(135deg, var(--teal-600), var(--teal-700))" },
-  secondary: { background: "var(--navy-50)" },
-  ghost: { background: "var(--surface)" },
-  text: { color: "var(--teal-600)" },
+  primary: { background: "var(--primary-hover)" },
+  secondary: { background: "var(--primary-subtle-bg)" },
+  ghost: { background: "var(--surface-muted)" },
+  text: { color: "var(--primary-hover)" },
   danger: { filter: "brightness(0.92)" },
 };
 

@@ -12,7 +12,7 @@ export function PageHeader({ title, description, children, style }: PageHeaderPr
     <section style={{ background: "var(--bg)" }}>
       <div style={{ maxWidth: "var(--container-max)", margin: "0 auto", padding: "var(--sp-9) var(--gutter-desktop) 0" }}>
         <div
-          className="kfcpa-stack-mobile"
+          className="bonanza-stack-mobile"
           style={{
             display: "grid",
             gridTemplateColumns: description ? "minmax(180px, max-content) 1fr" : "1fr",

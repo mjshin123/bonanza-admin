@@ -2,9 +2,13 @@ import type { Json, Tables } from "@shared/api/supabase";
 import { getPublicAssetUrl } from "@shared/api/supabase";
 
 export type ContentStatus = "draft" | "published" | "hidden";
-export type FileKind = "image" | "attachment";
+export type FileKind = "image" | "video" | "attachment";
 export type InstitutionType = "member" | "partner";
-export type PostCategory = "notice" | "association_news" | "member_news";
+export type PostCategory =
+  | "notice"
+  | "association_news"
+  | "promotion_video"
+  | "member_news";
 export type ResourceCategory =
   | "seminar_material"
   | "law_policy"

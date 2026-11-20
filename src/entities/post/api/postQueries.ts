@@ -73,6 +73,7 @@ const POST_LIST_SELECT = `
   tags,
   is_pinned,
   published_at,
+  source_url,
   created_at,
   board:boards!inner (
     id,
@@ -98,6 +99,7 @@ const POST_DETAIL_SELECT = `
   is_pinned,
   is_published,
   published_at,
+  source_url,
   created_at,
   updated_at,
   category,

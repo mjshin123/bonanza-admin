@@ -7,19 +7,18 @@ import {
   adminSignOutMutationOptions,
   useAdminSession,
 } from "@features/admin-auth";
-import type { GallerySourceType } from "@entities/gallery";
 import type { PostCategory } from "@shared/api/content";
-import kfcpaLogo from "@shared/assets/logo/kfcpa-logo-horizontal.png";
+import bonanzaFactoryLogo from "@shared/assets/logo/bonanza-factory-logo-horizontal.png";
 import { getErrorMessage } from "@shared/lib";
 import { Button, Card, Input, Notice } from "@shared/ui";
 import { AnalyticsDashboard } from "@widgets/analytics-dashboard";
 import {
-  GallerySection,
+  AchievementSection,
+  AwardSection,
   HistorySection,
   InstitutionSection,
   PostSection,
-  ResourceSection,
-  SeminarSection,
+  PrivacyPolicySection,
 } from "@widgets/content-admin";
 
 import type { AdminSection } from "../model/apiAdminSearch";
@@ -27,53 +26,113 @@ import "./ApiTestPage.css";
 
 const NAV_ITEMS: Array<{
   section: AdminSection;
-  code: string;
+  icon:
+    | "chart"
+    | "users"
+    | "document"
+    | "history"
+    | "trophy"
+    | "award";
   label: string;
-  description: string;
+  children?: Array<{ label: string; tab: string }>;
 }> = [
   {
     section: "dashboard",
-    code: "00",
+    icon: "chart",
     label: "대시보드",
-    description: "홈페이지 방문 통계",
-  },
-  {
-    section: "institutions",
-    code: "A",
-    label: "회원 · 협력기관",
-    description: "기관 및 분류",
   },
   {
     section: "posts",
-    code: "B",
-    label: "소식 게시판",
-    description: "공지 · 협회 · 회원소식",
-  },
-  {
-    section: "resources",
-    code: "C",
-    label: "자료실",
-    description: "자료 · 결산/공시",
-  },
-  {
-    section: "seminars",
-    code: "D",
-    label: "세미나",
-    description: "예정 · 지난 행사",
-  },
-  {
-    section: "galleries",
-    code: "E",
-    label: "포토갤러리",
-    description: "노출 · 순서 · 숨김",
+    icon: "document",
+    label: "뉴스룸",
+    children: [
+      { label: "보도자료", tab: "association_news" },
+      { label: "공지사항", tab: "notice" },
+      { label: "홍보·영상", tab: "promotion_video" },
+    ],
   },
   {
     section: "history",
-    code: "F",
+    icon: "history",
     label: "연혁",
-    description: "내용 · 노출 · 순서",
+    children: [{ label: "전체", tab: "all" }, { label: "주요 성과", tab: "featured" }],
+  },
+  {
+    section: "achievements",
+    icon: "trophy",
+    label: "주요 지표",
+    children: [{ label: "회사소개", tab: "company" }, { label: "메인화면", tab: "home" }],
+  },
+  {
+    section: "awards",
+    icon: "award",
+    label: "주요 인증/수상",
+  },
+  {
+    section: "institutions",
+    icon: "users",
+    label: "기관 로고",
+    children: [{ label: "금융기관", tab: "member" }, { label: "공공기관/기타", tab: "partner" }],
+  },
+  {
+    section: "privacy-policies",
+    icon: "document",
+    label: "개인정보처리방침",
   },
 ];
+
+type MenuIconName = (typeof NAV_ITEMS)[number]["icon"];
+
+function MenuIcon({ name }: { name: MenuIconName }) {
+  const sharedProps = {
+    "aria-hidden": true,
+    fill: "none",
+    focusable: false,
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.8,
+    viewBox: "0 0 24 24",
+  };
+
+  if (name === "chart")
+    return (
+      <svg {...sharedProps}>
+        <path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-8" />
+      </svg>
+    );
+  if (name === "users")
+    return (
+      <svg {...sharedProps}>
+        <path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 18.5V20M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM17 10a2.5 2.5 0 0 0 0-5M20 20v-1.5a4.5 4.5 0 0 0-2.5-4" />
+      </svg>
+    );
+  if (name === "document")
+    return (
+      <svg {...sharedProps}>
+        <path d="M7 3h7l4 4v14H7zM14 3v5h5M10 13h5M10 17h5" />
+      </svg>
+    );
+  if (name === "trophy")
+    return (
+      <svg {...sharedProps}>
+        <path d="M8 4h8v4a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 12v5M8 21h8M9 17h6" />
+      </svg>
+    );
+  if (name === "award")
+    return (
+      <svg {...sharedProps}>
+        <circle cx="12" cy="8" r="4" />
+        <path d="m9 12-2 9 5-3 5 3-2-9M12 4V2M8.5 5.5 7 4M15.5 5.5 17 4" />
+      </svg>
+    );
+  return (
+    <svg {...sharedProps}>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l3 2M8 4l-2 2 2 2" />
+    </svg>
+  );
+}
 
 function LoginScreen({
   sessionError,
@@ -96,10 +155,10 @@ function LoginScreen({
     <main className="api-admin-login-page">
       <div className="api-admin-login-shell">
         <div className="api-admin-login-brand" aria-hidden="true">
-          K
+          B
         </div>
         <div className="api-admin-login-heading">
-          <span>KFCPA CONTENT MANAGEMENT</span>
+          <span>BONANZA FACTORY CONTENT MANAGEMENT</span>
           <h1>관리자 로그인</h1>
           <p>콘텐츠 등록과 수정을 위해 관리자 계정으로 로그인해주세요.</p>
         </div>
@@ -114,7 +173,7 @@ function LoginScreen({
                 required
                 autoComplete="username"
                 label="이메일"
-                placeholder="admin@kfcpa.or.kr"
+                placeholder="admin@example.com"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -157,85 +216,66 @@ function Workspace({
   section,
   openId,
   openCategory,
+  tab,
   onOpenIdConsumed,
-  onOpenSource,
+  onTabChange,
+  onDetailOpenChange,
+  postListNavigationId,
 }: {
   section: AdminSection;
   openId?: string;
   openCategory?: string;
+  tab?: string;
   onOpenIdConsumed: () => void;
-  onOpenSource: (source: {
-    sourceType: GallerySourceType;
-    sourceId: string;
-    sourceCategory: string | null;
-  }) => void;
+  onTabChange: (tab: string) => void;
+  onDetailOpenChange: (isOpen: boolean) => void;
+  postListNavigationId: number;
 }) {
   if (section === "dashboard") return <AnalyticsDashboard />;
-  if (section === "institutions") return <InstitutionSection />;
+  if (section === "achievements") return <AchievementSection initialTab={tab === "home" ? "home" : "company"} onTabChange={onTabChange} />;
+  if (section === "awards") return <AwardSection onEditorOpenChange={onDetailOpenChange} />;
+  if (section === "institutions") return <InstitutionSection key={tab} initialTab={tab === "partner" ? "partner" : "member"} onEditorOpenChange={onDetailOpenChange} onTabChange={onTabChange} />;
   if (section === "posts")
     return (
       <PostSection
-        initialCategory={openCategory as PostCategory | undefined}
+        initialCategory={(tab ?? openCategory) as PostCategory | undefined}
         initialEditingId={openId}
         onInitialEditingConsumed={onOpenIdConsumed}
+        onCategoryChange={onTabChange}
+        onEditorOpenChange={onDetailOpenChange}
+        listViewRequestId={postListNavigationId}
       />
     );
-  if (section === "resources")
-    return (
-      <ResourceSection
-        initialEditingId={openId}
-        onInitialEditingConsumed={onOpenIdConsumed}
-      />
-    );
-  if (section === "seminars")
-    return (
-      <SeminarSection
-        initialEditingId={openId}
-        onInitialEditingConsumed={onOpenIdConsumed}
-      />
-    );
-  if (section === "history") return <HistorySection />;
-  return <GallerySection onOpenSource={onOpenSource} />;
+  if (section === "privacy-policies") return <PrivacyPolicySection onEditorOpenChange={onDetailOpenChange} />;
+  if (section === "history") return <HistorySection initialTab={tab === "featured" ? "featured" : "all"} onEditorOpenChange={onDetailOpenChange} onTabChange={onTabChange} />;
+  return <AnalyticsDashboard />;
 }
-
-const GALLERY_SOURCE_SECTION: Partial<Record<GallerySourceType & string, AdminSection>> = {
-  post: "posts",
-  resource: "resources",
-  seminar: "seminars",
-};
 
 export function ApiTestPage() {
   const navigate = useNavigate({ from: "/" });
   const search = useSearch({ from: "/" });
   const session = useAdminSession();
   const signOutMutation = useMutation(adminSignOutMutationOptions());
+  const [isDetailOpen, setDetailOpen] = useState(false);
+  const [postListNavigationId, setPostListNavigationId] = useState(0);
   const section = search.section ?? "dashboard";
+  const activeNavItem = NAV_ITEMS.find((item) => item.section === section);
   const clearOpenId = () => {
-    void navigate({
-      search: (prev) => ({ ...prev, openId: undefined, openCategory: undefined }),
-      replace: true,
-    });
-  };
-  const openSource = (source: {
-    sourceType: GallerySourceType;
-    sourceId: string;
-    sourceCategory: string | null;
-  }) => {
-    const target = source.sourceType
-      ? GALLERY_SOURCE_SECTION[source.sourceType]
-      : undefined;
-    if (!target) return;
     void navigate({
       search: (prev) => ({
         ...prev,
-        section: target,
-        openId: source.sourceId,
-        openCategory:
-          source.sourceType === "post"
-            ? (source.sourceCategory ?? undefined)
-            : undefined,
+        openId: undefined,
+        openCategory: undefined,
       }),
+      replace: true,
     });
+  };
+  const syncTab = (tab: string) => void navigate({ search: (prev) => ({ ...prev, tab }) });
+  const navigateMenu = (nextSection: AdminSection, nextTab?: string) => {
+    if (isDetailOpen && !window.confirm("작성 중인 내용이 저장되지 않을 수 있습니다. 목록으로 이동할까요?")) return;
+    setDetailOpen(false);
+    setPostListNavigationId((current) => current + 1);
+    void navigate({ search: { section: nextSection, tab: nextTab } });
   };
   if (!session.user)
     return (
@@ -246,63 +286,83 @@ export function ApiTestPage() {
     );
   return (
     <main className="api-admin-page">
-      <header className="api-admin-topbar">
-        <div className="api-admin-topbar-inner">
-          <div className="api-admin-brand">
-            <img src={kfcpaLogo} alt="KFCPA" />
-            <strong>Admin</strong>
+      <div className="api-admin-frame">
+        <aside className="api-admin-sidebar" aria-label="관리자 메뉴">
+          <div className="api-admin-sidebar-brand">
+            <img src={bonanzaFactoryLogo} alt="Bonanza Factory" />
           </div>
-          <div className="api-admin-account">
-            <div>
-              <span>로그인 계정</span>
+          <div className="api-admin-sidebar-navigation">
+            <p>CONTENT MANAGEMENT</p>
+            <nav>
+              {NAV_ITEMS.map((item) => (
+                <div className="api-admin-nav-group" key={item.section}>
+                  <button className={section === item.section ? "is-active" : undefined} type="button" onClick={() => navigateMenu(item.section, item.children?.[0]?.tab)}>
+                    <MenuIcon name={item.icon} /><div><strong>{item.label}</strong></div>
+                  </button>
+                  {section === item.section && item.children ? <div className="api-admin-subnav">{item.children.map((child) => <button key={child.tab} className={search.tab === child.tab ? "is-active" : undefined} type="button" onClick={() => navigateMenu(item.section, child.tab)}>{child.label}</button>)}</div> : null}
+                </div>
+              ))}
+            </nav>
+          </div>
+          <div className="api-admin-sidebar-account">
+            <span className="api-admin-account-avatar" aria-hidden="true">
+              B
+            </span>
+            <div className="api-admin-account-copy">
               <strong>{session.user.email ?? session.user.id}</strong>
+              <span>관리자 계정</span>
             </div>
             <Button
               disabled={signOutMutation.isPending}
               size="sm"
-              variant="ghost"
+              style={{ fontSize: "11px" }}
+              variant="text"
               onClick={() => signOutMutation.mutate()}
             >
-              {signOutMutation.isPending ? "로그아웃 중..." : "로그아웃"}
+              {signOutMutation.isPending ? "처리 중" : "로그아웃"}
             </Button>
           </div>
-        </div>
-      </header>
-      <div className="api-admin-layout">
-        <aside className="api-admin-sidebar" aria-label="관리자 메뉴">
-          <p>ADMIN</p>
-          <nav>
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.section}
-                className={section === item.section ? "is-active" : undefined}
-                type="button"
-                onClick={() =>
-                  void navigate({ search: { section: item.section } })
-                }
-              >
-                <span>{item.code}</span>
-                <div>
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
-                </div>
-              </button>
-            ))}
-          </nav>
         </aside>
-        <div className="api-admin-content">
-          {signOutMutation.error ? (
-            <Notice tone="danger" title="로그아웃하지 못했습니다.">
-              {getErrorMessage(signOutMutation.error)}
-            </Notice>
-          ) : null}
-          <Workspace
-            section={section}
-            openCategory={search.openCategory}
-            openId={search.openId}
-            onOpenIdConsumed={clearOpenId}
-            onOpenSource={openSource}
-          />
+        <div className="api-admin-workbench">
+          <header className="api-admin-topbar">
+            <div className="api-admin-topbar-inner">
+              <p className="api-admin-breadcrumb" aria-label="현재 위치">
+                <span>Bonanza Factory</span>
+                <span aria-hidden="true">/</span>
+                <strong>{activeNavItem?.label ?? "관리자"}</strong>
+              </p>
+              <div className="api-admin-mobile-account">
+                <span>{session.user.email ?? session.user.id}</span>
+                <Button
+                  disabled={signOutMutation.isPending}
+                  size="sm"
+                  style={{ fontSize: "11px" }}
+                  variant="text"
+                  onClick={() => signOutMutation.mutate()}
+                >
+                  로그아웃
+                </Button>
+              </div>
+            </div>
+          </header>
+          <div className="api-admin-content">
+            {signOutMutation.error ? (
+              <Notice tone="danger" title="로그아웃하지 못했습니다.">
+                {getErrorMessage(signOutMutation.error)}
+              </Notice>
+            ) : null}
+            <Workspace
+              key={`${section}:${search.tab ?? ""}:${postListNavigationId}`}
+              section={section}
+              openCategory={search.openCategory}
+              tab={search.tab}
+              openId={search.openId}
+              onOpenIdConsumed={clearOpenId}
+              onTabChange={syncTab}
+              onDetailOpenChange={setDetailOpen}
+              postListNavigationId={postListNavigationId}
+            />
+          </div>
         </div>
       </div>
     </main>

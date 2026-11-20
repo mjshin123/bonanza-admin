@@ -13,13 +13,13 @@
    !important is required because an inline style attribute otherwise always
    wins over an external stylesheet rule, regardless of selector specificity. */
 @media (max-width:1023px){
-  .kfcpa-grid-cols-2-tablet{ grid-template-columns:repeat(2,1fr) !important; }
+  .bonanza-grid-cols-2-tablet{ grid-template-columns:repeat(2,1fr) !important; }
 }
 @media (max-width:767px){
-  .kfcpa-stack-mobile{ grid-template-columns:1fr !important; }
+  .bonanza-stack-mobile{ grid-template-columns:1fr !important; }
 }
 @media (max-width:767px){
-  .kfcpa-scroll-x-mobile{
+  .bonanza-scroll-x-mobile{
     max-width:100%;
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;

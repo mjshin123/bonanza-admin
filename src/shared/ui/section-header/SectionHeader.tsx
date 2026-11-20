@@ -37,7 +37,7 @@ export function SectionHeader({
             lineHeight: "var(--lh-caption)",
             letterSpacing: "var(--ls-caption)",
             fontWeight: "var(--fw-semibold)",
-            color: onDark ? "var(--teal-300)" : "var(--teal-700)",
+            color: onDark ? "var(--blue-300)" : "var(--primary-text)",
           }}
         >
           {eyebrow}
@@ -49,7 +49,7 @@ export function SectionHeader({
           lineHeight: "var(--lh-h2)",
           letterSpacing: "var(--ls-h2)",
           fontWeight: "var(--fw-semibold)",
-          color: onDark ? "#FFFFFF" : "var(--ink)",
+          color: onDark ? "var(--text-on-inverse)" : "var(--text-strong)",
         }}
       >
         {title}
@@ -60,7 +60,7 @@ export function SectionHeader({
             maxWidth: "var(--measure)",
             fontSize: "var(--text-body-lg)",
             lineHeight: "var(--lh-body-lg)",
-            color: onDark ? "var(--navy-300)" : "var(--text-muted)",
+            color: onDark ? "var(--grey-400)" : "var(--text-muted)",
           }}
         >
           {description}

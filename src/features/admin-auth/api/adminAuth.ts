@@ -8,7 +8,26 @@ export type AdminCredentials = {
   password: string;
 };
 
+const isDevAuthBypassEnabled =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
+
+const devBypassUser = {
+  id: "dev-bypass-admin",
+  aud: "authenticated",
+  role: "authenticated",
+  email: "dev-admin@local.test",
+  email_confirmed_at: "2026-01-01T00:00:00.000Z",
+  app_metadata: { provider: "development", providers: ["development"] },
+  user_metadata: { display_name: "Development Admin" },
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+} as User;
+
 export async function getCurrentAdminUser(): Promise<User | null> {
+  if (isDevAuthBypassEnabled) {
+    return devBypassUser;
+  }
+
   const { data, error } = await supabase.auth.getSession();
 
   if (error) {
@@ -21,6 +40,11 @@ export async function getCurrentAdminUser(): Promise<User | null> {
 export function subscribeToAdminAuthState(
   listener: (user: User | null) => void,
 ) {
+  if (isDevAuthBypassEnabled) {
+    queueMicrotask(() => listener(devBypassUser));
+    return () => undefined;
+  }
+
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -31,6 +55,10 @@ export function subscribeToAdminAuthState(
 }
 
 async function signInAdmin(credentials: AdminCredentials): Promise<User> {
+  if (isDevAuthBypassEnabled) {
+    return devBypassUser;
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword(credentials);
 
   if (error) {
@@ -41,6 +69,10 @@ async function signInAdmin(credentials: AdminCredentials): Promise<User> {
 }
 
 async function signOutAdmin(): Promise<void> {
+  if (isDevAuthBypassEnabled) {
+    return;
+  }
+
   const { error } = await supabase.auth.signOut({ scope: "local" });
 
   if (error) {

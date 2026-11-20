@@ -271,8 +271,7 @@ export function AnalyticsDashboard() {
     <section className="content-admin-section analytics-dashboard">
       <div className="analytics-dashboard-header">
         <div>
-          <span>WEB ANALYTICS</span>
-          <h1>방문 통계</h1>
+          <h1>대시보드</h1>
           <p>공개 홈페이지의 Cloudflare Web Analytics 집계입니다.</p>
         </div>
         <div className="analytics-dashboard-actions">

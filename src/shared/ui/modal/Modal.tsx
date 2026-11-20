@@ -29,7 +29,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         position: "fixed",
         inset: 0,
         zIndex: "var(--z-modal)" as unknown as number,
-        background: "rgba(10,19,30,.45)",
+        background: "rgba(23,23,23,.45)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

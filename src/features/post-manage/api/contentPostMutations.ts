@@ -34,6 +34,9 @@ export type CreateContentPostInput = {
   status?: ContentStatus;
   isPinned?: boolean;
   publishedAt?: string | null;
+  sourceUrl?: string | null;
+  titleEn?: string | null;
+  contentEn?: string | null;
   files?: SavePostFileInput[];
 };
 export type UpdateContentPostInput = Required<CreateContentPostInput> & {
@@ -68,10 +71,31 @@ function validateInstitution(
   if (category === "member_news" && !institutionId)
     throw new TypeError("회원기관 소식에는 institutionId가 필요합니다.");
   if (category && category !== "member_news" && institutionId)
-    throw new TypeError("공지사항과 협회소식에는 기관을 연결할 수 없습니다.");
+    throw new TypeError("공지사항과 보도자료에는 기관을 연결할 수 없습니다.");
 }
+
+function normalizePressSourceUrl(
+  category: PostCategory,
+  value: string | null | undefined,
+) {
+  const sourceUrl = value?.trim() || null;
+  if (!sourceUrl) return null;
+  if (category !== "association_news")
+    throw new TypeError("기사 원문 링크는 보도자료에만 입력할 수 있습니다.");
+  let url: URL;
+  try {
+    url = new URL(sourceUrl);
+  } catch {
+    throw new TypeError("기사 원문 링크는 올바른 URL이어야 합니다.");
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    throw new TypeError("기사 원문 링크는 http 또는 https 주소여야 합니다.");
+  return url.href;
+}
+
 export function buildContentPostCommand(input: CreateContentPostInput) {
   validateInstitution(input.category, input.institutionId);
+  const sourceUrl = normalizePressSourceUrl(input.category, input.sourceUrl);
   const status = input.status ?? "draft";
   const command = {
     category: input.category,
@@ -86,6 +110,7 @@ export function buildContentPostCommand(input: CreateContentPostInput) {
     publishedAt:
       normalizePublishedAt(status, input.publishedAt) ??
       new Date().toISOString(),
+    sourceUrl,
   } satisfies Json;
   return { command, files: normalizeFileItems(input.files ?? []) };
 }
@@ -97,7 +122,10 @@ async function createContentPost(
     .rpc("save_content_post", { p_input: command, p_files: files })
     .single();
   if (error) throwContentError(error);
-  return (data as Tables<"posts">).id;
+  const postId = (data as Tables<"posts">).id;
+  const { error: translationError } = await supabase.from("posts").update({ title_en: input.titleEn?.trim() || null, content_en: input.contentEn?.trim() || null }).eq("id", postId);
+  if (translationError) throwContentError(translationError);
+  return postId;
 }
 async function updateContentPost(
   input: UpdateContentPostInput,
@@ -112,7 +140,10 @@ async function updateContentPost(
     })
     .single();
   if (error) throwContentError(error);
-  return (data as Tables<"posts">).id;
+  const postId = (data as Tables<"posts">).id;
+  const { error: translationError } = await supabase.from("posts").update({ title_en: input.titleEn?.trim() || null, content_en: input.contentEn?.trim() || null }).eq("id", postId);
+  if (translationError) throwContentError(translationError);
+  return postId;
 }
 async function deleteContentPost(id: string) {
   const { data, error } = await supabase
@@ -160,6 +191,17 @@ async function bulkPublishContentPosts(ids: string[]) {
       .in("id", hasPublishedAt);
     if (error) throwContentError(error);
   }
+  return normalized;
+}
+async function bulkSetContentPostPinned(
+  input: { ids: string[]; isPinned: boolean },
+) {
+  const normalized = input.ids.map((id) => requireUuid(id));
+  const { error } = await supabase
+    .from("posts")
+    .update({ is_pinned: input.isPinned })
+    .in("id", normalized);
+  if (error) throwContentError(error);
   return normalized;
 }
 async function bulkDeleteContentPosts(ids: string[]) {
@@ -270,6 +312,11 @@ export const bulkPublishContentPostsMutationOptions = () =>
   mutationOptions({
     mutationKey: ["content-posts", "bulk-publish"],
     mutationFn: bulkPublishContentPosts,
+  });
+export const bulkSetContentPostPinnedMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["content-posts", "bulk-set-pinned"],
+    mutationFn: bulkSetContentPostPinned,
   });
 export const bulkDeleteContentPostsMutationOptions = () =>
   mutationOptions({

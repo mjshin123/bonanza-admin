@@ -78,6 +78,7 @@ export function TableShell({
   className,
 }: {
   children: ReactNode;
+  headerAction?: ReactNode;
   isLoading: boolean;
   error: Error | null;
   isEmpty: boolean;
@@ -310,11 +311,13 @@ export function EditorCard({
   title,
   description,
   children,
+  headerAction,
   onSubmit,
 }: {
   title: string;
   description: string;
   children: ReactNode;
+  headerAction?: ReactNode;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
@@ -323,8 +326,8 @@ export function EditorCard({
       padding="clamp(20px, 3vw, 32px)"
     >
       <div className="content-admin-editor-heading">
-        <h2>{title}</h2>
-        <p>{description}</p>
+        <div><h2>{title}</h2><p>{description}</p></div>
+        {headerAction}
       </div>
       <form className="content-admin-form" onSubmit={onSubmit}>
         {children}

@@ -6,32 +6,23 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--sp-6);
+  gap: var(--sp-5);
 }
 
 .analytics-dashboard-header > div:first-child {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-}
-
-.analytics-dashboard-header > div:first-child > span {
-  color: var(--teal-700);
-  font-size: var(--text-caption);
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--ls-caption);
 }
 
 .analytics-dashboard-header h1 {
-  color: var(--ink);
-  font-size: var(--text-h1);
-  line-height: var(--lh-h1);
+  color: var(--text-strong);
+  font-size: var(--text-h2);
 }
 
 .analytics-dashboard-header p {
+  margin-top: var(--sp-2);
   color: var(--text-muted);
-  font-size: var(--text-body-base);
-  line-height: var(--lh-body-base);
+  font-size: var(--text-body-sm);
 }
 
 .analytics-dashboard-actions {
@@ -301,7 +292,7 @@
   line-height: var(--lh-caption);
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(16, 29, 46, 0.18);
+  box-shadow: 0 4px 12px rgba(23, 23, 23, 0.18);
 }
 
 .analytics-dashboard-chart-tooltip strong {

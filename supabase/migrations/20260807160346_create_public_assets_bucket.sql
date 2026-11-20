@@ -1,5 +1,5 @@
 -- =========================================================
--- KFCPA PUBLIC STORAGE BUCKET
+-- BONANZA FACTORY PUBLIC STORAGE BUCKET
 -- =========================================================
 
 insert into storage.buckets (

@@ -8,6 +8,10 @@ import {
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
+import { Table } from "@tiptap/extension-table";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableRow } from "@tiptap/extension-table-row";
 import { Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -223,6 +227,10 @@ export function PostContentEditor({
       Color,
       FontSize,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     onUpdate: ({ editor: currentEditor }) => {
       const nextContent = currentEditor.getHTML();
@@ -610,6 +618,19 @@ export function PostContentEditor({
             onClick={() => editor?.chain().focus().toggleBlockquote().run()}
           >
             인용
+          </ToolbarButton>
+          <ToolbarButton
+            disabled={toolbarDisabled}
+            title="표 삽입"
+            onClick={() =>
+              editor
+                ?.chain()
+                .focus()
+                .insertTable({ cols: 3, rows: 3, withHeaderRow: true })
+                .run()
+            }
+          >
+            표
           </ToolbarButton>
           <span className="post-content-editor-toolbar-separator" />
           <ToolbarButton

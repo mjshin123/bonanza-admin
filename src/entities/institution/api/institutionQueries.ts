@@ -1,10 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import {
-  mapInstitutionCategory,
-  type InstitutionCategoryDto,
-} from "@entities/institution-category";
-import {
   CONTENT_QUERY_OPTIONS,
   mapFile,
   pageRange,
@@ -22,14 +18,10 @@ import type { Tables } from "@shared/api/supabase";
 export type InstitutionDto = {
   id: string;
   institutionType: InstitutionType;
-  category: InstitutionCategoryDto;
   name: string;
   logo: FileDto | null;
-  description: string;
-  homepageUrl: string | null;
   displayOrder: number;
   isActive: boolean;
-  isPending: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -38,7 +30,6 @@ export type InstitutionSummary = Pick<
   "id" | "institutionType" | "name" | "logo"
 >;
 export type InstitutionListParams = PageParams & {
-  categoryId?: string;
   institutionType?: InstitutionType;
   q?: string;
 };
@@ -47,25 +38,20 @@ export type AdminInstitutionListParams = InstitutionListParams & {
 };
 
 type InstitutionJoinedRow = Tables<"institutions"> & {
-  category: Tables<"institution_categories">;
   logo: Tables<"files"> | null;
 };
 
 const SELECT =
-  "id,institution_type,category_id,name,logo_file_id,description,homepage_url,display_order,is_active,is_pending,created_at,updated_at,category:institution_categories!institutions_category_id_fkey!inner(id,code,name,institution_type,display_order,is_active,created_at,updated_at),logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)";
+  "id,institution_type,name,logo_file_id,display_order,is_active,created_at,updated_at,logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)";
 
 export function mapInstitution(row: InstitutionJoinedRow): InstitutionDto {
   return {
     id: row.id,
     institutionType: row.institution_type as InstitutionType,
-    category: mapInstitutionCategory(row.category),
     name: row.name,
     logo: row.logo ? mapFile(row.logo) : null,
-    description: row.description,
-    homepageUrl: row.homepage_url,
     displayOrder: row.display_order,
     isActive: row.is_active,
-    isPending: row.is_pending,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -75,9 +61,6 @@ function resolveParams(params: AdminInstitutionListParams = {}) {
   const page = resolvePageParams(params);
   return {
     ...page,
-    categoryId: params.categoryId
-      ? requireUuid(params.categoryId, "categoryId")
-      : undefined,
     institutionType: params.institutionType,
     q: params.q?.trim() || undefined,
     isActive: params.isActive,
@@ -107,9 +90,7 @@ async function fetchList(
     .order("name")
     .order("id")
     .range(from, to);
-  if (!admin)
-    query = query.eq("is_active", true).eq("category.is_active", true);
-  if (params.categoryId) query = query.eq("category_id", params.categoryId);
+  if (!admin) query = query.eq("is_active", true);
   if (params.institutionType)
     query = query.eq("institution_type", params.institutionType);
   if (params.q) query = query.ilike("name", `%${params.q}%`);
@@ -129,8 +110,7 @@ async function fetchDetail(id: string, admin: boolean) {
     .from("institutions")
     .select(SELECT)
     .eq("id", requireUuid(id));
-  if (!admin)
-    query = query.eq("is_active", true).eq("category.is_active", true);
+  if (!admin) query = query.eq("is_active", true);
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
   return data ? mapInstitution(data as InstitutionJoinedRow) : null;

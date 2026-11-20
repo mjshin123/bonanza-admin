@@ -17,7 +17,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--surface);
-  box-shadow: 0 1px 3px rgba(16, 29, 46, 0.08);
+  box-shadow: 0 1px 3px rgba(23, 23, 23, 0.08);
 }
 
 .content-admin-gallery-link,
@@ -59,8 +59,8 @@
   padding: var(--sp-4);
   background: linear-gradient(
     to bottom,
-    rgba(10, 19, 30, 0.2),
-    rgba(10, 19, 30, 0.88)
+    rgba(23, 23, 23, 0.2),
+    rgba(23, 23, 23, 0.88)
   );
   color: var(--text-on-dark);
   opacity: 0;

@@ -40,7 +40,7 @@ export function LogoMarquee({ items, speed = 60, logoHeight = 40, gap = 56, aria
   const renderLogo = (item: LogoMarqueeItem, key: string) => {
     const image = <img src={item.logo} alt={item.name} title={item.name} style={{ height: logoHeight, width: "auto", maxWidth: 160, objectFit: "contain" }} />;
     return (
-      <li key={key} className="kfcpa-logo-marquee__item">
+      <li key={key} className="bonanza-logo-marquee__item">
         {item.siteHref ? (
           <a href={item.siteHref} target="_blank" rel="noopener noreferrer" aria-label={item.name}>
             {image}
@@ -54,7 +54,7 @@ export function LogoMarquee({ items, speed = 60, logoHeight = 40, gap = 56, aria
 
   return (
     <div
-      className="kfcpa-logo-marquee"
+      className="bonanza-logo-marquee"
       role="group"
       aria-label={ariaLabel}
       onMouseEnter={() => setPaused(true)}
@@ -62,7 +62,7 @@ export function LogoMarquee({ items, speed = 60, logoHeight = 40, gap = 56, aria
     >
       <ul
         ref={trackRef}
-        className="kfcpa-logo-marquee__track"
+        className="bonanza-logo-marquee__track"
         style={{
           gap,
           animationDuration: `${duration}s`,

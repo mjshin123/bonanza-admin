@@ -7,12 +7,12 @@ type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
 };
 
 const TONES: Record<BadgeTone, CSSProperties> = {
-  default: { background: "var(--teal-100)", color: "var(--teal-700)" },
-  neutral: { background: "var(--surface)", color: "var(--text-muted)" },
-  navy: { background: "var(--navy-50)", color: "var(--navy-600)" },
-  success: { background: "rgba(30,142,90,.10)", color: "var(--success)" },
-  warning: { background: "rgba(199,119,0,.10)", color: "var(--warning)" },
-  danger: { background: "rgba(198,57,46,.10)", color: "var(--danger)" },
+  default: { background: "var(--primary-subtle-bg)", color: "var(--primary-text)" },
+  neutral: { background: "var(--surface-muted)", color: "var(--text-muted)" },
+  navy: { background: "var(--blue-50)", color: "var(--primary-text)" },
+  success: { background: "var(--success-bg)", color: "var(--success)" },
+  warning: { background: "var(--warning-bg)", color: "var(--warning)" },
+  danger: { background: "var(--danger-bg)", color: "var(--danger)" },
 };
 
 export function Badge({ tone = "default", children, style, ...rest }: BadgeProps) {

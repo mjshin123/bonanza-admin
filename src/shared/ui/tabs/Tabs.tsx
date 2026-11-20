@@ -16,7 +16,7 @@ export function Tabs({ items, value, onChange, style }: TabsProps) {
   return (
     <div
       role="tablist"
-      className="kfcpa-scroll-x-mobile"
+      className="bonanza-scroll-x-mobile"
       style={{ display: "flex", gap: "var(--sp-6)", borderBottom: "1px solid var(--border)", ...style }}
     >
       {items.map((item) => {

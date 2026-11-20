@@ -554,7 +554,7 @@
 }
 
 .general-admin-table-status--pinned {
-  background: rgba(30, 142, 90, 0.1);
+  background: var(--success-bg);
   color: var(--success);
 }
 

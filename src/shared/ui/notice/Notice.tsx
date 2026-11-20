@@ -11,10 +11,10 @@ type NoticeProps = {
 };
 
 const TONES: Record<NoticeTone, { bg: string; bar: string; text: string }> = {
-  info: { bg: "var(--navy-50)", bar: "var(--navy-500)", text: "var(--navy-600)" },
-  teal: { bg: "var(--teal-50)", bar: "var(--teal-600)", text: "var(--teal-700)" },
-  warning: { bg: "rgba(199,119,0,.08)", bar: "var(--warning)", text: "var(--warning)" },
-  danger: { bg: "rgba(198,57,46,.08)", bar: "var(--danger)", text: "var(--danger)" },
+  info: { bg: "var(--blue-50)", bar: "var(--primary)", text: "var(--primary-text)" },
+  teal: { bg: "var(--primary-subtle-bg)", bar: "var(--primary)", text: "var(--primary-text)" },
+  warning: { bg: "var(--warning-bg)", bar: "var(--warning)", text: "var(--warning)" },
+  danger: { bg: "var(--danger-bg)", bar: "var(--danger)", text: "var(--danger)" },
 };
 
 export function Notice({ tone = "info", title, children, action, style }: NoticeProps) {
