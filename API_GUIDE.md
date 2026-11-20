@@ -6,6 +6,7 @@ Bonanza Factory v2 콘텐츠 API를 빠르게 연동하기 위한 요약본이�
 
 - 전송 계층: Supabase Data API(PostgREST/RPC)와 Storage
 - 환경 변수: VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
+- `VITE_DEMO_MODE=true`은 Supabase 미연결 상태에서 화면 검토만 위한 로그인 우회 모드다. 배포 데이터는 브라우저의 임시 가라데이터이며 실제 저장·업로드를 제공하지 않는다. 공유용 Vercel 배포에서는 Deployment Protection을 함께 설정한다.
 - 공개 조회: anon 세션에서 호출 가능
 - 관리자 조회·저장·삭제: authenticated 세션 필요
 - 시간: ISO 8601, ID: UUID

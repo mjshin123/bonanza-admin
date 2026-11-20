@@ -10,6 +10,9 @@ export type AdminCredentials = {
 
 const isDevAuthBypassEnabled =
   import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
+const isDemoAuthBypassEnabled = import.meta.env.VITE_DEMO_MODE === "true";
+const isAuthBypassEnabled =
+  isDevAuthBypassEnabled || isDemoAuthBypassEnabled;
 
 const devBypassUser = {
   id: "dev-bypass-admin",
@@ -24,7 +27,7 @@ const devBypassUser = {
 } as User;
 
 export async function getCurrentAdminUser(): Promise<User | null> {
-  if (isDevAuthBypassEnabled) {
+  if (isAuthBypassEnabled) {
     return devBypassUser;
   }
 
@@ -40,7 +43,7 @@ export async function getCurrentAdminUser(): Promise<User | null> {
 export function subscribeToAdminAuthState(
   listener: (user: User | null) => void,
 ) {
-  if (isDevAuthBypassEnabled) {
+  if (isAuthBypassEnabled) {
     queueMicrotask(() => listener(devBypassUser));
     return () => undefined;
   }
@@ -55,7 +58,7 @@ export function subscribeToAdminAuthState(
 }
 
 async function signInAdmin(credentials: AdminCredentials): Promise<User> {
-  if (isDevAuthBypassEnabled) {
+  if (isAuthBypassEnabled) {
     return devBypassUser;
   }
 
@@ -69,7 +72,7 @@ async function signInAdmin(credentials: AdminCredentials): Promise<User> {
 }
 
 async function signOutAdmin(): Promise<void> {
-  if (isDevAuthBypassEnabled) {
+  if (isAuthBypassEnabled) {
     return;
   }
 
