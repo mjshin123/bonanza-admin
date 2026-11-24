@@ -18,7 +18,7 @@ import type {
   FileDto,
   ResourceCategory,
 } from "@shared/api/content";
-import { Button, Input } from "@shared/ui";
+import { BulkActionBar, Button, Input, confirmDialog } from "@shared/ui";
 
 import {
   bytesLabel,
@@ -379,7 +379,7 @@ export function ResourceSection({
   const showMutation = useMutation(bulkPublishResourcesMutationOptions());
   const bulkDeleteMutation = useMutation(bulkDeleteResourcesMutationOptions());
   const bulkHide = async () => {
-    if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
+    if (!(await confirmDialog(`선택한 ${selectedIds.size}건을 숨길까요?`, { confirmLabel: "숨김" }))) return;
     try {
       await hideMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({ queryKey: resourceQueryKeys.all });
@@ -398,7 +398,7 @@ export function ResourceSection({
     }
   };
   const bulkDelete = async () => {
-    if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
+    if (!(await confirmDialog(`선택한 ${selectedIds.size}건을 삭제할까요?`, { confirmLabel: "삭제", tone: "danger" }))) return;
     try {
       await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
       await queryClient.invalidateQueries({ queryKey: resourceQueryKeys.all });
@@ -483,6 +483,51 @@ export function ResourceSection({
       <MutationMessage error={bulkDeleteMutation.error} />
       <MutationMessage error={hideMutation.error} />
       <MutationMessage error={showMutation.error} />
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        emptyHint="게시글을 숨기거나 삭제하려면 원하는 게시글을 선택해 주세요."
+      >
+          {canShow ? (
+            <Button
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending
+              }
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkShow()}
+            >
+              선택 게시
+            </Button>
+          ) : null}
+          {canHide ? (
+            <Button
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending
+              }
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkHide()}
+            >
+              선택 숨김
+            </Button>
+          ) : null}
+          <Button
+            disabled={
+              hideMutation.isPending ||
+              showMutation.isPending ||
+              bulkDeleteMutation.isPending
+            }
+            size="sm"
+            variant="danger"
+            onClick={() => void bulkDelete()}
+          >
+            선택 삭제
+          </Button>
+      </BulkActionBar>
       <TableShell
         isLoading={query.isPending}
         error={query.error}
@@ -560,55 +605,6 @@ export function ResourceSection({
           </tbody>
         </table>
       </TableShell>
-      {selectedIds.size > 0 ? (
-        <FilterBar>
-          <span className="content-admin-muted">
-            {selectedIds.size}건 선택됨
-          </span>
-          <div className="content-admin-table-actions">
-            {canShow ? (
-              <Button
-                disabled={
-                  hideMutation.isPending ||
-                  showMutation.isPending ||
-                  bulkDeleteMutation.isPending
-                }
-                size="sm"
-                variant="ghost"
-                onClick={() => void bulkShow()}
-              >
-                선택 게시
-              </Button>
-            ) : null}
-            {canHide ? (
-              <Button
-                disabled={
-                  hideMutation.isPending ||
-                  showMutation.isPending ||
-                  bulkDeleteMutation.isPending
-                }
-                size="sm"
-                variant="ghost"
-                onClick={() => void bulkHide()}
-              >
-                선택 숨김
-              </Button>
-            ) : null}
-            <Button
-              disabled={
-                hideMutation.isPending ||
-                showMutation.isPending ||
-                bulkDeleteMutation.isPending
-              }
-              size="sm"
-              variant="danger"
-              onClick={() => void bulkDelete()}
-            >
-              선택 삭제
-            </Button>
-          </div>
-        </FilterBar>
-      ) : null}
       <Pager
         page={page}
         total={query.data?.total ?? 0}

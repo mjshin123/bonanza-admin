@@ -1,10 +1,5 @@
 import { mutationOptions } from "@tanstack/react-query";
-import {
-  ContentApiError,
-  requireUuid,
-  throwContentError,
-} from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
+import { requireUuid } from "@shared/api/content";
 import type { Json } from "@shared/api/supabase";
 
 type FileDeleteOperation = {
@@ -31,40 +26,8 @@ export function mapFileDeleteOperation(value: Json): FileDeleteOperation {
 }
 
 async function deleteFile(id: string): Promise<string> {
-  const normalizedId = requireUuid(id);
-  const { data, error } = await supabase.rpc("begin_file_delete", {
-    p_file_id: normalizedId,
-  });
-  if (error) throwContentError(error);
-  const operation = mapFileDeleteOperation(data);
-  const removal = await supabase.storage
-    .from(operation.bucketName)
-    .remove([operation.storagePath]);
-  if (removal.error) {
-    const restored = await supabase.rpc("restore_file_delete", {
-      p_operation_id: operation.operationId,
-    });
-    if (restored.error) {
-      throw new ContentApiError(
-        "STORAGE_CLEANUP_REQUIRED",
-        "Storage 삭제와 DB 메타데이터 복원에 모두 실패했습니다.",
-        { storage: removal.error, database: restored.error },
-      );
-    }
-    throw removal.error;
-  }
-
-  const completed = await supabase.rpc("complete_file_delete", {
-    p_operation_id: operation.operationId,
-  });
-  if (completed.error) {
-    throw new ContentApiError(
-      "STORAGE_CLEANUP_REQUIRED",
-      "Storage 객체는 삭제됐지만 삭제 작업 마무리에 실패했습니다.",
-      completed.error,
-    );
-  }
-  return completed.data;
+  requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 export const deleteFileMutationOptions = () =>
   mutationOptions({ mutationKey: ["files", "delete"], mutationFn: deleteFile });

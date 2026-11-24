@@ -1,6 +1,5 @@
 import { mutationOptions } from "@tanstack/react-query";
-import { requireExpectedUpdatedAt, requireUuid, throwContentError } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
+import { requireExpectedUpdatedAt, requireUuid } from "@shared/api/content";
 
 export type SaveAchievementHighlightInput = {
   id?: string;
@@ -17,25 +16,25 @@ function text(value: string, label: string, max: number) {
   return result;
 }
 
-async function save(input: SaveAchievementHighlightInput) {
+async function save(input: SaveAchievementHighlightInput): Promise<void> {
   const isUpdate = Boolean(input.id);
-  const { error } = await supabase.rpc("save_achievement_highlight", {
-    p_title: text(input.title, "제목", 160), p_content: text(input.content, "내용", 2000),
-    p_occurred_on: input.occurredOn, p_image_file_id: input.imageFileId,
-    p_id: isUpdate ? requireUuid(input.id!) : undefined,
-    p_expected_updated_at: isUpdate ? requireExpectedUpdatedAt(input.expectedUpdatedAt!) : undefined,
-  });
-  if (error) throwContentError(error);
+  text(input.title, "제목", 160);
+  text(input.content, "내용", 2000);
+  if (isUpdate) {
+    requireUuid(input.id!);
+    requireExpectedUpdatedAt(input.expectedUpdatedAt!);
+  }
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function move(input: { id: string; direction: -1 | 1 }) {
-  const { error } = await supabase.rpc("move_achievement_highlight", { p_id: requireUuid(input.id), p_direction: input.direction });
-  if (error) throwContentError(error);
+async function move(input: { id: string; direction: -1 | 1 }): Promise<void> {
+  requireUuid(input.id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function remove(id: string) {
-  const { error } = await supabase.rpc("delete_achievement_highlight", { p_id: requireUuid(id) });
-  if (error) throwContentError(error);
+async function remove(id: string): Promise<void> {
+  requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export const saveAchievementHighlightMutationOptions = () => mutationOptions({ mutationKey: ["achievement-highlights", "save"], mutationFn: save });

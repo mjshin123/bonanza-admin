@@ -12,14 +12,10 @@ import {
   saveAchievementHighlightMutationOptions,
 } from "@features/achievement-highlight-manage";
 import { isDemoMode as isGlobalDemoMode } from "@shared/api/content";
-import { Button, Notice } from "@shared/ui";
+import { lastEditorLogin, useEditorDirtyTracker, useOrderDraft } from "@shared/lib";
+import { BulkActionBar, Button, OrderSaveBar, alertDialog, confirmDialog } from "@shared/ui";
 
-import {
-  FileUpload,
-  MutationMessage,
-  SectionTitle,
-  Textarea,
-} from "./AdminCommon";
+import { AuditInfo, FileUpload, MutationMessage, SectionTitle, Textarea, DemoNotice } from "./AdminCommon";
 
 const demoHighlights: AchievementHighlightDto[] = [
   {
@@ -31,7 +27,10 @@ const demoHighlights: AchievementHighlightDto[] = [
     imageFileId: null,
     imageUrl: null,
     position: 0,
-    updatedAt: "demo",
+    updatedAt: "2026-11-08T04:30:00.000Z",
+    createdAt: "2026-10-08T04:30:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-highlight-2",
@@ -42,7 +41,10 @@ const demoHighlights: AchievementHighlightDto[] = [
     imageFileId: null,
     imageUrl: null,
     position: 1,
-    updatedAt: "demo",
+    updatedAt: "2026-11-09T04:30:00.000Z",
+    createdAt: "2026-10-09T04:30:00.000Z",
+    createdByLogin: "mjshin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-highlight-3",
@@ -53,17 +55,23 @@ const demoHighlights: AchievementHighlightDto[] = [
     imageFileId: null,
     imageUrl: null,
     position: 2,
-    updatedAt: "demo",
+    updatedAt: "2026-11-10T04:30:00.000Z",
+    createdAt: "2026-10-10T04:30:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "mjshin",
   },
 ];
 
 function HighlightEditor({
   item,
+  demoMode = false,
   onClose,
 }: {
   item: AchievementHighlightDto | null;
+  demoMode?: boolean;
   onClose: () => void;
 }) {
+  const markDirty = useEditorDirtyTracker();
   const queryClient = useQueryClient();
   const saveMutation = useMutation(saveAchievementHighlightMutationOptions());
   const [title, setTitle] = useState(item?.title ?? "");
@@ -86,6 +94,10 @@ function HighlightEditor({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (demoMode) {
+      void alertDialog("데모 데이터는 저장되지 않습니다. 화면 확인용으로만 열람할 수 있습니다.");
+      return;
+    }
     try {
       await saveMutation.mutateAsync({
         id: item?.id,
@@ -112,6 +124,8 @@ function HighlightEditor({
       />
       <form
         className="achievement-highlight-form"
+        onChange={markDirty}
+        onInput={markDirty}
         onSubmit={(event) => void submit(event)}
       >
         <label>
@@ -175,6 +189,7 @@ function HighlightEditor({
             </Button>
           ) : null}
         </div>
+        <AuditInfo audit={item} />
         <MutationMessage error={saveMutation.error} />
         <div className="content-admin-form-actions">
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -189,7 +204,11 @@ function HighlightEditor({
   );
 }
 
-export function AchievementHighlightSection() {
+export function AchievementHighlightSection({
+  onOrderDirtyChange,
+}: {
+  onOrderDirtyChange?: (isDirty: boolean) => void;
+} = {}) {
   const queryClient = useQueryClient();
   const query = useQuery(achievementHighlightsQueryOptions());
   const moveMutation = useMutation(moveAchievementHighlightMutationOptions());
@@ -199,8 +218,17 @@ export function AchievementHighlightSection() {
   const [editing, setEditing] = useState<
     AchievementHighlightDto | null | "new"
   >(null);
+  const [demoItems, setDemoItems] = useState(demoHighlights);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSavingOrder, setSavingOrder] = useState(false);
   const demoMode = isGlobalDemoMode || Boolean(query.error);
-  const highlights = query.data ?? (demoMode ? demoHighlights : []);
+  const serverHighlights = query.data ?? (demoMode ? demoItems : []);
+  const order = useOrderDraft(serverHighlights);
+  const highlights = order.items;
+  useEffect(() => {
+    onOrderDirtyChange?.(order.isDirty);
+    return () => onOrderDirtyChange?.(false);
+  }, [order.isDirty, onOrderDirtyChange]);
   const refresh = () =>
     queryClient.invalidateQueries({
       queryKey: achievementHighlightQueryKeys.all,
@@ -210,23 +238,50 @@ export function AchievementHighlightSection() {
     return (
       <HighlightEditor
         item={editing === "new" ? null : editing}
+        demoMode={demoMode}
         onClose={() => setEditing(null)}
       />
     );
 
-  const move = async (item: AchievementHighlightDto, direction: -1 | 1) => {
+  const toggleSelected = (id: string, checked: boolean) =>
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  const saveOrder = async () => {
+    setSavingOrder(true);
     try {
-      await moveMutation.mutateAsync({ id: item.id, direction });
-      await refresh();
+      if (demoMode) {
+        setDemoItems(order.items);
+      } else {
+        for (const { id, direction } of order.moves)
+          await moveMutation.mutateAsync({ id, direction });
+        await refresh();
+      }
+      order.reset();
     } catch {
       /* MutationMessage에서 오류를 표시한다. */
+    } finally {
+      setSavingOrder(false);
     }
   };
-  const remove = async (item: AchievementHighlightDto) => {
-    if (!window.confirm(`‘${item.title}’ 항목을 제거할까요?`)) return;
+  const bulkDelete = async () => {
+    if (!(await confirmDialog(`선택한 ${selectedIds.size}건을 삭제할까요?`, { confirmLabel: "삭제", tone: "danger" }))) return;
+    if (demoMode) {
+      setDemoItems((current) =>
+        current.filter((item) => !selectedIds.has(item.id)),
+      );
+      setSelectedIds(new Set());
+      order.reset();
+      return;
+    }
     try {
-      await deleteMutation.mutateAsync(item.id);
+      for (const id of selectedIds) await deleteMutation.mutateAsync(id);
       await refresh();
+      setSelectedIds(new Set());
+      order.reset();
     } catch {
       /* MutationMessage에서 오류를 표시한다. */
     }
@@ -239,74 +294,83 @@ export function AchievementHighlightSection() {
         description="웹사이트 주요 성과 페이지에 노출되는 항목입니다. 최대 10개까지 관리할 수 있습니다."
         action={
           <Button
-            disabled={demoMode || highlights.length >= 10}
+            disabled={highlights.length >= 10}
             onClick={() => setEditing("new")}
           >
             성과 추가 ({highlights.length}/10)
           </Button>
         }
       />
-      {demoMode ? (
-        <Notice tone="warning" title="데모 데이터 표시 중">
-          Supabase API에 연결할 수 없어 운영 웹사이트의 주요 성과를 임시로
-          표시합니다. DB 연결 후 수정할 수 있습니다.
-        </Notice>
-      ) : null}
       <MutationMessage error={moveMutation.error ?? deleteMutation.error} />
-      {query.isPending ? <p>주요 성과를 불러오는 중입니다.</p> : null}
+      <OrderSaveBar
+        isDirty={order.isDirty}
+        isPending={isSavingOrder}
+        onSave={() => void saveOrder()}
+        onCancel={order.reset}
+      />
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        emptyHint="성과를 삭제하려면 원하는 성과를 선택해 주세요."
+      >
+        <Button
+          disabled={deleteMutation.isPending}
+          size="sm"
+          variant="danger"
+          onClick={() => void bulkDelete()}
+        >
+          선택 삭제
+        </Button>
+      </BulkActionBar>
+      {query.isPending && !demoMode ? <p>주요 성과를 불러오는 중입니다.</p> : null}
       <div className="achievement-highlight-list">
         {highlights.map((item, index) => (
           <article key={item.id} className="achievement-highlight-item">
+            <input
+              aria-label={`${item.title} 선택`}
+              checked={selectedIds.has(item.id)}
+              className="content-admin-row-checkbox"
+              type="checkbox"
+              onChange={(event) => toggleSelected(item.id, event.target.checked)}
+            />
             <span>{index + 1}</span>
             <div>
               {item.imageUrl ? <img src={item.imageUrl} alt="" /> : null}
               <strong>{item.title}</strong>
               <p>{item.occurredOn}</p>
               <p>{item.content}</p>
+              <p className="content-admin-author">작성자 {lastEditorLogin(item) ?? "-"}</p>
             </div>
             <div>
               <Button
                 aria-label="위로 이동"
-                disabled={demoMode || index === 0 || moveMutation.isPending}
+                disabled={index === 0 || isSavingOrder}
                 size="sm"
                 variant="ghost"
-                onClick={() => void move(item, -1)}
+                onClick={() => order.move(item.id, -1)}
               >
                 위
               </Button>
               <Button
                 aria-label="아래로 이동"
-                disabled={
-                  demoMode ||
-                  index === highlights.length - 1 ||
-                  moveMutation.isPending
-                }
+                disabled={index === highlights.length - 1 || isSavingOrder}
                 size="sm"
                 variant="ghost"
-                onClick={() => void move(item, 1)}
+                onClick={() => order.move(item.id, 1)}
               >
                 아래
               </Button>
               <Button
-                disabled={demoMode}
                 size="sm"
                 variant="ghost"
                 onClick={() => setEditing(item)}
               >
                 수정
               </Button>
-              <Button
-                disabled={demoMode || deleteMutation.isPending}
-                size="sm"
-                variant="text"
-                onClick={() => void remove(item)}
-              >
-                제거
-              </Button>
             </div>
           </article>
         ))}
       </div>
+      {demoMode ? <DemoNotice /> : null}
     </section>
   );
 }

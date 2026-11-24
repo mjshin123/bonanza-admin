@@ -1,14 +1,12 @@
 import { mutationOptions } from "@tanstack/react-query";
 
-import { mapInstitution, type InstitutionDto } from "@entities/institution";
+import type { InstitutionDto } from "@entities/institution";
 import {
   requireText,
   requireUuid,
-  throwContentError,
   type InstitutionType,
 } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
-import type { Tables, TablesInsert, TablesUpdate } from "@shared/api/supabase";
+import type { TablesUpdate } from "@shared/api/supabase";
 
 export type CreateInstitutionInput = {
   institutionType: InstitutionType;
@@ -19,11 +17,6 @@ export type CreateInstitutionInput = {
 };
 export type UpdateInstitutionInput = Partial<CreateInstitutionInput> & {
   id: string;
-};
-
-const SELECT = "*, logo:files(*)";
-type Joined = Tables<"institutions"> & {
-  logo: Tables<"files"> | null;
 };
 
 function mapInput(
@@ -48,108 +41,53 @@ function mapInput(
   return payload;
 }
 
-async function nextDisplayOrder(institutionType: InstitutionType) {
-  const { data, error } = await supabase
-    .from("institutions")
-    .select("display_order")
-    .eq("institution_type", institutionType)
-    .order("display_order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throwContentError(error);
-  return (data?.display_order ?? -1) + 1;
-}
-
 async function createInstitution(
   input: CreateInstitutionInput,
 ): Promise<InstitutionDto> {
   const payload = mapInput(input);
   if (!payload.institution_type || !payload.name || !payload.logo_file_id)
     throw new TypeError("institutionType, name, logoFileId는 필수입니다.");
-  if (payload.display_order === undefined)
-    payload.display_order = await nextDisplayOrder(
-      payload.institution_type as InstitutionType,
-    );
-  const { data, error } = await supabase
-    .from("institutions")
-    .insert(payload as TablesInsert<"institutions">)
-    .select(SELECT)
-    .single();
-  if (error) throwContentError(error);
-  return mapInstitution(data as Joined);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 async function updateInstitution(
   input: UpdateInstitutionInput,
 ): Promise<InstitutionDto> {
   const { id, ...patch } = input;
-  const { data, error } = await supabase
-    .from("institutions")
-    .update(mapInput(patch))
-    .eq("id", requireUuid(id))
-    .select(SELECT)
-    .single();
-  if (error) throwContentError(error);
-  return mapInstitution(data as Joined);
+  mapInput(patch);
+  requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 export type SwapInstitutionOrderInput = {
   first: { id: string; displayOrder: number };
   second: { id: string; displayOrder: number };
 };
 
-async function swapInstitutionOrder(input: SwapInstitutionOrderInput) {
-  const results = await Promise.all([
-    supabase
-      .from("institutions")
-      .update({ display_order: input.second.displayOrder })
-      .eq("id", requireUuid(input.first.id)),
-    supabase
-      .from("institutions")
-      .update({ display_order: input.first.displayOrder })
-      .eq("id", requireUuid(input.second.id)),
-  ]);
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throwContentError(failed.error);
+async function swapInstitutionOrder(
+  input: SwapInstitutionOrderInput,
+): Promise<void> {
+  requireUuid(input.first.id);
+  requireUuid(input.second.id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function deleteInstitution(id: string) {
-  const { data, error } = await supabase
-    .from("institutions")
-    .delete()
-    .eq("id", requireUuid(id))
-    .select("id")
-    .single();
-  if (error) throwContentError(error);
-  return data.id;
+async function deleteInstitution(id: string): Promise<string> {
+  requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function bulkHideInstitutions(ids: string[]) {
-  const normalized = ids.map((id) => requireUuid(id));
-  const { error } = await supabase
-    .from("institutions")
-    .update({ is_active: false })
-    .in("id", normalized);
-  if (error) throwContentError(error);
-  return normalized;
+async function bulkHideInstitutions(ids: string[]): Promise<string[]> {
+  ids.map((id) => requireUuid(id));
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function bulkShowInstitutions(ids: string[]) {
-  const normalized = ids.map((id) => requireUuid(id));
-  const { error } = await supabase
-    .from("institutions")
-    .update({ is_active: true })
-    .in("id", normalized);
-  if (error) throwContentError(error);
-  return normalized;
+async function bulkShowInstitutions(ids: string[]): Promise<string[]> {
+  ids.map((id) => requireUuid(id));
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function bulkDeleteInstitutions(ids: string[]) {
-  const normalized = ids.map((id) => requireUuid(id));
-  const { error } = await supabase
-    .from("institutions")
-    .delete()
-    .in("id", normalized);
-  if (error) throwContentError(error);
-  return normalized;
+async function bulkDeleteInstitutions(ids: string[]): Promise<string[]> {
+  ids.map((id) => requireUuid(id));
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export const createInstitutionMutationOptions = () =>

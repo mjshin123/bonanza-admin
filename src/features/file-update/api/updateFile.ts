@@ -1,19 +1,12 @@
 import { mutationOptions } from "@tanstack/react-query";
-import { mapFile, requireUuid, throwContentError } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
+import { requireUuid, type AdminFileDto } from "@shared/api/content";
 
 export type UpdateFileInput = { id: string; altText: string | null };
-async function updateFile(input: UpdateFileInput) {
+async function updateFile(input: UpdateFileInput): Promise<AdminFileDto> {
   if (input.altText && input.altText.length > 500)
     throw new RangeError("altText는 500자 이하여야 합니다.");
-  const { data, error } = await supabase
-    .from("files")
-    .update({ alt_text: input.altText })
-    .eq("id", requireUuid(input.id))
-    .select("*")
-    .single();
-  if (error) throwContentError(error);
-  return mapFile(data);
+  requireUuid(input.id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 export const updateFileMutationOptions = () =>
   mutationOptions({ mutationKey: ["files", "update"], mutationFn: updateFile });

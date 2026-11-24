@@ -1,17 +1,10 @@
 import { mutationOptions } from "@tanstack/react-query";
 
 import {
-  mapHistoryEntry,
   normalizeHistoryContent,
   type HistoryEntryDto,
 } from "@entities/history-entry";
-import {
-  requireExpectedUpdatedAt,
-  requireUuid,
-  throwContentError,
-} from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
-import type { Tables } from "@shared/api/supabase";
+import { requireExpectedUpdatedAt, requireUuid } from "@shared/api/content";
 
 export type CreateHistoryEntryInput = {
   year: number;
@@ -40,40 +33,25 @@ async function saveHistoryEntry(
   input: CreateHistoryEntryInput | UpdateHistoryEntryInput,
 ): Promise<HistoryEntryDto> {
   const isUpdate = "id" in input;
-  const { data, error } = await supabase.rpc("save_history_entry", {
-    p_content: normalizeHistoryContent(input.content),
-    p_expected_updated_at: isUpdate
-      ? requireExpectedUpdatedAt(input.expectedUpdatedAt)
-      : undefined,
-    p_id: isUpdate ? requireUuid(input.id) : undefined,
-    p_is_visible: input.isVisible ?? true,
-    p_year: normalizeYear(input.year),
-  });
-  if (error) throwContentError(error);
-  return mapHistoryEntry(data as Tables<"history_entries">);
+  normalizeHistoryContent(input.content);
+  if (isUpdate) {
+    requireExpectedUpdatedAt(input.expectedUpdatedAt);
+    requireUuid(input.id);
+  }
+  normalizeYear(input.year);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 async function deleteHistoryEntry(id: string): Promise<string> {
-  const normalizedId = requireUuid(id);
-  const { data, error } = await supabase
-    .from("history_entries")
-    .delete()
-    .eq("id", normalizedId)
-    .select("id")
-    .single();
-  if (error) throwContentError(error);
-  return data.id;
+  requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 async function moveHistoryEntry(
   input: MoveHistoryEntryInput,
 ): Promise<HistoryEntryDto> {
-  const { data, error } = await supabase.rpc("move_history_entry", {
-    p_direction: input.direction,
-    p_id: requireUuid(input.id),
-  });
-  if (error) throwContentError(error);
-  return mapHistoryEntry(data as Tables<"history_entries">);
+  requireUuid(input.id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export const createHistoryEntryMutationOptions = () =>

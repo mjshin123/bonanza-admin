@@ -219,6 +219,7 @@ export function SeminarEventAdmin({
         postId = await createMutation.mutateAsync(initialValues);
         createdPostId = postId;
       }
+      if (!postId) throw new Error("일정 게시물을 만들지 못했습니다.");
 
       for (const pendingImage of editorState.pendingImages) {
         const uploadedImage = await contentImageUploadMutation.mutateAsync({

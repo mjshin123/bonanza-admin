@@ -5,9 +5,17 @@ type ModalProps = {
   onClose: () => void;
   title?: string;
   children: ReactNode;
+  /** 안쪽 여백을 줄이고 닫기 버튼을 제목과 같은 줄에 둔다. */
+  compact?: boolean;
 };
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  compact = false,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -45,44 +53,89 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
           borderRadius: "var(--r-md)",
           background: "var(--bg)",
           boxShadow: "var(--shadow)",
-          padding: "var(--sp-8)",
+          padding: compact ? "var(--sp-5) var(--sp-6)" : "var(--sp-8)",
         }}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="닫기"
-          style={{
-            position: "absolute",
-            top: "var(--sp-5)",
-            right: "var(--sp-5)",
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            border: 0,
-            background: "transparent",
-            color: "var(--text-muted)",
-            fontSize: 20,
-            lineHeight: 1,
-            cursor: "pointer",
-          }}
-        >
-          ×
-        </button>
-        {title ? (
-          <h3
+        {compact ? (
+          <div
             style={{
-              fontSize: "var(--text-h3)",
-              lineHeight: "30px",
-              fontWeight: "var(--fw-bold)",
-              color: "var(--ink)",
-              paddingRight: "var(--sp-7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "var(--sp-3)",
             }}
           >
-            {title}
-          </h3>
-        ) : null}
-        <div style={{ paddingTop: title ? "var(--sp-4)" : 0 }}>{children}</div>
+            {title ? (
+              <h3
+                style={{
+                  fontSize: "var(--text-h4)",
+                  lineHeight: "28px",
+                  fontWeight: "var(--fw-bold)",
+                  color: "var(--ink)",
+                }}
+              >
+                {title}
+              </h3>
+            ) : null}
+                <button
+              type="button"
+              onClick={onClose}
+              aria-label="닫기"
+              style={{
+                flexShrink: 0,
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                border: 0,
+                background: "transparent",
+                color: "var(--text-muted)",
+                fontSize: 20,
+                lineHeight: 1,
+                cursor: "pointer",
+              }}
+            >
+              ×
+            </button>
+              </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="닫기"
+              style={{
+                position: "absolute",
+                top: "var(--sp-5)",
+                right: "var(--sp-5)",
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                border: 0,
+                background: "transparent",
+                color: "var(--text-muted)",
+                fontSize: 20,
+                lineHeight: 1,
+                cursor: "pointer",
+              }}
+            >
+              ×
+            </button>
+                {title ? (
+              <h3
+                style={{
+                  fontSize: "var(--text-h3)",
+                  lineHeight: "30px",
+                  fontWeight: "var(--fw-bold)",
+                  color: "var(--ink)",
+                  paddingRight: "var(--sp-7)",
+                }}
+              >
+                {title}
+              </h3>
+            ) : null}
+              </>
+        )}
+        <div style={{ paddingTop: title ? (compact ? "var(--sp-3)" : "var(--sp-4)") : 0 }}>{children}</div>
       </div>
     </div>
   );

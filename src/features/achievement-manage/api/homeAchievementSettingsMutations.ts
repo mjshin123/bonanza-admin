@@ -1,8 +1,5 @@
 import { mutationOptions } from "@tanstack/react-query";
 
-import { throwContentError } from "@shared/api/content";
-import { supabase, type Json } from "@shared/api/supabase";
-
 export type UpdateHomeAchievementSettingsInput = {
   isAutoSync: boolean;
   metricOverrides: Record<string, { displayValue: string; displayValueEn: string }>;
@@ -16,17 +13,12 @@ const requireText = (value: string, field: string) => {
   return normalized;
 };
 
-async function updateHomeAchievementSettings(input: UpdateHomeAchievementSettingsInput) {
-  const { error } = await supabase
-    .from("achievement_home_settings")
-    .update({
-      is_auto_sync: input.isAutoSync,
-      metric_overrides: input.metricOverrides as Json,
-      source: requireText(input.source, "기준(한글)"),
-      source_en: requireText(input.sourceEn, "기준(영문)"),
-    })
-    .eq("id", true);
-  if (error) throwContentError(error);
+async function updateHomeAchievementSettings(
+  input: UpdateHomeAchievementSettingsInput,
+): Promise<void> {
+  requireText(input.source, "기준(한글)");
+  requireText(input.sourceEn, "기준(영문)");
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export const updateHomeAchievementSettingsMutationOptions = () =>

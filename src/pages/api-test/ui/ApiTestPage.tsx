@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -6,11 +6,12 @@ import {
   adminSignInMutationOptions,
   adminSignOutMutationOptions,
   useAdminSession,
+  type AdminUser,
 } from "@features/admin-auth";
 import type { PostCategory } from "@shared/api/content";
 import bonanzaFactoryLogo from "@shared/assets/logo/bonanza-factory-logo-horizontal.png";
-import { getErrorMessage } from "@shared/lib";
-import { Button, Card, Input, Notice } from "@shared/ui";
+import { getErrorMessage, useEditorDirty } from "@shared/lib";
+import { Button, Card, Input, Notice, UnsavedChangesModal } from "@shared/ui";
 import { AnalyticsDashboard } from "@widgets/analytics-dashboard";
 import {
   AchievementSection,
@@ -81,6 +82,11 @@ const NAV_ITEMS: Array<{
   },
 ];
 
+const manualLoginSkipUser: AdminUser = {
+  id: "manual-skip-admin",
+  email: "test-skip@local.bypass",
+};
+
 type MenuIconName = (typeof NAV_ITEMS)[number]["icon"];
 
 function MenuIcon({ name }: { name: MenuIconName }) {
@@ -137,9 +143,11 @@ function MenuIcon({ name }: { name: MenuIconName }) {
 function LoginScreen({
   sessionError,
   isSessionLoading,
+  onSkipLogin,
 }: {
   isSessionLoading: boolean;
   sessionError: Error | null;
+  onSkipLogin: () => void;
 }) {
   const signInMutation = useMutation(adminSignInMutationOptions());
   const [email, setEmail] = useState("");
@@ -207,6 +215,19 @@ function LoginScreen({
             </Notice>
           ) : null}
         </Card>
+        <Notice
+          tone="warning"
+          title="테스트 환경"
+          style={{ width: "100%" }}
+          action={
+            <Button size="sm" variant="secondary" onClick={onSkipLogin}>
+              테스트용 로그인 건너뛰기
+            </Button>
+          }
+        >
+          실제 계정 없이 운영 화면을 확인하려면 아래 버튼으로 로그인을
+          건너뛸 수 있습니다. 테스트 목적으로만 사용하세요.
+        </Notice>
       </div>
     </main>
   );
@@ -220,6 +241,8 @@ function Workspace({
   onOpenIdConsumed,
   onTabChange,
   onDetailOpenChange,
+  onOrderDirtyChange,
+  confirmLeave,
   postListNavigationId,
 }: {
   section: AdminSection;
@@ -229,12 +252,14 @@ function Workspace({
   onOpenIdConsumed: () => void;
   onTabChange: (tab: string) => void;
   onDetailOpenChange: (isOpen: boolean) => void;
+  onOrderDirtyChange: (isDirty: boolean) => void;
+  confirmLeave: (action: () => void) => void;
   postListNavigationId: number;
 }) {
   if (section === "dashboard") return <AnalyticsDashboard />;
   if (section === "achievements") return <AchievementSection initialTab={tab === "home" ? "home" : "company"} onTabChange={onTabChange} />;
   if (section === "awards") return <AwardSection onEditorOpenChange={onDetailOpenChange} />;
-  if (section === "institutions") return <InstitutionSection key={tab} initialTab={tab === "partner" ? "partner" : "member"} onEditorOpenChange={onDetailOpenChange} onTabChange={onTabChange} />;
+  if (section === "institutions") return <InstitutionSection key={tab} initialTab={tab === "partner" ? "partner" : "member"} onEditorOpenChange={onDetailOpenChange} onTabChange={onTabChange} onOrderDirtyChange={onOrderDirtyChange} confirmLeave={confirmLeave} />;
   if (section === "posts")
     return (
       <PostSection
@@ -247,7 +272,7 @@ function Workspace({
       />
     );
   if (section === "privacy-policies") return <PrivacyPolicySection onEditorOpenChange={onDetailOpenChange} />;
-  if (section === "history") return <HistorySection initialTab={tab === "featured" ? "featured" : "all"} onEditorOpenChange={onDetailOpenChange} onTabChange={onTabChange} />;
+  if (section === "history") return <HistorySection initialTab={tab === "featured" ? "featured" : "all"} onEditorOpenChange={onDetailOpenChange} onTabChange={onTabChange} onOrderDirtyChange={onOrderDirtyChange} confirmLeave={confirmLeave} />;
   return <AnalyticsDashboard />;
 }
 
@@ -256,7 +281,22 @@ export function ApiTestPage() {
   const search = useSearch({ from: "/" });
   const session = useAdminSession();
   const signOutMutation = useMutation(adminSignOutMutationOptions());
-  const [isDetailOpen, setDetailOpen] = useState(false);
+  const [isLoginSkipped, setLoginSkipped] = useState(false);
+  const [, setDetailOpen] = useState(false);
+  const [isOrderDirty, setOrderDirty] = useState(false);
+  const isEditorDirty = useEditorDirty();
+  const hasUnsaved = isOrderDirty || isEditorDirty;
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasUnsaved]);
+  const confirmLeave = (action: () => void) => {
+    if (hasUnsaved) setPendingLeave(() => action);
+    else action();
+  };
   const [postListNavigationId, setPostListNavigationId] = useState(0);
   const section = search.section ?? "dashboard";
   const activeNavItem = NAV_ITEMS.find((item) => item.section === section);
@@ -271,19 +311,27 @@ export function ApiTestPage() {
     });
   };
   const syncTab = (tab: string) => void navigate({ search: (prev) => ({ ...prev, tab }) });
-  const navigateMenu = (nextSection: AdminSection, nextTab?: string) => {
-    if (isDetailOpen && !window.confirm("작성 중인 내용이 저장되지 않을 수 있습니다. 목록으로 이동할까요?")) return;
+  const navigateMenu = (nextSection: AdminSection, nextTab?: string) => confirmLeave(() => {
     setDetailOpen(false);
     setPostListNavigationId((current) => current + 1);
     void navigate({ search: { section: nextSection, tab: nextTab } });
-  };
-  if (!session.user)
+  });
+  if (!session.user && !isLoginSkipped)
     return (
       <LoginScreen
         isSessionLoading={session.isLoading}
         sessionError={session.error}
+        onSkipLogin={() => setLoginSkipped(true)}
       />
     );
+  const currentUser = session.user ?? manualLoginSkipUser;
+  const handleSignOut = () => {
+    if (isLoginSkipped) {
+      setLoginSkipped(false);
+      return;
+    }
+    signOutMutation.mutate();
+  };
   return (
     <main className="api-admin-page">
       <div className="api-admin-frame">
@@ -292,7 +340,6 @@ export function ApiTestPage() {
             <img src={bonanzaFactoryLogo} alt="Bonanza Factory" />
           </div>
           <div className="api-admin-sidebar-navigation">
-            <p>CONTENT MANAGEMENT</p>
             <nav>
               {NAV_ITEMS.map((item) => (
                 <div className="api-admin-nav-group" key={item.section}>
@@ -309,7 +356,7 @@ export function ApiTestPage() {
               B
             </span>
             <div className="api-admin-account-copy">
-              <strong>{session.user.email ?? session.user.id}</strong>
+              <strong>{currentUser.email ?? currentUser.id}</strong>
               <span>관리자 계정</span>
             </div>
             <Button
@@ -317,7 +364,7 @@ export function ApiTestPage() {
               size="sm"
               style={{ fontSize: "11px" }}
               variant="text"
-              onClick={() => signOutMutation.mutate()}
+              onClick={handleSignOut}
             >
               {signOutMutation.isPending ? "처리 중" : "로그아웃"}
             </Button>
@@ -332,13 +379,13 @@ export function ApiTestPage() {
                 <strong>{activeNavItem?.label ?? "관리자"}</strong>
               </p>
               <div className="api-admin-mobile-account">
-                <span>{session.user.email ?? session.user.id}</span>
+                <span>{currentUser.email ?? currentUser.id}</span>
                 <Button
                   disabled={signOutMutation.isPending}
                   size="sm"
                   style={{ fontSize: "11px" }}
                   variant="text"
-                  onClick={() => signOutMutation.mutate()}
+                  onClick={handleSignOut}
                 >
                   로그아웃
                 </Button>
@@ -360,11 +407,28 @@ export function ApiTestPage() {
               onOpenIdConsumed={clearOpenId}
               onTabChange={syncTab}
               onDetailOpenChange={setDetailOpen}
+              onOrderDirtyChange={setOrderDirty}
+              confirmLeave={confirmLeave}
               postListNavigationId={postListNavigationId}
             />
           </div>
         </div>
       </div>
+      <UnsavedChangesModal
+        open={pendingLeave !== null}
+        message={
+          isEditorDirty
+            ? "작성 중인 내용을 저장하지 않고 이동하면 입력한 내용이 사라집니다. 이동하시겠습니까?"
+            : undefined
+        }
+        onStay={() => setPendingLeave(null)}
+        onLeave={() => {
+          const action = pendingLeave;
+          setPendingLeave(null);
+          setOrderDirty(false);
+          action?.();
+        }}
+      />
     </main>
   );
 }

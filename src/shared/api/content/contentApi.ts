@@ -16,7 +16,8 @@ export type ResourceCategory =
   | "business_plan_budget"
   | "donation_usage"
   | "annual_report";
-export type PostFileRole = "cover" | "content";
+/** 홍보영상은 언어별 영상 파일을 별도 역할로 전달한다. */
+export type PostFileRole = "cover" | "content" | "video_ko" | "video_en";
 export type SeminarTiming = "all" | "upcoming" | "past";
 
 export type PageParams = { page?: number; pageSize?: number };
@@ -279,7 +280,8 @@ export function throwContentError(error: unknown): never {
   throw error;
 }
 
-export const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true";
+/** 백엔드 API가 연결되기 전까지 모든 화면은 즉시 로컬 데이터를 표시한다. */
+export const isDemoMode = true;
 
 export const CONTENT_QUERY_OPTIONS = {
   staleTime: 30_000,

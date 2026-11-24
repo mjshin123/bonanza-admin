@@ -1,13 +1,9 @@
 import { mutationOptions } from "@tanstack/react-query";
 
 import {
-  ContentApiError,
-  mapFile,
-  throwContentError,
   type AdminFileDto,
   type FileKind,
 } from "@shared/api/content";
-import { PUBLIC_ASSETS_BUCKET, supabase } from "@shared/api/supabase";
 
 export type UploadFileInput = {
   file: File;
@@ -46,49 +42,28 @@ async function uploadFile(input: UploadFileInput): Promise<AdminFileDto> {
     throw new TypeError("동영상 MIME 파일만 업로드할 수 있습니다.");
 
   const fileId = crypto.randomUUID();
-  const now = new Date();
-  const storagePath = `assets/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${fileId}/${crypto.randomUUID()}.${extensionOf(input.file.name)}`;
+  const storagePath = `local/${fileId}.${extensionOf(input.file.name)}`;
   let dimensions: { width: number; height: number } | null = null;
   if (input.fileKind === "image")
     dimensions = await imageDimensions(input.file);
 
-  const upload = await supabase.storage
-    .from(PUBLIC_ASSETS_BUCKET)
-    .upload(storagePath, input.file, {
-      contentType: input.file.type || "application/octet-stream",
-      upsert: false,
-    });
-  if (upload.error) throw upload.error;
-  const { data, error } = await supabase
-    .from("files")
-    .insert({
-      id: fileId,
-      file_kind: input.fileKind,
-      bucket_name: PUBLIC_ASSETS_BUCKET,
-      storage_path: storagePath,
-      original_name: input.file.name,
-      mime_type: input.file.type || "application/octet-stream",
-      size_bytes: input.file.size,
-      width_px: dimensions?.width ?? null,
-      height_px: dimensions?.height ?? null,
-      alt_text: input.altText ?? null,
-    })
-    .select("*")
-    .single();
-  if (error) {
-    const cleanup = await supabase.storage
-      .from(PUBLIC_ASSETS_BUCKET)
-      .remove([storagePath]);
-    if (cleanup.error) {
-      throw new ContentApiError(
-        "STORAGE_CLEANUP_REQUIRED",
-        "파일 메타데이터 등록과 업로드 객체 정리에 모두 실패했습니다.",
-        { database: error, storage: cleanup.error },
-      );
-    }
-    throwContentError(error);
-  }
-  return mapFile(data);
+  const now = new Date().toISOString();
+  return {
+    id: fileId,
+    fileKind: input.fileKind,
+    originalName: input.file.name,
+    mimeType: input.file.type || "application/octet-stream",
+    sizeBytes: input.file.size,
+    widthPx: dimensions?.width ?? null,
+    heightPx: dimensions?.height ?? null,
+    altText: input.altText ?? null,
+    url: URL.createObjectURL(input.file),
+    bucketName: "local",
+    storagePath,
+    uploadedBy: null,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 export const uploadFileMutationOptions = () =>

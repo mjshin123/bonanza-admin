@@ -193,13 +193,21 @@
   gap: var(--sp-7);
 }
 .content-admin-editor-heading h2 {
-  color: var(--navy-600);
+  color: var(--text-strong);
 }
 .content-admin-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); }
 .content-admin-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-5);
+}
+.content-admin-common-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-5);
+  margin-inline: calc(-1 * var(--editor-pad));
+  padding: var(--sp-5) var(--editor-pad) 0;
+  border-top: 1px solid var(--border);
 }
 .content-admin-field {
   display: flex;
@@ -208,6 +216,7 @@
   gap: var(--sp-2);
 }
 .content-admin-field.is-wide,
+.content-admin-common-fields,
 .content-admin-form-actions,
 .content-admin-form > .notice {
   grid-column: 1/-1;
@@ -290,7 +299,8 @@
 .content-admin-form-actions {
   display: flex;
   justify-content: flex-end;
-  padding-top: var(--sp-3);
+  margin-inline: calc(-1 * var(--editor-pad, 0px));
+  padding: var(--sp-3) var(--editor-pad, 0px) 0;
   border-top: 1px solid var(--border);
   gap: var(--sp-3);
 }
@@ -720,7 +730,7 @@
 }
 .achievement-highlight-item {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: auto 28px minmax(0, 1fr) auto;
   gap: var(--sp-4);
   align-items: start;
   padding: var(--sp-4);
@@ -859,9 +869,17 @@
   display: grid;
   gap: var(--sp-2);
 }
+.history-v2-select-all {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
 .history-v2-list article {
   display: grid;
-  grid-template-columns: 100px minmax(0, 1fr) auto;
+  align-items: start;
+  grid-template-columns: auto 100px minmax(0, 1fr) auto;
   gap: var(--sp-3);
   padding: var(--sp-4);
   border: 1px solid var(--border);
@@ -929,9 +947,13 @@
     grid-template-columns: 1fr;
   }
   .content-admin-field.is-wide,
+  .content-admin-common-fields,
   .content-admin-form-actions,
   .content-admin-form > .notice {
     grid-column: auto;
+  }
+  .content-admin-common-fields {
+    grid-template-columns: 1fr;
   }
   .achievement-grid {
     grid-template-columns: 1fr;
@@ -946,4 +968,48 @@
   .achievement-highlight-item > div:last-child {
     justify-content: flex-start;
   }
+}
+
+.content-admin-audit-info {
+  grid-column: 1/-1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-6);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+.content-admin-audit-info > div {
+  display: flex;
+  gap: var(--sp-2);
+}
+.content-admin-audit-info dt {
+  font-weight: var(--fw-semibold);
+}
+.content-admin-audit-info dd {
+  margin: 0;
+}
+.content-admin-author {
+  color: var(--text-body);
+  font-size: var(--text-body-sm);
+}
+
+.content-admin-page-guide {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-subtle);
+  font-size: var(--text-body-sm);
+}
+.content-admin-page-guide > strong {
+  flex-shrink: 0;
+  color: var(--primary);
+  font-weight: var(--fw-semibold);
+}
+.content-admin-page-guide > p {
+  margin: 0;
+  color: var(--text-body);
 }

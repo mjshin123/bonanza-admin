@@ -140,6 +140,7 @@ describe("목록 RPC DTO 매핑", () => {
     const result = mapContentPostListRow(
       {
         category: "member_news",
+        affiliate: null,
         cover: FILE_JSON,
         created_at: NOW,
         id: ID,
@@ -159,6 +160,7 @@ describe("목록 RPC DTO 매핑", () => {
       false,
     );
     expect(result.institution?.name).toBe("회원사");
+    expect(result.affiliate).toBeNull();
     expect(result.cover?.originalName).toBe("cover.png");
     expect(result).not.toHaveProperty("status");
   });

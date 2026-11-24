@@ -19,8 +19,9 @@ import {
   createContentPostMutationOptions,
   updateContentPostMutationOptions,
 } from "@features/post-manage";
-import { isDemoMode as isGlobalDemoMode, type ContentStatus, type FileDto, type PostCategory } from "@shared/api/content";
-import { Button, Input, Notice } from "@shared/ui";
+import { isDemoMode as isGlobalDemoMode, type ContentStatus, type FileDto, type PostCategory, type PostFileRole } from "@shared/api/content";
+import { lastEditorLogin } from "@shared/lib";
+import { BulkActionBar, Button, Input, confirmDialog, alertDialog } from "@shared/ui";
 
 import {
   endOfDayIso,
@@ -33,20 +34,7 @@ import {
   useBackNavCloses,
   useDebouncedValue,
 } from "../model/adminContent";
-import {
-  Checkbox,
-  EditorCard,
-  Field,
-  FileUpload,
-  FilterBar,
-  MutationMessage,
-  NativeSelect,
-  Pager,
-  SectionTabs,
-  SectionTitle,
-  StatusBadge,
-  TableShell,
-} from "./AdminCommon";
+import { PageGuide, Checkbox, EditorCard, Field, FileUpload, FilterBar, MutationMessage, NativeSelect, Pager, SectionTabs, SectionTitle, StatusBadge, TableShell, DemoNotice } from "./AdminCommon";
 
 const EMPTY_ID = "00000000-0000-4000-8000-000000000000";
 const CATEGORIES: Array<{ value: PostCategory; label: string }> = [
@@ -58,6 +46,7 @@ const AFFILIATES = ["보난자팩토리", "트라버스", "보난자랩", "플�
 
 type SelectedPostFile = {
   file: FileDto;
+  role: PostFileRole;
   showInGallery: boolean;
 };
 type PostFormState = {
@@ -75,6 +64,7 @@ type PostFormState = {
 const demoPosts: AdminContentPostListItem[] = [
   {
     id: "demo-notice-privacy",
+    affiliate: null,
     category: "notice",
     title: "개인정보처리방침 개정 안내 (시행 2026.07.15)",
     institution: null,
@@ -82,11 +72,14 @@ const demoPosts: AdminContentPostListItem[] = [
     isPinned: true,
     publishedAt: "2026-06-30T00:00:00.000Z",
     status: "published",
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-10-10T01:20:00.000Z",
+    updatedAt: "2026-11-10T05:40:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-notice-service",
+    affiliate: null,
     category: "notice",
     title: "서비스 정기 점검에 따른 일시 중단 안내",
     institution: null,
@@ -94,11 +87,14 @@ const demoPosts: AdminContentPostListItem[] = [
     isPinned: false,
     publishedAt: "2026-06-10T00:00:00.000Z",
     status: "published",
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-10-11T01:20:00.000Z",
+    updatedAt: "2026-11-11T05:40:00.000Z",
+    createdByLogin: "mjshin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-notice-recruit",
+    affiliate: null,
     category: "notice",
     title: "2026년 상반기 채용 공고 안내",
     institution: null,
@@ -106,11 +102,14 @@ const demoPosts: AdminContentPostListItem[] = [
     isPinned: false,
     publishedAt: "2026-05-20T00:00:00.000Z",
     status: "published",
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-10-12T01:20:00.000Z",
+    updatedAt: "2026-11-12T05:40:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-press-series-a",
+    affiliate: "보난자팩토리",
     category: "association_news",
     title: "보난자팩토리, 시리즈A 투자 유치로 컴플라이언스 사업 확대",
     institution: null,
@@ -118,11 +117,14 @@ const demoPosts: AdminContentPostListItem[] = [
     isPinned: true,
     publishedAt: "2026-06-24T00:00:00.000Z",
     status: "published",
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-10-13T01:20:00.000Z",
+    updatedAt: "2026-11-13T05:40:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "mjshin",
   },
   {
     id: "demo-press-unicorn",
+    affiliate: "보난자랩",
     category: "association_news",
     title: "아기유니콘 200 기업 선정, 기술 경쟁력 인정받아",
     institution: null,
@@ -130,11 +132,14 @@ const demoPosts: AdminContentPostListItem[] = [
     isPinned: false,
     publishedAt: "2026-05-12T00:00:00.000Z",
     status: "published",
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-10-14T01:20:00.000Z",
+    updatedAt: "2026-11-14T05:40:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-press-partnership",
+    affiliate: "트라버스",
     category: "association_news",
     title: "국내 주요 거래소와 이상거래 탐지 협력 체결",
     institution: null,
@@ -142,11 +147,14 @@ const demoPosts: AdminContentPostListItem[] = [
     isPinned: false,
     publishedAt: "2026-04-03T00:00:00.000Z",
     status: "published",
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-10-15T01:20:00.000Z",
+    updatedAt: "2026-11-15T05:40:00.000Z",
+    createdByLogin: "mjshin",
+    updatedByLogin: "mjshin",
   },
   {
     id: "demo-promotion-video-intro",
+    affiliate: null,
     category: "promotion_video",
     title: "보난자팩토리 브랜드 필름",
     institution: null,
@@ -154,8 +162,10 @@ const demoPosts: AdminContentPostListItem[] = [
     isPinned: false,
     publishedAt: "2026-06-18T00:00:00.000Z",
     status: "published",
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-10-16T01:20:00.000Z",
+    updatedAt: "2026-11-16T05:40:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "admin",
   },
 ];
 
@@ -180,22 +190,35 @@ function PinnedIcon() {
   );
 }
 
+const POST_GUIDES: Partial<Record<PostCategory, string>> = {
+  association_news:
+    "뉴스룸 > 보도자료(/press) 목록과 상세 페이지, 그리고 메인 화면 하단 뉴스 영역에 노출됩니다.",
+  notice:
+    "뉴스룸 > 공지사항(/notice) 목록과 상세 페이지, 그리고 메인 화면 하단 뉴스 영역에 노출됩니다.",
+  promotion_video:
+    "뉴스룸 > 홍보·영상(/promotion-video) 목록과 영상 상세 페이지에 노출됩니다.",
+};
+
 function PostEditor({
   category,
   editingId,
+  demoItem,
   onClose,
 }: {
   category: PostCategory;
   editingId: string | null;
+  demoItem?: AdminContentPostListItem | null;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
   const detailQuery = useQuery({
-    ...adminPostDetailQueryOptions(editingId ?? EMPTY_ID),
-    enabled: Boolean(editingId),
+    ...adminPostDetailQueryOptions(demoItem ? EMPTY_ID : (editingId ?? EMPTY_ID)),
+    enabled: Boolean(editingId) && !demoItem,
   });
   const effectiveCategory =
-    editingId && detailQuery.data ? detailQuery.data.category : category;
+    editingId && detailQuery.data
+      ? detailQuery.data.category
+      : demoItem?.category ?? category;
   const isPromotionVideo = effectiveCategory === "promotion_video";
   const createMutation = useMutation(createContentPostMutationOptions());
   const updateMutation = useMutation(updateContentPostMutationOptions());
@@ -226,12 +249,25 @@ function PostEditor({
     ? Boolean(form.titleEn.trim())
     : Boolean(form.titleEn.trim()) && hasMeaningfulPostContent(form.contentEn);
   const hasAnyPost = isPromotionVideo
-    ? files.length > 0 && (hasKoreanPost || hasEnglishPost)
+    ? files.some(
+        (entry) => entry.role === "video_ko" || entry.role === "video_en",
+      ) && (hasKoreanPost || hasEnglishPost)
     : hasKoreanPost || hasEnglishPost;
   const changeLocale = (nextLocale: "ko" | "en") => {
     setLocale(nextLocale);
     setVisitedLocales((current) => new Set([...current, nextLocale]));
   };
+
+  useEffect(() => {
+    if (!demoItem) return;
+    setForm((current) => ({
+      ...current,
+      title: demoItem.title,
+      isPinned: demoItem.isPinned,
+      publishedAt: toDateTimeLocal(demoItem.publishedAt ?? new Date().toISOString()),
+      affiliate: demoItem.affiliate ?? "",
+    }));
+  }, [demoItem]);
 
   useEffect(() => {
     const item = detailQuery.data;
@@ -245,11 +281,12 @@ function PostEditor({
       sourceUrl: item.sourceUrl ?? "",
       titleEn: "",
       contentEn: "",
-      affiliate: "",
+      affiliate: item.affiliate ?? "",
     });
     setFiles(
       item.files.map((entry: PostFileDto) => ({
         file: entry.file,
+        role: entry.role,
         showInGallery: entry.showInGallery,
       })),
     );
@@ -259,6 +296,10 @@ function PostEditor({
     event.preventDefault();
 
     if (submittingRef.current) return;
+    if (demoItem) {
+      void alertDialog("데모 데이터는 저장되지 않습니다. 화면 확인용으로만 열람할 수 있습니다.");
+      return;
+    }
 
     if (!hasAnyPost) {
       setContentError(
@@ -284,14 +325,17 @@ function PostEditor({
     if (
       status === "published" &&
       !hasEnglishPost &&
-      !window.confirm(
+      !(await confirmDialog(
         "영문 내용을 작성하지 않으면 홈페이지에서 언어를 변경해도 영문 콘텐츠가 적용되지 않습니다. 그래도 게시할까요?",
-      )
+        { confirmLabel: "게시" },
+      ))
     ) {
       submittingRef.current = false;
       return;
     }
     const input = {
+      affiliate:
+        effectiveCategory === "association_news" ? form.affiliate : null,
       category: effectiveCategory,
       title: form.title.trim() || form.titleEn.trim(),
       content: isPromotionVideo
@@ -307,7 +351,11 @@ function PostEditor({
       contentEn: isPromotionVideo ? null : sanitizePostContent(form.contentEn),
       files: files.map((entry, index) => ({
         fileId: entry.file.id,
-        role: index === 0 ? ("cover" as const) : ("content" as const),
+        role: isPromotionVideo
+          ? entry.role
+          : index === 0
+            ? ("cover" as const)
+            : ("content" as const),
         showInGallery: entry.showInGallery,
       })),
     };
@@ -330,7 +378,7 @@ function PostEditor({
     }
   };
 
-  if (editingId && detailQuery.isPending)
+  if (editingId && !demoItem && detailQuery.isPending)
     return (
       <TableShell isLoading error={null} isEmpty={false} emptyMessage="">
         {null}
@@ -343,7 +391,8 @@ function PostEditor({
   return (
     <EditorCard
       title={editingId ? `${categoryLabel} 수정` : `${categoryLabel} 등록`}
-      description={isPromotionVideo ? "한글과 영문 제목·소개글을 각각 작성할 수 있습니다. 영상과 업로드 날짜는 공통입니다." : "한글과 영문 콘텐츠를 각각 작성할 수 있습니다. 영문은 선택 사항입니다."}
+      description={isPromotionVideo ? "한글과 영문 제목, 영상을 각각 작성할 수 있습니다. 영상은 한 언어만 등록해도 됩니다." : "한글과 영문 콘텐츠를 각각 작성할 수 있습니다. 영문은 선택 사항입니다."}
+      audit={detailQuery.data ?? demoItem}
       headerAction={<SectionTabs value={locale} items={[{ value: "ko", label: "한글" }, { value: "en", label: "영문" }]} onChange={(value) => changeLocale(value as "ko" | "en")} />}
       onSubmit={(event) => void submit(event)}
     >
@@ -355,7 +404,27 @@ function PostEditor({
           onChange={(event) => setForm({ ...form, [locale === "ko" ? "title" : "titleEn"]: event.target.value })}
         />
       </Field>
-      {locale === "ko" && isPromotionVideo ? <>
+      {isPromotionVideo ? <>
+      <Field label={locale === "ko" ? "한글용 동영상" : "영문용 동영상"} wide hint="선택 사항입니다. 다른 언어 영상만 등록해도 됩니다. 최대 50 MiB까지 등록할 수 있습니다.">
+        <FileUpload
+          accept="video/*"
+          fileKind="video"
+          label={files.some((entry) => entry.role === (locale === "ko" ? "video_ko" : "video_en")) ? "동영상 변경" : "동영상 업로드"}
+          onUploaded={(uploaded) => {
+            const video = uploaded[0];
+            if (!video) return;
+            setContentError(null);
+            const role = locale === "ko" ? "video_ko" : "video_en";
+            setFiles((current) => [
+              ...current.filter((entry) => entry.role !== role),
+              { file: video, role, showInGallery: false },
+            ]);
+          }}
+        />
+        {files.filter((entry) => entry.role === (locale === "ko" ? "video_ko" : "video_en")).map((entry) => <div className="content-admin-file-list" key={entry.file.id}><div className="content-admin-file-row"><video className="content-admin-video-preview" controls src={entry.file.url} /><div><strong>{entry.file.originalName}</strong><small>{Math.ceil(entry.file.sizeBytes / 1024 / 1024)} MiB</small></div><Button size="sm" type="button" variant="text" onClick={() => setFiles((current) => current.filter((candidate) => candidate.role !== entry.role))}>제외</Button></div></div>)}
+      </Field>
+      {contentError ? <small className="content-admin-field-error">{contentError}</small> : null}
+      <div className="content-admin-common-fields">
       <Field
         label="업로드 날짜"
         required
@@ -369,33 +438,25 @@ function PostEditor({
           onChange={(event) => setForm({ ...form, publishedAt: event.target.value })}
         />
       </Field>
-      <Field label="동영상" required wide hint="동영상 파일 1개를 업로드하세요. 최대 50 MiB까지 등록할 수 있습니다.">
-        <FileUpload
-          accept="video/*"
-          fileKind="video"
-          label={files.length ? "동영상 변경" : "동영상 업로드"}
-          onUploaded={(uploaded) => {
-            const video = uploaded[0];
-            if (!video) return;
-            setContentError(null);
-            setFiles([{ file: video, showInGallery: false }]);
-          }}
-        />
-        {files[0] ? <div className="content-admin-file-list"><div className="content-admin-file-row"><video className="content-admin-video-preview" controls src={files[0].file.url} /><div><strong>{files[0].file.originalName}</strong><small>{Math.ceil(files[0].file.sizeBytes / 1024 / 1024)} MiB</small></div><Button size="sm" type="button" variant="text" onClick={() => setFiles([])}>제외</Button></div></div> : null}
-      </Field>
+      </div>
+      </> : <>
+      {locale === "ko" ? <>
       <div className="content-admin-field is-wide">
         <PostContentEditor
           currentThumbnailPath={null}
           enableImages={false}
-          label="소개글"
-          placeholder="홍보·영상 목록과 상세에 표시할 소개글을 입력하세요. (선택 사항)"
+          error={contentError ?? undefined}
+          label="한글 본문"
           value={form.content}
-          onChange={(content) => setForm((current) => ({ ...current, content }))}
+          onChange={(content) => {
+            setContentError(null);
+            setForm((current) => ({ ...current, content }));
+          }}
           onStateChange={() => {}}
         />
       </div>
-      {contentError ? <small className="content-admin-field-error">{contentError}</small> : null}
-      </> : locale === "ko" ? <>
+      </> : <div className="content-admin-field is-wide"><PostContentEditor currentThumbnailPath={null} enableImages={false} label="영문 본문" placeholder="영문 웹사이트에 표시할 본문을 직접 작성하세요" value={form.contentEn} onChange={(contentEn) => setForm((current) => ({ ...current, contentEn }))} onStateChange={() => {}} /></div>}
+      <div className="content-admin-common-fields">
       {effectiveCategory === "association_news" ? (
         <Field label="계열사" required wide hint="보도자료를 발행한 계열사를 선택하세요.">
           <select
@@ -466,6 +527,7 @@ function PostEditor({
               ...current,
               ...uploaded.map((file) => ({
                 file,
+                role: "content" as const,
                 showInGallery: false,
               })),
             ])
@@ -548,21 +610,8 @@ function PostEditor({
           ))}
         </div>
       </Field>
-      <div className="content-admin-field is-wide">
-        <PostContentEditor
-          currentThumbnailPath={null}
-          enableImages={false}
-          error={contentError ?? undefined}
-          label="한글 본문"
-          value={form.content}
-          onChange={(content) => {
-            setContentError(null);
-            setForm((current) => ({ ...current, content }));
-          }}
-          onStateChange={() => {}}
-        />
       </div>
-      </> : <div className="content-admin-field is-wide"><PostContentEditor currentThumbnailPath={null} enableImages={false} label={isPromotionVideo ? "영문 소개글" : "영문 본문"} placeholder={isPromotionVideo ? "홍보·영상 상세에 표시할 영문 소개글을 입력하세요. (선택 사항)" : "영문 웹사이트에 표시할 본문을 직접 작성하세요"} value={form.contentEn} onChange={(contentEn) => setForm((current) => ({ ...current, contentEn }))} onStateChange={() => {}} /></div>}
+      </>}
       <MutationMessage error={mutation.error} />
       <div className="content-admin-form-actions">
         <Button
@@ -705,7 +754,7 @@ export function PostSection({
   const bulkDeleteMutation = useMutation(bulkDeleteContentPostsMutationOptions());
   const pinMutation = useMutation(bulkSetContentPostPinnedMutationOptions());
   const bulkHide = async () => {
-    if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
+    if (!(await confirmDialog(`선택한 ${selectedIds.size}건을 숨길까요?`, { confirmLabel: "숨김" }))) return;
     if (isDemoMode) {
       setDemoItems((current) =>
         current.map((item) =>
@@ -746,7 +795,7 @@ export function PostSection({
     }
   };
   const bulkDelete = async () => {
-    if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
+    if (!(await confirmDialog(`선택한 ${selectedIds.size}건을 삭제할까요?`, { confirmLabel: "삭제", tone: "danger" }))) return;
     if (isDemoMode) {
       setDemoItems((current) =>
         current.filter((item) => !selectedIds.has(item.id)),
@@ -792,14 +841,20 @@ export function PostSection({
       <PostEditor
         category={category}
         editingId={editingId}
+        demoItem={
+          isDemoMode && editingId
+            ? demoItems.find((item) => item.id === editingId) ?? null
+            : null
+        }
         onClose={closeEditor}
       />
     );
   return (
     <section className="content-admin-section">
+      {POST_GUIDES[category] ? <PageGuide>{POST_GUIDES[category]}</PageGuide> : null}
       <SectionTitle
         title="뉴스룸"
-        description="소식 유형별 게시물과 활동 주체, 대표 이미지를 관리합니다."
+        description="소식 유형별 게시물과 대표 이미지를 관리합니다."
         action={
           <Button onClick={() => setEditorOpen(true)}>
             게시물 등록
@@ -865,17 +920,88 @@ export function PostSection({
           </div>
         </div>
       </FilterBar>
-      {isDemoMode ? (
-        <Notice tone="teal" title="가라 데이터 표시 중">
-          Supabase에 연결할 수 없어 뉴스룸 예시 게시물을 표시합니다. 등록·수정은 불가하지만, 체크박스 일괄 작업은 화면에서 바로 확인할 수 있습니다.
-        </Notice>
-      ) : null}
       <MutationMessage error={bulkDeleteMutation.error} />
       <MutationMessage error={hideMutation.error} />
       <MutationMessage error={showMutation.error} />
       <MutationMessage error={pinMutation.error} />
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        emptyHint="게시글을 숨기거나 삭제하려면 원하는 게시글을 선택해 주세요."
+      >
+          {canShow ? (
+            <Button
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending
+              }
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkShow()}
+            >
+              선택 게시
+            </Button>
+          ) : null}
+          {canHide ? (
+            <Button
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending
+              }
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkHide()}
+            >
+              선택 숨김
+            </Button>
+          ) : null}
+          {canPin ? (
+            <Button
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending ||
+                pinMutation.isPending
+              }
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkSetPinned(true)}
+            >
+              상단 고정
+            </Button>
+          ) : null}
+          {canUnpin ? (
+            <Button
+              disabled={
+                hideMutation.isPending ||
+                showMutation.isPending ||
+                bulkDeleteMutation.isPending ||
+                pinMutation.isPending
+              }
+              size="sm"
+              variant="ghost"
+              onClick={() => void bulkSetPinned(false)}
+            >
+              고정 해제
+            </Button>
+          ) : null}
+          <Button
+            disabled={
+              hideMutation.isPending ||
+              showMutation.isPending ||
+              bulkDeleteMutation.isPending ||
+              pinMutation.isPending
+            }
+            size="sm"
+            variant="danger"
+            onClick={() => void bulkDelete()}
+          >
+            선택 삭제
+          </Button>
+      </BulkActionBar>
       <TableShell
-        isLoading={query.isPending}
+        isLoading={!isDemoMode && query.isPending}
         error={isDemoMode ? null : query.error}
         isEmpty={!items.length}
         emptyMessage="등록된 게시물이 없습니다."
@@ -893,9 +1019,10 @@ export function PostSection({
                 />
               </th>
               <th>제목</th>
-              <th>활동 주체</th>
+              {category === "association_news" ? <th>계열사</th> : null}
               <th>상태</th>
               <th>게시일</th>
+              <th>작성자</th>
               <th aria-label="작업" />
             </tr>
           </thead>
@@ -916,7 +1043,6 @@ export function PostSection({
                 <td>
                   <button
                     className="content-admin-table-title-button"
-                    disabled={isDemoMode}
                     type="button"
                     onClick={() => {
                       setEditingId(item.id);
@@ -938,7 +1064,7 @@ export function PostSection({
                     </div>
                   </button>
                 </td>
-                <td>{item.institution?.name ?? "협회"}</td>
+                {category === "association_news" ? <td>{item.affiliate ?? "-"}</td> : null}
                 <td>
                   <StatusBadge
                     status={item.status}
@@ -946,11 +1072,11 @@ export function PostSection({
                   />
                 </td>
                 <td>{formatDateTime(item.publishedAt)}</td>
+                <td className="content-admin-author">{lastEditorLogin(item) ?? "-"}</td>
                 <td>
                   <div className="content-admin-table-actions">
                     <Button
                       size="sm"
-                      disabled={isDemoMode}
                       variant="ghost"
                       onClick={() => {
                         setEditingId(item.id);
@@ -966,92 +1092,13 @@ export function PostSection({
           </tbody>
         </table>
       </TableShell>
-      {selectedIds.size > 0 ? (
-        <FilterBar>
-          <span className="content-admin-muted">
-            {selectedIds.size}건 선택됨
-          </span>
-          <div className="content-admin-table-actions">
-            {canShow ? (
-              <Button
-                disabled={
-                  hideMutation.isPending ||
-                  showMutation.isPending ||
-                  bulkDeleteMutation.isPending
-                }
-                size="sm"
-                variant="ghost"
-                onClick={() => void bulkShow()}
-              >
-                선택 게시
-              </Button>
-            ) : null}
-            {canHide ? (
-              <Button
-                disabled={
-                  hideMutation.isPending ||
-                  showMutation.isPending ||
-                  bulkDeleteMutation.isPending
-                }
-                size="sm"
-                variant="ghost"
-                onClick={() => void bulkHide()}
-              >
-                선택 숨김
-              </Button>
-            ) : null}
-            {canPin ? (
-              <Button
-                disabled={
-                  hideMutation.isPending ||
-                  showMutation.isPending ||
-                  bulkDeleteMutation.isPending ||
-                  pinMutation.isPending
-                }
-                size="sm"
-                variant="ghost"
-                onClick={() => void bulkSetPinned(true)}
-              >
-                상단 고정
-              </Button>
-            ) : null}
-            {canUnpin ? (
-              <Button
-                disabled={
-                  hideMutation.isPending ||
-                  showMutation.isPending ||
-                  bulkDeleteMutation.isPending ||
-                  pinMutation.isPending
-                }
-                size="sm"
-                variant="ghost"
-                onClick={() => void bulkSetPinned(false)}
-              >
-                고정 해제
-              </Button>
-            ) : null}
-            <Button
-              disabled={
-                hideMutation.isPending ||
-                showMutation.isPending ||
-                bulkDeleteMutation.isPending ||
-                pinMutation.isPending
-              }
-              size="sm"
-              variant="danger"
-              onClick={() => void bulkDelete()}
-            >
-              선택 삭제
-            </Button>
-          </div>
-        </FilterBar>
-      ) : null}
       <Pager
         page={page}
         total={isDemoMode ? items.length : query.data?.total ?? 0}
         totalPages={isDemoMode ? 1 : query.data?.totalPages ?? 0}
         onChange={setPage}
       />
+      {isDemoMode ? <DemoNotice /> : null}
     </section>
   );
 }

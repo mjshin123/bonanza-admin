@@ -2,14 +2,10 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   CONTENT_QUERY_OPTIONS,
-  pageRange,
-  pageResult,
   resolvePageParams,
   type PageParams,
   type PageResult,
 } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
-import type { Tables } from "@shared/api/supabase";
 
 export type HistoryEntryDto = {
   id: string;
@@ -42,20 +38,6 @@ function resolveParams(params: AdminHistoryEntryListParams = {}) {
   };
 }
 
-export function mapHistoryEntry(
-  row: Tables<"history_entries">,
-): HistoryEntryDto {
-  return {
-    id: row.id,
-    year: row.year,
-    content: row.content,
-    position: row.position,
-    isVisible: row.is_visible,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
 export const historyEntryQueryKeys = {
   all: ["history-entries"] as const,
   adminList: (params: ReturnType<typeof resolveParams>) =>
@@ -63,23 +45,9 @@ export const historyEntryQueryKeys = {
 };
 
 async function fetchAdminHistoryEntries(
-  params: ReturnType<typeof resolveParams>,
+  _params: ReturnType<typeof resolveParams>,
 ): Promise<PageResult<HistoryEntryDto>> {
-  const { from, to } = pageRange(params);
-  let query = supabase
-    .from("history_entries")
-    .select("*", { count: "exact" })
-    .order("year", { ascending: false })
-    .order("position")
-    .order("id")
-    .range(from, to);
-  if (params.year !== undefined) query = query.eq("year", params.year);
-  if (params.isVisible !== undefined) {
-    query = query.eq("is_visible", params.isVisible);
-  }
-  const { data, error, count } = await query;
-  if (error) throw error;
-  return pageResult(data.map(mapHistoryEntry), count, params);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export function adminHistoryEntriesQueryOptions(

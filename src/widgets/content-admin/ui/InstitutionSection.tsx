@@ -15,22 +15,11 @@ import {
   updateInstitutionMutationOptions,
 } from "@features/institution-manage";
 import { isDemoMode as isGlobalDemoMode } from "@shared/api/content";
-import { Badge, Button, Input, Notice } from "@shared/ui";
+import { useOrderDraft, lastEditorLogin } from "@shared/lib";
+import { Badge, BulkActionBar, Button, Input, OrderSaveBar, confirmDialog, alertDialog } from "@shared/ui";
 
 import { useDebouncedValue } from "../model/adminContent";
-import {
-  EditorCard,
-  Field,
-  FileUpload,
-  FilterBar,
-  FormActions,
-  MutationMessage,
-  NativeSelect,
-  Pager,
-  SectionTabs,
-  SectionTitle,
-  TableShell,
-} from "./AdminCommon";
+import { PageGuide, EditorCard, Field, FileUpload, FilterBar, FormActions, MutationMessage, NativeSelect, Pager, SectionTabs, SectionTitle, TableShell, DemoNotice } from "./AdminCommon";
 
 const pageSize = 100;
 type InstitutionType = "member" | "partner";
@@ -56,8 +45,10 @@ const demoInstitutions: InstitutionDto[] = [
     logo: null,
     displayOrder: 0,
     isActive: true,
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-09-05T02:00:00.000Z",
+    updatedAt: "2026-11-05T06:10:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-finance-2",
@@ -66,8 +57,10 @@ const demoInstitutions: InstitutionDto[] = [
     logo: null,
     displayOrder: 1,
     isActive: true,
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-09-06T02:00:00.000Z",
+    updatedAt: "2026-11-06T06:10:00.000Z",
+    createdByLogin: "mjshin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-finance-3",
@@ -76,8 +69,10 @@ const demoInstitutions: InstitutionDto[] = [
     logo: null,
     displayOrder: 2,
     isActive: true,
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-09-07T02:00:00.000Z",
+    updatedAt: "2026-11-07T06:10:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "mjshin",
   },
   {
     id: "demo-public-1",
@@ -86,8 +81,10 @@ const demoInstitutions: InstitutionDto[] = [
     logo: null,
     displayOrder: 0,
     isActive: true,
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-09-08T02:00:00.000Z",
+    updatedAt: "2026-11-08T06:10:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "mjshin",
   },
   {
     id: "demo-public-2",
@@ -96,8 +93,10 @@ const demoInstitutions: InstitutionDto[] = [
     logo: null,
     displayOrder: 1,
     isActive: true,
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-09-09T02:00:00.000Z",
+    updatedAt: "2026-11-09T06:10:00.000Z",
+    createdByLogin: "admin",
+    updatedByLogin: "admin",
   },
   {
     id: "demo-public-3",
@@ -106,17 +105,21 @@ const demoInstitutions: InstitutionDto[] = [
     logo: null,
     displayOrder: 2,
     isActive: true,
-    createdAt: "demo",
-    updatedAt: "demo",
+    createdAt: "2026-09-10T02:00:00.000Z",
+    updatedAt: "2026-11-10T06:10:00.000Z",
+    createdByLogin: "mjshin",
+    updatedByLogin: "admin",
   },
 ];
 
 function InstitutionEditor({
   item,
   defaultInstitutionType,
+  demoMode = false,
   onClose,
 }: {
   item: InstitutionDto | null;
+  demoMode?: boolean;
   defaultInstitutionType: InstitutionType;
   onClose: () => void;
 }) {
@@ -141,6 +144,10 @@ function InstitutionEditor({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (demoMode) {
+      void alertDialog("데모 데이터는 저장되지 않습니다. 화면 확인용으로만 열람할 수 있습니다.");
+      return;
+    }
     if (!form.logoFileId) return;
     const input = {
       institutionType: form.institutionType,
@@ -163,6 +170,7 @@ function InstitutionEditor({
     <EditorCard
       title={item ? "기관 로고 수정" : "기관 로고 등록"}
       description="홈페이지 신뢰 네트워크에 노출할 로고를 관리합니다."
+      audit={item}
       onSubmit={(event) => void submit(event)}
     >
       <Field label="노출 줄" required>
@@ -262,8 +270,12 @@ export function InstitutionSection({
   initialTab = "member",
   onEditorOpenChange,
   onTabChange,
+  onOrderDirtyChange,
+  confirmLeave,
 }: {
   initialTab?: InstitutionType;
+  onOrderDirtyChange?: (isDirty: boolean) => void;
+  confirmLeave?: (action: () => void) => void;
   onEditorOpenChange?: (isOpen: boolean) => void;
   onTabChange?: (tab: InstitutionType) => void;
 }) {
@@ -287,16 +299,35 @@ export function InstitutionSection({
     }),
   );
   const demoMode = isGlobalDemoMode || Boolean(institutionsQuery.error);
+  const [demoItems, setDemoItems] = useState(demoInstitutions);
   const sourceItems = demoMode
-    ? demoInstitutions
+    ? demoItems
     : (institutionsQuery.data?.items ?? []);
-  const items = sourceItems.filter(
+  const filteredItems = sourceItems.filter(
     (item) =>
       item.institutionType === tab &&
       (active === "" || String(item.isActive) === active) &&
       (!debouncedQ ||
         item.name.toLocaleLowerCase().includes(debouncedQ.toLocaleLowerCase())),
   );
+  const order = useOrderDraft(
+    demoMode
+      ? [...filteredItems].sort((a, b) => a.displayOrder - b.displayOrder)
+      : filteredItems,
+  );
+  const items = order.items;
+  useEffect(() => {
+    onOrderDirtyChange?.(order.isDirty);
+    return () => onOrderDirtyChange?.(false);
+  }, [order.isDirty, onOrderDirtyChange]);
+  const guard = (action: () => void) => {
+    const run = () => {
+      order.reset();
+      action();
+    };
+    if (order.isDirty && confirmLeave) confirmLeave(run);
+    else run();
+  };
   const orderMutation = useMutation(swapInstitutionOrderMutationOptions());
   const hideMutation = useMutation(bulkHideInstitutionsMutationOptions());
   const showMutation = useMutation(bulkShowInstitutionsMutationOptions());
@@ -318,7 +349,16 @@ export function InstitutionSection({
     });
   };
   const bulkHide = async () => {
-    if (!window.confirm(`선택한 ${selectedIds.size}건을 숨길까요?`)) return;
+    if (!(await confirmDialog(`선택한 ${selectedIds.size}건을 숨길까요?`, { confirmLabel: "숨김" }))) return;
+    if (demoMode) {
+      setDemoItems((current) =>
+        current.map((item) =>
+          selectedIds.has(item.id) ? { ...item, isActive: false } : item,
+        ),
+      );
+      setSelectedIds(new Set());
+      return;
+    }
     try {
       await hideMutation.mutateAsync(Array.from(selectedIds));
       await invalidate();
@@ -328,6 +368,15 @@ export function InstitutionSection({
     }
   };
   const bulkShow = async () => {
+    if (demoMode) {
+      setDemoItems((current) =>
+        current.map((item) =>
+          selectedIds.has(item.id) ? { ...item, isActive: true } : item,
+        ),
+      );
+      setSelectedIds(new Set());
+      return;
+    }
     try {
       await showMutation.mutateAsync(Array.from(selectedIds));
       await invalidate();
@@ -337,7 +386,14 @@ export function InstitutionSection({
     }
   };
   const bulkDelete = async () => {
-    if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
+    if (!(await confirmDialog(`선택한 ${selectedIds.size}건을 삭제할까요?`, { confirmLabel: "삭제", tone: "danger" }))) return;
+    if (demoMode) {
+      setDemoItems((current) =>
+        current.filter((item) => !selectedIds.has(item.id)),
+      );
+      setSelectedIds(new Set());
+      return;
+    }
     try {
       await deleteMutation.mutateAsync(Array.from(selectedIds));
       await invalidate();
@@ -346,16 +402,43 @@ export function InstitutionSection({
       /* 표시 */
     }
   };
-  const moveInstitution = async (item: InstitutionDto, direction: -1 | 1) => {
-    const index = items.findIndex((candidate) => candidate.id === item.id);
-    const target = items[index + direction];
-    if (!target) return;
+  const saveOrder = async () => {
+    const sim = (
+      demoMode
+        ? [...filteredItems].sort((x, y) => x.displayOrder - y.displayOrder)
+        : [...filteredItems]
+    ).map((item) => ({ id: item.id, displayOrder: item.displayOrder }));
     try {
-      await orderMutation.mutateAsync({
-        first: { id: item.id, displayOrder: item.displayOrder },
-        second: { id: target.id, displayOrder: target.displayOrder },
-      });
-      await invalidate();
+      for (const { id, direction } of order.moves) {
+        const index = sim.findIndex((candidate) => candidate.id === id);
+        const target = index + direction;
+        const first = sim[index];
+        const second = sim[target];
+        if (!first || !second) continue;
+        if (!demoMode) {
+          await orderMutation.mutateAsync({
+            first: { id: first.id, displayOrder: first.displayOrder },
+            second: { id: second.id, displayOrder: second.displayOrder },
+          });
+        }
+        [first.displayOrder, second.displayOrder] = [
+          second.displayOrder,
+          first.displayOrder,
+        ];
+        [sim[index], sim[target]] = [second, first];
+      }
+      if (demoMode) {
+        const orders = new Map(sim.map((item) => [item.id, item.displayOrder]));
+        setDemoItems((current) =>
+          current.map((item) => ({
+            ...item,
+            displayOrder: orders.get(item.id) ?? item.displayOrder,
+          })),
+        );
+      } else {
+        await invalidate();
+      }
+      order.reset();
     } catch {
       /* 표시 */
     }
@@ -365,6 +448,7 @@ export function InstitutionSection({
     return (
       <InstitutionEditor
         item={editing}
+        demoMode={demoMode}
         defaultInstitutionType={tab}
         onClose={() => {
           setEditorOpen(false);
@@ -376,6 +460,9 @@ export function InstitutionSection({
 
   return (
     <section className="content-admin-section">
+      <PageGuide>
+        메인 화면의 신뢰 네트워크 영역에서 좌우로 흐르는 기관 로고 배너에 노출됩니다. 금융기관은 첫째 줄, 공공기관/기타는 둘째 줄입니다.
+      </PageGuide>
       <SectionTitle
         title="기관 로고"
         description={`${tab === "member" ? "첫째" : "둘째"} 줄에 표시할 홈페이지 기관 로고를 관리합니다.`}
@@ -392,9 +479,11 @@ export function InstitutionSection({
           { value: "partner", label: "공공기관/기타 · 둘째 줄" },
         ]}
         onChange={(value) => {
-          setTab(value as InstitutionType);
-          onTabChange?.(value as InstitutionType);
-          setPage(1);
+          guard(() => {
+            setTab(value as InstitutionType);
+            onTabChange?.(value as InstitutionType);
+            setPage(1);
+          });
         }}
       />
       <FilterBar>
@@ -403,8 +492,11 @@ export function InstitutionSection({
           placeholder="기관명 검색"
           value={q}
           onChange={(event) => {
-            setQ(event.target.value);
-            setPage(1);
+            const value = event.target.value;
+            guard(() => {
+              setQ(value);
+              setPage(1);
+            });
           }}
         />
         <div className="content-admin-filter-extra">
@@ -412,8 +504,11 @@ export function InstitutionSection({
             aria-label="노출 상태"
             value={active}
             onChange={(event) => {
-              setActive(event.target.value);
-              setPage(1);
+              const value = event.target.value;
+              guard(() => {
+                setActive(value);
+                setPage(1);
+              });
             }}
           >
             <option value="">전체 상태</option>
@@ -422,12 +517,6 @@ export function InstitutionSection({
           </NativeSelect>
         </div>
       </FilterBar>
-      {demoMode ? (
-        <Notice tone="warning" title="데모 데이터 표시 중">
-          Supabase API에 연결할 수 없어 임시 기관 목록을 표시합니다. 로고 등록과
-          수정은 DB 연결 후 사용할 수 있습니다.
-        </Notice>
-      ) : null}
       <MutationMessage
         error={
           hideMutation.error ??
@@ -436,8 +525,44 @@ export function InstitutionSection({
           orderMutation.error
         }
       />
+      <OrderSaveBar
+        isDirty={order.isDirty}
+        isPending={orderMutation.isPending}
+        onSave={() => void saveOrder()}
+        onCancel={order.reset}
+      />
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        emptyHint="기관 로고를 숨기거나 삭제하려면 원하는 기관 로고를 선택해 주세요."
+      >
+        {canShow ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => void bulkShow()}
+          >
+            선택 노출
+          </Button>
+        ) : null}
+        {canHide ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => void bulkHide()}
+          >
+            선택 숨김
+          </Button>
+        ) : null}
+        <Button
+          size="sm"
+          variant="danger"
+          onClick={() => void bulkDelete()}
+        >
+          선택 삭제
+        </Button>
+      </BulkActionBar>
       <TableShell
-        isLoading={institutionsQuery.isPending}
+        isLoading={!demoMode && institutionsQuery.isPending}
         error={demoMode ? null : institutionsQuery.error}
         isEmpty={!items.length}
         emptyMessage="등록된 기관 로고가 없습니다."
@@ -465,6 +590,7 @@ export function InstitutionSection({
               <th>기관 로고</th>
               <th>노출 상태</th>
               <th>순서</th>
+              <th>작성자</th>
               <th aria-label="작업" />
             </tr>
           </thead>
@@ -487,7 +613,6 @@ export function InstitutionSection({
                     className="content-admin-table-title-button"
                     type="button"
                     onClick={() => {
-                      if (demoMode) return;
                       setEditing(item);
                       setEditorOpen(true);
                     }}
@@ -505,37 +630,34 @@ export function InstitutionSection({
                 </td>
                 <td>
                   <div className="content-admin-inline">
-                    <span>{item.displayOrder}</span>
+                    <span>{filteredItems[index]?.displayOrder ?? item.displayOrder}</span>
                     <Button
-                      disabled={
-                        demoMode || index === 0 || orderMutation.isPending
-                      }
+                      disabled={index === 0 || orderMutation.isPending}
                       size="sm"
                       variant="ghost"
-                      onClick={() => void moveInstitution(item, -1)}
+                      onClick={() => order.move(item.id, -1)}
                     >
                       ▲
                     </Button>
                     <Button
                       disabled={
-                        demoMode ||
                         index === items.length - 1 ||
                         orderMutation.isPending
                       }
                       size="sm"
                       variant="ghost"
-                      onClick={() => void moveInstitution(item, 1)}
+                      onClick={() => order.move(item.id, 1)}
                     >
                       ▼
                     </Button>
                   </div>
                 </td>
+                <td className="content-admin-author">{lastEditorLogin(item) ?? "-"}</td>
                 <td>
                   <div className="content-admin-table-actions">
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={demoMode}
                       onClick={() => {
                         setEditing(item);
                         setEditorOpen(true);
@@ -554,41 +676,9 @@ export function InstitutionSection({
         page={page}
         total={demoMode ? items.length : (institutionsQuery.data?.total ?? 0)}
         totalPages={demoMode ? 1 : (institutionsQuery.data?.totalPages ?? 0)}
-        onChange={setPage}
+        onChange={(nextPage) => guard(() => setPage(nextPage))}
       />
-      {selectedIds.size ? (
-        <div className="content-admin-bulk-actions">
-          <span>{selectedIds.size}건 선택됨</span>
-          {canShow ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={demoMode}
-              onClick={() => void bulkShow()}
-            >
-              노출
-            </Button>
-          ) : null}
-          {canHide ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={demoMode}
-              onClick={() => void bulkHide()}
-            >
-              숨김
-            </Button>
-          ) : null}
-          <Button
-            size="sm"
-            variant="text"
-            disabled={demoMode}
-            onClick={() => void bulkDelete()}
-          >
-            삭제
-          </Button>
-        </div>
-      ) : null}
+      {demoMode ? <DemoNotice /> : null}
     </section>
   );
 }

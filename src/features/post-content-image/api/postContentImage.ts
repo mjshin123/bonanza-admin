@@ -1,7 +1,5 @@
 import { mutationOptions } from "@tanstack/react-query";
 
-import { PUBLIC_ASSETS_BUCKET, supabase } from "@shared/api/supabase";
-
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
 const IMAGE_EXTENSION_BY_MIME_TYPE = {
@@ -49,44 +47,20 @@ function resolveImageFile(file: File) {
 async function uploadPostContentImage(
   input: UploadPostContentImageInput,
 ): Promise<UploadedPostContentImage> {
-  const { extension, mimeType } = resolveImageFile(input.file);
-  const storagePath = `posts/${input.postId}/content/${crypto.randomUUID()}.${extension}`;
-  const { error } = await supabase.storage
-    .from(PUBLIC_ASSETS_BUCKET)
-    .upload(storagePath, input.file, {
-      cacheControl: "3600",
-      contentType: mimeType,
-      upsert: false,
-    });
-
-  if (error) {
-    throw error;
-  }
-
-  return {
-    mimeType,
-    originalName: input.file.name,
-    sizeBytes: input.file.size,
-    storagePath,
-  };
+  resolveImageFile(input.file);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function deletePostContentImage(input: DeletePostContentImageInput) {
+async function deletePostContentImage(
+  input: DeletePostContentImageInput,
+): Promise<string> {
   const expectedPrefix = `posts/${input.postId}/`;
 
   if (!input.storagePath.startsWith(expectedPrefix)) {
     throw new TypeError("삭제할 이미지 경로가 게시물과 일치하지 않습니다.");
   }
 
-  const { error } = await supabase.storage
-    .from(PUBLIC_ASSETS_BUCKET)
-    .remove([input.storagePath]);
-
-  if (error) {
-    throw error;
-  }
-
-  return input.storagePath;
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export function uploadPostContentImageMutationOptions() {

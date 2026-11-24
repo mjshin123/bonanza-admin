@@ -1,18 +1,8 @@
-import { supabase } from "./client";
-
-export const PUBLIC_ASSETS_BUCKET = "public-assets";
+export const PUBLIC_ASSETS_BUCKET = "local-assets";
 
 export function getPublicAssetUrl(
   storagePath: string | null | undefined,
-  bucketName = PUBLIC_ASSETS_BUCKET,
+  _bucketName = PUBLIC_ASSETS_BUCKET,
 ) {
-  if (!storagePath) {
-    return null;
-  }
-
-  const { data } = supabase.storage
-    .from(bucketName)
-    .getPublicUrl(storagePath);
-
-  return data.publicUrl;
+  return storagePath ? `/assets/${storagePath.replace(/^\/+/, "")}` : null;
 }

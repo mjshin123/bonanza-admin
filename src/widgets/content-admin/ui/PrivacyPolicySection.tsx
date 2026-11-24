@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { PostContentEditor } from "@features/post-content-editor";
-import { supabase } from "@shared/api/supabase";
 import { isDemoMode as isGlobalDemoMode } from "@shared/api/content";
-import { Button, Notice } from "@shared/ui";
+import { BulkActionBar, Button, confirmDialog } from "@shared/ui";
 
-import { EditorCard, Field, MutationMessage, SectionTabs, SectionTitle, TableShell } from "./AdminCommon";
+import { PageGuide, EditorCard, Field, MutationMessage, SectionTabs, SectionTitle, TableShell, DemoNotice } from "./AdminCommon";
 
 type PrivacyPolicy = {
   content: string;
@@ -15,6 +14,8 @@ type PrivacyPolicy = {
   effective_date: string;
   id: string;
   updated_at: string;
+  created_by_login?: string | null;
+  updated_by_login?: string | null;
 };
 
 const key = ["privacy-policies"] as const;
@@ -26,7 +27,9 @@ const demoPolicies: PrivacyPolicy[] = [
     content:
       "<h2>총칙</h2><p>주식회사 보난자팩토리는 개인정보 보호법에 따라 정보주체의 개인정보를 보호하고 관련 고충을 신속하고 원활하게 처리합니다.</p><h2>제1조 (개인정보의 처리 목적, 처리 항목 및 보유 기간)</h2><table><thead><tr><th>구분</th><th>처리 목적</th><th>처리 항목</th><th>보유·이용 기간</th></tr></thead><tbody><tr><td>사업 문의</td><td>문의 접수 및 회신</td><td>이메일, 성명, 문의 내용</td><td>문의 처리 완료 후 1년</td></tr></tbody></table>",
     created_at: "2026-07-15T00:00:00+09:00",
-    updated_at: "2026-07-15T00:00:00+09:00",
+    updated_at: "2026-09-02T14:20:00+09:00",
+    created_by_login: "admin",
+    updated_by_login: "mjshin",
   },
 ];
 
@@ -66,20 +69,9 @@ function PolicyEditor({
     updated_at: new Date().toISOString(),
   });
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<boolean> => {
       if (!content.trim() && !contentEn.trim()) throw new Error("한글 또는 영문 본문을 입력해주세요.");
-      const payload = { content: content.trim() || contentEn.trim(), content_en: contentEn.trim() || null, effective_date: effectiveDate };
-      try {
-        const request = item
-          ? supabase.from("privacy_policies").update(payload).eq("id", item.id)
-          : supabase.from("privacy_policies").insert(payload);
-        const { error } = await request;
-        if (error) throw error;
-        return false;
-      } catch (error) {
-        if (error instanceof TypeError && error.message.includes("Failed to fetch")) return true;
-        throw error;
-      }
+      throw new Error("백엔드가 아직 연결되지 않았습니다.");
     },
     onSuccess: async (storedLocally) => {
       if (storedLocally) onDemoSave(localPolicy());
@@ -87,9 +79,9 @@ function PolicyEditor({
       onClose();
     },
   });
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!contentEn.trim() && !window.confirm("영문 내용을 작성하지 않으면 홈페이지에서 언어를 변경해도 영문 개인정보처리방침이 적용되지 않습니다. 그래도 게시할까요?")) return;
+    if (!contentEn.trim() && !(await confirmDialog("영문 내용을 작성하지 않으면 홈페이지에서 언어를 변경해도 영문 개인정보처리방침이 적용되지 않습니다. 그래도 게시할까요?", { confirmLabel: "게시" }))) return;
     if (demoMode) {
       if (!content.trim() && !contentEn.trim()) return;
       onDemoSave(localPolicy());
@@ -103,18 +95,10 @@ function PolicyEditor({
       <EditorCard
         title={item ? "개인정보처리방침 수정" : "개인정보처리방침 등록"}
         description="한글과 영문 문서를 각각 작성할 수 있습니다. 영문은 선택 사항입니다."
+        audit={item ? { createdAt: item.created_at, createdByLogin: item.created_by_login, updatedAt: item.updated_at, updatedByLogin: item.updated_by_login } : null}
         headerAction={<SectionTabs value={locale} items={[{ value: "ko", label: "한글" }, { value: "en", label: "영문" }]} onChange={(value) => changeLocale(value as "ko" | "en")} />}
         onSubmit={submit}
       >
-        {locale === "ko" ? <Field label="시행일" required wide>
-          <input
-            className="content-admin-native-input"
-            required
-            type="date"
-            value={effectiveDate}
-            onChange={(event) => setEffectiveDate(event.target.value)}
-          />
-        </Field> : null}
         <div className="content-admin-field is-wide privacy-policy-editor">
           <PostContentEditor
             key={`privacy-policy-${locale}`}
@@ -126,6 +110,17 @@ function PolicyEditor({
             onChange={locale === "ko" ? setContent : setContentEn}
             onStateChange={() => undefined}
           />
+        </div>
+        <div className="content-admin-common-fields">
+        <Field label="시행일" required wide>
+          <input
+            className="content-admin-native-input"
+            required
+            type="date"
+            value={effectiveDate}
+            onChange={(event) => setEffectiveDate(event.target.value)}
+          />
+        </Field>
         </div>
         <MutationMessage error={save.error} />
         <div className="content-admin-form-actions">
@@ -141,23 +136,19 @@ export function PrivacyPolicySection({ onEditorOpenChange }: { onEditorOpenChang
   const client = useQueryClient();
   const [editing, setEditing] = useState<PrivacyPolicy | "new" | null>(null);
   const [demoItems, setDemoItems] = useState<PrivacyPolicy[]>(demoPolicies);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   useEffect(() => onEditorOpenChange?.(Boolean(editing)), [editing, onEditorOpenChange]);
   const query = useQuery({
     queryKey: key,
     enabled: !isGlobalDemoMode,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("privacy_policies")
-        .select("*")
-        .order("effective_date", { ascending: false });
-      if (error) throw error;
-      return data;
+    queryFn: async (): Promise<PrivacyPolicy[]> => {
+      throw new Error("백엔드가 아직 연결되지 않았습니다.");
     },
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("privacy_policies").delete().eq("id", id);
-      if (error) throw error;
+      void id;
+      throw new Error("백엔드가 아직 연결되지 않았습니다.");
     },
     onSuccess: () => client.invalidateQueries({ queryKey: key }),
   });
@@ -170,19 +161,44 @@ export function PrivacyPolicySection({ onEditorOpenChange }: { onEditorOpenChang
     const exists = current.some((candidate) => candidate.id === policy.id);
     return (exists ? current.map((candidate) => candidate.id === policy.id ? policy : candidate) : [policy, ...current]).sort((first, second) => second.effective_date.localeCompare(first.effective_date));
   });
+  const toggleSelected = (id: string, checked: boolean) => setSelectedIds((current) => {
+    const next = new Set(current);
+    if (checked) next.add(id);
+    else next.delete(id);
+    return next;
+  });
+  const bulkDelete = async () => {
+    if (!(await confirmDialog(`선택한 ${selectedIds.size}건을 삭제할까요?`, { confirmLabel: "삭제", tone: "danger" }))) return;
+    if (isDemoMode) {
+      setDemoItems((current) => current.filter((item) => !selectedIds.has(item.id)));
+      setSelectedIds(new Set());
+      return;
+    }
+    try {
+      for (const id of selectedIds) await remove.mutateAsync(id);
+      setSelectedIds(new Set());
+    } catch {
+      /* MutationMessage에서 표시 */
+    }
+  };
   if (editing) return <PolicyEditor demoMode={isDemoMode} item={editing === "new" ? null : editing} onClose={() => setEditing(null)} onDemoSave={saveDemo} />;
   const currentId = items.find((item) => item.effective_date <= new Date().toISOString().slice(0, 10))?.id;
   return (
     <section className="content-admin-section">
+      <PageGuide>
+        모든 페이지 하단의 개인정보처리방침 링크와 사업 문의 팝업에서 열리는 개인정보처리방침 팝업에 노출됩니다.
+      </PageGuide>
       <SectionTitle
         title="개인정보처리방침"
         description="시행일 기준으로 버전을 관리하며 가장 최근 시행 버전을 현행으로 표시합니다."
         action={<Button onClick={() => setEditing("new")}>처리방침 등록</Button>}
       />
-      {isDemoMode ? <Notice tone="warning" title="데모 데이터 표시 중">등록·수정 내용은 현재 브라우저 화면에서만 확인할 수 있습니다.</Notice> : null}
       <MutationMessage error={remove.error} />
+      <BulkActionBar selectedCount={selectedIds.size} emptyHint="처리방침을 삭제하려면 원하는 처리방침을 선택해 주세요.">
+        <Button disabled={remove.isPending} size="sm" variant="danger" onClick={() => void bulkDelete()}>선택 삭제</Button>
+      </BulkActionBar>
       <TableShell
-        isLoading={query.isPending}
+        isLoading={!isDemoMode && query.isPending}
         error={isDemoMode ? null : query.error}
         isEmpty={!items.length}
         emptyMessage="등록된 개인정보처리방침이 없습니다."
@@ -190,20 +206,27 @@ export function PrivacyPolicySection({ onEditorOpenChange }: { onEditorOpenChang
         <table>
           <thead>
             <tr>
+              <th aria-label="선택">
+                <input aria-label="전체 선택" checked={items.length > 0 && selectedIds.size === items.length} className="content-admin-row-checkbox" type="checkbox" onChange={(event) => setSelectedIds(event.target.checked ? new Set(items.map((item) => item.id)) : new Set())} />
+              </th>
               <th>시행일</th>
               <th>상태</th>
+              <th>작성자</th>
               <th aria-label="작업" />
             </tr>
           </thead>
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
+                <td>
+                  <input aria-label={`${formatDate(item.effective_date)} 시행 선택`} checked={selectedIds.has(item.id)} className="content-admin-row-checkbox" type="checkbox" onChange={(event) => toggleSelected(item.id, event.target.checked)} />
+                </td>
                 <td>{formatDate(item.effective_date)} 시행</td>
                 <td>{item.id === currentId ? "현행" : "이전 버전"}</td>
+                <td className="content-admin-author">{item.updated_by_login ?? item.created_by_login ?? "-"}</td>
                 <td>
                   <div className="content-admin-table-actions">
                     <Button size="sm" variant="ghost" onClick={() => setEditing(item)}>수정</Button>
-                    <Button disabled={remove.isPending || isDemoMode} size="sm" variant="text" onClick={() => remove.mutate(item.id)}>삭제</Button>
                   </div>
                 </td>
               </tr>
@@ -211,6 +234,7 @@ export function PrivacyPolicySection({ onEditorOpenChange }: { onEditorOpenChang
           </tbody>
         </table>
       </TableShell>
+      {isDemoMode ? <DemoNotice /> : null}
     </section>
   );
 }

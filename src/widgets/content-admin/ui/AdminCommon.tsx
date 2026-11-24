@@ -1,4 +1,5 @@
 import type {
+  CSSProperties,
   ChangeEvent,
   FormEvent,
   ReactNode,
@@ -9,7 +10,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { uploadFileMutationOptions } from "@features/file-upload";
 import type { FileDto, FileKind } from "@shared/api/content";
-import { getErrorMessage } from "@shared/lib";
+import {
+  formatAuditTime,
+  getErrorMessage,
+  useEditorDirtyTracker,
+  type AuditFields,
+} from "@shared/lib";
 import { Badge, Button, Card, Notice, Pagination } from "@shared/ui";
 
 import {
@@ -62,6 +68,50 @@ export function SectionTabs({
         </button>
       ))}
     </div>
+  );
+}
+
+/** 데모 데이터를 보여주는 모든 화면에서 같은 형식으로 쓰는 안내 */
+export function DemoNotice() {
+  return (
+    <Notice tone="warning" title="데모 데이터 표시 중">
+      화면 확인용 예시 데이터입니다. 저장·삭제한 내용은 서버에 반영되지 않으며 새로고침하면 사라집니다.
+    </Notice>
+  );
+}
+
+/** 목록 최상단에서 이 메뉴가 운영 웹사이트의 어디에 쓰이는지 알려주는 안내 */
+export function PageGuide({ children }: { children: ReactNode }) {
+  return (
+    <div className="content-admin-page-guide">
+      <strong>운영 웹사이트</strong>
+      <p>{children}</p>
+    </div>
+  );
+}
+
+/** 상세 화면 하단에 표시하는 작성·수정 기록 */
+export function AuditInfo({ audit }: { audit?: AuditFields | null }) {
+  if (!audit) return null;
+  const created = formatAuditTime(audit.createdAt);
+  const updated = formatAuditTime(audit.updatedAt);
+  if (!created && !audit.createdByLogin && !updated && !audit.updatedByLogin)
+    return null;
+  return (
+    <dl className="content-admin-audit-info">
+      <div>
+        <dt>작성</dt>
+        <dd>
+          {created ?? "-"} · {audit.createdByLogin ?? "-"}
+        </dd>
+      </div>
+      <div>
+        <dt>수정</dt>
+        <dd>
+          {updated ?? "-"} · {audit.updatedByLogin ?? audit.createdByLogin ?? "-"}
+        </dd>
+      </div>
+    </dl>
   );
 }
 
@@ -312,25 +362,35 @@ export function EditorCard({
   description,
   children,
   headerAction,
+  audit,
   onSubmit,
 }: {
   title: string;
   description: string;
   children: ReactNode;
   headerAction?: ReactNode;
+  audit?: AuditFields | null;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const markDirty = useEditorDirtyTracker();
   return (
     <Card
       className="content-admin-editor-card"
-      padding="clamp(20px, 3vw, 32px)"
+      padding="var(--editor-pad)"
+      style={{ "--editor-pad": "clamp(20px, 3vw, 32px)" } as CSSProperties}
     >
       <div className="content-admin-editor-heading">
         <div><h2>{title}</h2><p>{description}</p></div>
         {headerAction}
       </div>
-      <form className="content-admin-form" onSubmit={onSubmit}>
+      <form
+        className="content-admin-form"
+        onChange={markDirty}
+        onInput={markDirty}
+        onSubmit={onSubmit}
+      >
         {children}
+        <AuditInfo audit={audit} />
       </form>
     </Card>
   );

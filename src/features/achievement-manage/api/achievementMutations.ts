@@ -1,8 +1,5 @@
 import { mutationOptions } from "@tanstack/react-query";
 
-import { throwContentError } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
-
 export type UpdateAchievementSectionInput = {
   id: string;
   title: string;
@@ -31,34 +28,26 @@ function requiredText(value: string, field: string, maxLength: number) {
   return normalized;
 }
 
-async function updateAchievementSection(input: UpdateAchievementSectionInput) {
-  const { error } = await supabase
-    .from("achievement_sections")
-    .update({
-      title: requiredText(input.title, "국문 제목", 200),
-      title_en: requiredText(input.titleEn, "영문 제목", 200),
-      source: requiredText(input.source, "국문 기준일자", 100),
-      source_en: requiredText(input.sourceEn, "영문 기준일자", 100),
-    })
-    .eq("id", input.id);
-  if (error) throwContentError(error);
+async function updateAchievementSection(
+  input: UpdateAchievementSectionInput,
+): Promise<void> {
+  requiredText(input.title, "국문 제목", 200);
+  requiredText(input.titleEn, "영문 제목", 200);
+  requiredText(input.source, "국문 기준일자", 100);
+  requiredText(input.sourceEn, "영문 기준일자", 100);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function updateAchievementMetric(input: UpdateAchievementMetricInput) {
-  const { error } = await supabase
-    .from("achievement_metrics")
-    .update({
-      label: requiredText(input.label, "국문 항목명", 100),
-      label_en: requiredText(input.labelEn, "영문 항목명", 100),
-      display_value: requiredText(input.displayValue, "국문 수치", 30),
-      display_value_en: requiredText(input.displayValueEn, "영문 수치", 30),
-      unit: requiredText(input.unit, "국문 단위", 30),
-      unit_en: requiredText(input.unitEn, "영문 단위", 30),
-      counter_target: input.counterTarget,
-      show_on_home: input.showOnHome,
-    })
-    .eq("id", input.id);
-  if (error) throwContentError(error);
+async function updateAchievementMetric(
+  input: UpdateAchievementMetricInput,
+): Promise<void> {
+  requiredText(input.label, "국문 항목명", 100);
+  requiredText(input.labelEn, "영문 항목명", 100);
+  requiredText(input.displayValue, "국문 수치", 30);
+  requiredText(input.displayValueEn, "영문 수치", 30);
+  requiredText(input.unit, "국문 단위", 30);
+  requiredText(input.unitEn, "영문 단위", 30);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export const updateAchievementSectionMutationOptions = () =>

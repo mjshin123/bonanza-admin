@@ -1,6 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { supabase } from "@shared/api/supabase";
 import type { Tables } from "@shared/api/supabase";
 
 type Board = Tables<"boards">;
@@ -66,65 +65,6 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
 
-const POST_LIST_SELECT = `
-  id,
-  title,
-  thumbnail_path,
-  tags,
-  is_pinned,
-  published_at,
-  source_url,
-  created_at,
-  board:boards!inner (
-    id,
-    code,
-    name
-  ),
-  organization:organizations (
-    id,
-    name,
-    logo_path
-  ),
-  files:post_files (*)
-`;
-
-const POST_DETAIL_SELECT = `
-  id,
-  board_id,
-  organization_id,
-  title,
-  content,
-  thumbnail_path,
-  tags,
-  is_pinned,
-  is_published,
-  published_at,
-  source_url,
-  created_at,
-  updated_at,
-  category,
-  institution_id,
-  status,
-  board:boards!inner (*),
-  organization:organizations (*),
-  files:post_files (*)
-`;
-
-const ADMIN_POST_LIST_SELECT = `
-  *,
-  board:boards!inner (
-    id,
-    code,
-    name
-  ),
-  organization:organizations (
-    id,
-    name,
-    logo_path
-  ),
-  files:post_files (*)
-`;
-
 export const postQueryKeys = {
   all: ["posts"] as const,
   adminList: (boardCode: string) =>
@@ -135,32 +75,9 @@ export const postQueryKeys = {
 };
 
 async function fetchAdminPostList(
-  boardCode: string,
+  _boardCode: string,
 ): Promise<AdminPostListResult> {
-  const { data, error, count } = await supabase
-    .from("posts")
-    .select(ADMIN_POST_LIST_SELECT, { count: "exact" })
-    .eq("board.code", boardCode)
-    .order("is_pinned", { ascending: false })
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(MAX_PAGE_SIZE);
-
-  if (error) {
-    throw error;
-  }
-
-  return {
-    items: data.map((post) => ({
-      ...post,
-      files: [...post.files].sort((left, right) =>
-        left.sort_order === right.sort_order
-          ? left.created_at.localeCompare(right.created_at)
-          : left.sort_order - right.sort_order,
-      ),
-    })),
-    total: count ?? 0,
-  };
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 function resolvePostListParams(
@@ -192,66 +109,15 @@ function resolvePostListParams(
 }
 
 async function fetchPostList(
-  params: ResolvedPostListParams,
+  _params: ResolvedPostListParams,
 ): Promise<PostListResult> {
-  const from = (params.page - 1) * params.pageSize;
-  const to = from + params.pageSize - 1;
-
-  const { data, error, count } = await supabase
-    .from("posts")
-    .select(POST_LIST_SELECT, { count: "exact" })
-    .eq("is_published", true)
-    .eq("board.is_active", true)
-    .eq("board.code", params.boardCode)
-    .order("is_pinned", { ascending: false })
-    .order("published_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  if (error) {
-    throw error;
-  }
-
-  return {
-    items: data.map((post) => ({
-      ...post,
-      files: [...post.files].sort((left, right) =>
-        left.sort_order === right.sort_order
-          ? left.created_at.localeCompare(right.created_at)
-          : left.sort_order - right.sort_order,
-      ),
-    })),
-    total: count ?? 0,
-    page: params.page,
-    pageSize: params.pageSize,
-  };
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function fetchPostDetail(id: string): Promise<LegacyPostDetail | null> {
-  const { data, error } = await supabase
-    .from("posts")
-    .select(POST_DETAIL_SELECT)
-    .eq("id", id)
-    .eq("is_published", true)
-    .eq("board.is_active", true)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    return null;
-  }
-
-  return {
-    ...data,
-    files: [...data.files].sort((left, right) =>
-      left.sort_order === right.sort_order
-        ? left.created_at.localeCompare(right.created_at)
-        : left.sort_order - right.sort_order,
-    ),
-  };
+async function fetchPostDetail(
+  _id: string,
+): Promise<LegacyPostDetail | null> {
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export function postListQueryOptions(params: LegacyPostListParams) {

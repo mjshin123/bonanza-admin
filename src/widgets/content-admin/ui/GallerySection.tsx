@@ -9,7 +9,7 @@ import {
   type GallerySourceType,
 } from "@entities/gallery";
 import { removeGalleryItemMutationOptions } from "@features/gallery-manage";
-import { Button, Input } from "@shared/ui";
+import { Button, Input, confirmDialog } from "@shared/ui";
 
 import { useDebouncedValue } from "../model/adminContent";
 import {
@@ -114,9 +114,10 @@ export function GallerySection({
 
   const hide = async (item: AdminGalleryPhotoListItem) => {
     if (
-      !window.confirm(
+      !(await confirmDialog(
         `'${item.title}' 이미지를 포토갤러리에서 숨길까요?\n원본 콘텐츠와 업로드 파일은 유지됩니다.`,
-      )
+        { confirmLabel: "숨김" },
+      ))
     )
       return;
 

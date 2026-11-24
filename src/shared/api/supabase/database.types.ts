@@ -222,6 +222,8 @@ export type Database = {
       };
       history_entries: {
         Row: {
+          created_by_login: string | null;
+          updated_by_login: string | null;
           content: string;
           content_en?: string | null;
           created_at: string;
@@ -240,6 +242,8 @@ export type Database = {
           year: number;
         };
         Insert: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           content: string;
           created_at?: string;
           detail?: string | null;
@@ -257,6 +261,8 @@ export type Database = {
           year: number;
         };
         Update: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           content?: string;
           created_at?: string;
           detail?: string | null;
@@ -285,6 +291,8 @@ export type Database = {
       };
       privacy_policies: {
         Row: {
+          created_by_login: string | null;
+          updated_by_login: string | null;
           content: string;
           content_en?: string | null;
           created_at: string;
@@ -293,6 +301,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           content: string;
           content_en?: string | null;
           created_at?: string;
@@ -301,6 +311,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           content?: string;
           content_en?: string | null;
           created_at?: string;
@@ -434,6 +446,8 @@ export type Database = {
       };
       achievement_highlights: {
         Row: {
+          created_by_login: string | null;
+          updated_by_login: string | null;
           content: string;
           created_at: string;
           id: string;
@@ -444,6 +458,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           content: string;
           created_at?: string;
           id?: string;
@@ -454,6 +470,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           content?: string;
           created_at?: string;
           id?: string;
@@ -475,6 +493,8 @@ export type Database = {
       };
       awards: {
         Row: {
+          created_by_login: string | null;
+          updated_by_login: string | null;
           awarded_on: string;
           created_at: string;
           id: string;
@@ -485,6 +505,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           awarded_on: string;
           created_at?: string;
           id?: string;
@@ -495,6 +517,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           awarded_on?: string;
           created_at?: string;
           id?: string;
@@ -508,6 +532,8 @@ export type Database = {
       };
       institutions: {
         Row: {
+          created_by_login: string | null;
+          updated_by_login: string | null;
           created_at: string;
           created_by: string | null;
           display_order: number;
@@ -519,6 +545,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           created_at?: string;
           created_by?: string | null;
           display_order?: number;
@@ -530,6 +558,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
           created_at?: string;
           created_by?: string | null;
           display_order?: number;
@@ -671,6 +701,9 @@ export type Database = {
       };
       posts: {
         Row: {
+          created_by_login: string | null;
+          updated_by_login: string | null;
+          affiliate: string | null;
           board_id: number;
           category: string | null;
           content: string;
@@ -691,6 +724,9 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
+          affiliate?: string | null;
           board_id: number;
           category?: string | null;
           content?: string;
@@ -712,6 +748,9 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          created_by_login?: string | null;
+          updated_by_login?: string | null;
+          affiliate?: string | null;
           board_id?: number;
           category?: string | null;
           content?: string;
@@ -1112,6 +1151,7 @@ export type Database = {
           p_status?: string;
         };
         Returns: {
+          affiliate: string | null;
           category: string;
           cover: Json;
           created_at: string;
@@ -1209,6 +1249,7 @@ export type Database = {
           p_status?: string;
         };
         Returns: {
+          affiliate: string | null;
           category: string;
           cover: Json;
           created_at: string;

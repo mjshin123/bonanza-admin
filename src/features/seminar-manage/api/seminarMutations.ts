@@ -1,17 +1,14 @@
 import { mutationOptions } from "@tanstack/react-query";
-import { mapSeminar, type SeminarFileDto } from "@entities/seminar";
+import type { SeminarDetail, SeminarFileDto } from "@entities/seminar";
 import {
-  mapFile,
   normalizeFileItems,
   normalizePublishedAt,
   requireExpectedUpdatedAt,
   requireText,
   requireUuid,
-  throwContentError,
   type ContentStatus,
 } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
-import type { Json, Tables, TablesUpdate } from "@shared/api/supabase";
+import type { Json } from "@shared/api/supabase";
 export type SaveSeminarFileInput = {
   fileId: string;
   showInGallery?: boolean;
@@ -50,10 +47,6 @@ export type ReorderSeminarFilesInput = {
   items: Array<{ fileId: string; sortOrder: number }>;
 };
 export type UnlinkSeminarFileInput = { seminarId: string; fileId: string };
-const SELECT = "*,files:seminar_files(*,file:files!inner(*))";
-type Joined = Tables<"seminars"> & {
-  files: Array<Tables<"seminar_files"> & { file: Tables<"files"> }>;
-};
 function validDate(v: string | null | undefined, n: string) {
   if (v != null && Number.isNaN(Date.parse(v)))
     throw new TypeError(`${n}은 유효한 일시여야 합니다.`);
@@ -75,162 +68,60 @@ export function buildSeminarCommand(i: CreateSeminarInput): Json {
     isFeatured: i.isFeatured ?? false,
   };
 }
-async function createSeminar(i: CreateSeminarInput) {
-  const files = normalizeFileItems(i.files ?? []);
-  const { data, error } = await supabase
-    .rpc("save_seminar", { p_input: buildSeminarCommand(i), p_files: files })
-    .select(SELECT)
-    .single();
-  if (error) throwContentError(error);
-  return mapSeminar(data as Joined);
+async function createSeminar(i: CreateSeminarInput): Promise<SeminarDetail> {
+  normalizeFileItems(i.files ?? []);
+  buildSeminarCommand(i);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function updateSeminar(i: UpdateSeminarInput) {
-  const files = normalizeFileItems(i.files);
-  const { data, error } = await supabase
-    .rpc("save_seminar", {
-      p_expected_updated_at: requireExpectedUpdatedAt(i.expectedUpdatedAt),
-      p_files: files,
-      p_id: requireUuid(i.id),
-      p_input: buildSeminarCommand(i),
-    })
-    .select(SELECT)
-    .single();
-  if (error) throwContentError(error);
-  return mapSeminar(data as Joined);
+async function updateSeminar(i: UpdateSeminarInput): Promise<SeminarDetail> {
+  normalizeFileItems(i.files);
+  requireExpectedUpdatedAt(i.expectedUpdatedAt);
+  requireUuid(i.id);
+  buildSeminarCommand(i);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function deleteSeminar(id: string) {
-  const { data, error } = await supabase
-    .from("seminars")
-    .delete()
-    .eq("id", requireUuid(id))
-    .select("id")
-    .single();
-  if (error) throwContentError(error);
-  return data.id;
+async function deleteSeminar(id: string): Promise<string> {
+  requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function bulkHideSeminars(ids: string[]) {
-  const normalized = ids.map((id) => requireUuid(id));
-  const { error } = await supabase
-    .from("seminars")
-    .update({ status: "hidden" })
-    .in("id", normalized);
-  if (error) throwContentError(error);
-  return normalized;
+async function bulkHideSeminars(ids: string[]): Promise<string[]> {
+  ids.map((id) => requireUuid(id));
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function bulkPublishSeminars(ids: string[]) {
-  const normalized = ids.map((id) => requireUuid(id));
-  const { data: rows, error: fetchError } = await supabase
-    .from("seminars")
-    .select("id, published_at")
-    .in("id", normalized);
-  if (fetchError) throwContentError(fetchError);
-  const needsPublishedAt = (rows ?? [])
-    .filter((row) => !row.published_at)
-    .map((row) => row.id);
-  const hasPublishedAt = (rows ?? [])
-    .filter((row) => row.published_at)
-    .map((row) => row.id);
-  if (needsPublishedAt.length) {
-    const { error } = await supabase
-      .from("seminars")
-      .update({ status: "published", published_at: new Date().toISOString() })
-      .in("id", needsPublishedAt);
-    if (error) throwContentError(error);
-  }
-  if (hasPublishedAt.length) {
-    const { error } = await supabase
-      .from("seminars")
-      .update({ status: "published" })
-      .in("id", hasPublishedAt);
-    if (error) throwContentError(error);
-  }
-  return normalized;
+async function bulkPublishSeminars(ids: string[]): Promise<string[]> {
+  ids.map((id) => requireUuid(id));
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function bulkDeleteSeminars(ids: string[]) {
-  const normalized = ids.map((id) => requireUuid(id));
-  const { error } = await supabase
-    .from("seminars")
-    .delete()
-    .in("id", normalized);
-  if (error) throwContentError(error);
-  return normalized;
+async function bulkDeleteSeminars(ids: string[]): Promise<string[]> {
+  ids.map((id) => requireUuid(id));
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-function mapRelation(
-  r: Tables<"seminar_files"> & { file: Tables<"files"> },
-): SeminarFileDto {
-  return {
-    file: mapFile(r.file),
-    showInGallery: r.show_in_gallery,
-    sortOrder: r.sort_order,
-    createdAt: r.created_at,
-  };
+async function linkSeminarFile(
+  i: LinkSeminarFileInput,
+): Promise<SeminarFileDto> {
+  requireUuid(i.seminarId);
+  requireUuid(i.fileId);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function linkSeminarFile(i: LinkSeminarFileInput) {
-  const { data, error } = await supabase
-    .from("seminar_files")
-    .insert({
-      seminar_id: requireUuid(i.seminarId),
-      file_id: requireUuid(i.fileId),
-      role: "photo",
-      show_in_gallery: i.showInGallery ?? false,
-      sort_order: i.sortOrder ?? 0,
-    })
-    .select("*,file:files!inner(*)")
-    .single();
-  if (error) throwContentError(error);
-  return mapRelation(
-    data as Tables<"seminar_files"> & { file: Tables<"files"> },
-  );
+async function updateSeminarFile(
+  i: UpdateSeminarFileInput,
+): Promise<SeminarFileDto> {
+  requireUuid(i.seminarId);
+  requireUuid(i.fileId);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function updateSeminarFile(i: UpdateSeminarFileInput) {
-  const patch: TablesUpdate<"seminar_files"> = {};
-  if (i.showInGallery !== undefined) patch.show_in_gallery = i.showInGallery;
-  if (i.sortOrder !== undefined) patch.sort_order = i.sortOrder;
-  const { data, error } = await supabase
-    .from("seminar_files")
-    .update(patch)
-    .eq("seminar_id", requireUuid(i.seminarId))
-    .eq("file_id", requireUuid(i.fileId))
-    .select("*,file:files!inner(*)")
-    .single();
-  if (error) throwContentError(error);
-  return mapRelation(
-    data as Tables<"seminar_files"> & { file: Tables<"files"> },
-  );
+async function reorderSeminarFiles(
+  i: ReorderSeminarFilesInput,
+): Promise<SeminarFileDto[]> {
+  requireUuid(i.seminarId);
+  for (const item of i.items) requireUuid(item.fileId);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function reorderSeminarFiles(i: ReorderSeminarFilesInput) {
-  const id = requireUuid(i.seminarId),
-    ids = [...i.items]
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((x) => requireUuid(x.fileId));
-  const { error } = await supabase.rpc("reorder_content_files", {
-    p_relation: "seminar_files",
-    p_parent_id: id,
-    p_file_ids: ids,
-  });
-  if (error) throwContentError(error);
-  const { data, error: e } = await supabase
-    .from("seminar_files")
-    .select("*,file:files!inner(*)")
-    .eq("seminar_id", id)
-    .order("sort_order")
-    .order("created_at")
-    .order("file_id");
-  if (e) throw e;
-  return data.map((r) =>
-    mapRelation(r as Tables<"seminar_files"> & { file: Tables<"files"> }),
-  );
-}
-async function unlinkSeminarFile(i: UnlinkSeminarFileInput) {
-  const { data, error } = await supabase
-    .from("seminar_files")
-    .delete()
-    .eq("seminar_id", requireUuid(i.seminarId))
-    .eq("file_id", requireUuid(i.fileId))
-    .select("file_id")
-    .single();
-  if (error) throwContentError(error);
-  return data.file_id;
+async function unlinkSeminarFile(i: UnlinkSeminarFileInput): Promise<string> {
+  requireUuid(i.seminarId);
+  const fileId = requireUuid(i.fileId);
+  void fileId;
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 export const createSeminarMutationOptions = () =>
   mutationOptions({

@@ -1,11 +1,14 @@
 export { Badge } from "./badge";
+export { BulkActionBar, OrderSaveBar } from "./bulk-action-bar";
 export { Button } from "./button";
 export { Card } from "./card";
 export { ImagePlaceholder } from "./image-placeholder";
 export { Input } from "./input";
 export { LogoMarquee } from "./logo-marquee";
 export type { LogoMarqueeItem } from "./logo-marquee";
-export { Modal } from "./modal";
+export { alertDialog, confirmDialog, DialogHost } from "./dialog";
+export type { DialogOptions } from "./dialog";
+export { Modal, UnsavedChangesModal } from "./modal";
 export { Notice } from "./notice";
 export { PageHeader } from "./page-header";
 export { Pagination } from "./pagination";

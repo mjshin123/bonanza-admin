@@ -1,19 +1,13 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
   CONTENT_QUERY_OPTIONS,
-  mapFile,
-  mapRpcFile,
-  pageResult,
   requireUuid,
   resolvePageParams,
-  throwContentError,
   type ContentStatus,
   type FileDto,
   type PageParams,
   type PageResult,
 } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
-import type { Database, Tables } from "@shared/api/supabase";
 export type GalleryItemDto = {
   file: FileDto;
   caption: string;
@@ -67,44 +61,6 @@ export type AdminGalleryListParams = GalleryListParams & {
 export type AdminGalleryPhotoListParams = PageParams & {
   q?: string;
 };
-type Joined = Tables<"galleries"> & {
-  items: Array<Tables<"gallery_items"> & { file: Tables<"files"> }>;
-};
-const SELECT =
-  "id,title,description,event_date,status,published_at,display_order,source_type,source_id,created_at,updated_at,items:gallery_items(gallery_id,file_id,caption,sort_order,is_hidden,created_at,file:files!inner(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at))";
-export function mapGallery(r: Joined): GalleryDetail {
-  const items = r.items
-    .map((x) => ({
-      file: mapFile(x.file),
-      caption: x.caption,
-      sortOrder: x.sort_order,
-      isHidden: x.is_hidden,
-      createdAt: x.created_at,
-    }))
-    .sort(
-      (a, b) =>
-        a.sortOrder - b.sortOrder ||
-        a.createdAt.localeCompare(b.createdAt) ||
-        a.file.id.localeCompare(b.file.id),
-    );
-  return {
-    id: r.id,
-    title: r.title,
-    description: r.description,
-    eventDate: r.event_date,
-    coverImage: items[0]?.file ?? null,
-    itemCount: items.length,
-    displayOrder: r.display_order,
-    publishedAt: r.published_at,
-    sourceType: r.source_type as GallerySourceType,
-    sourceId: r.source_id,
-    sourceCategory: null,
-    items,
-    status: r.status as ContentStatus,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-  };
-}
 function validDate(v: string | undefined, n: string) {
   if (!v) return undefined;
   if (
@@ -144,60 +100,6 @@ export const galleryQueryKeys = {
     ["galleries", "admin", "photos", p] as const,
   adminDetail: (id: string) => ["galleries", "admin", "detail", id] as const,
 };
-type RpcGalleryRow =
-  Database["public"]["Functions"]["list_galleries"]["Returns"][number];
-type RpcAdminGalleryPhotoRow =
-  Database["public"]["Functions"]["list_admin_gallery_photos"]["Returns"][number];
-
-export function mapGalleryListRow(
-  row: RpcGalleryRow,
-  admin: false,
-): GalleryListItem;
-export function mapGalleryListRow(
-  row: RpcGalleryRow,
-  admin: true,
-): AdminGalleryListItem;
-export function mapGalleryListRow(row: RpcGalleryRow, admin: boolean) {
-  const item: GalleryListItem = {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    eventDate: row.event_date,
-    coverImage: mapRpcFile(row.cover_image),
-    itemCount: row.item_count,
-    displayOrder: row.display_order,
-    publishedAt: row.published_at,
-    sourceType: row.source_type as GallerySourceType,
-    sourceId: row.source_id,
-    sourceCategory: row.source_category,
-  };
-  return admin
-    ? {
-        ...item,
-        status: row.status as ContentStatus,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }
-    : item;
-}
-export function mapAdminGalleryPhotoListRow(
-  row: RpcAdminGalleryPhotoRow,
-): AdminGalleryPhotoListItem {
-  const photo = mapRpcFile(row.photo);
-  if (!photo) {
-    throw new TypeError("갤러리 사진 응답에 파일 정보가 없습니다.");
-  }
-  return {
-    galleryId: row.gallery_id,
-    fileId: row.file_id,
-    photo,
-    title: row.title,
-    eventDate: row.event_date,
-    sourceType: row.source_type as GallerySourceType,
-    sourceId: row.source_id,
-    sourceCategory: row.source_category,
-  };
-}
 async function fetchList(
   p: ReturnType<typeof resolveParams>,
   admin: false,
@@ -207,50 +109,22 @@ async function fetchList(
   admin: true,
 ): Promise<PageResult<AdminGalleryListItem>>;
 async function fetchList(
-  p: ReturnType<typeof resolveParams>,
-  admin: boolean,
+  _p: ReturnType<typeof resolveParams>,
+  _admin: boolean,
 ): Promise<PageResult<GalleryListItem | AdminGalleryListItem>> {
-  const { data, error } = await supabase.rpc("list_galleries", {
-    p_admin: admin,
-    p_from: p.from,
-    p_page: p.page,
-    p_page_size: p.pageSize,
-    p_q: p.q,
-    p_status: admin ? p.status : undefined,
-    p_to: p.to,
-  });
-  if (error) throwContentError(error);
-  const rows = data as RpcGalleryRow[];
-  const items = admin
-    ? rows.map((row) => mapGalleryListRow(row, true))
-    : rows.map((row) => mapGalleryListRow(row, false));
-  return pageResult(items, rows[0]?.total_count ?? 0, p);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 async function fetchAdminGalleryPhotos(
-  p: ReturnType<typeof resolvePhotoParams>,
+  _p: ReturnType<typeof resolvePhotoParams>,
 ): Promise<PageResult<AdminGalleryPhotoListItem>> {
-  const { data, error } = await supabase.rpc("list_admin_gallery_photos", {
-    p_page: p.page,
-    p_page_size: p.pageSize,
-    p_q: p.q,
-  });
-  if (error) throwContentError(error);
-  const rows = data as RpcAdminGalleryPhotoRow[];
-  return pageResult(
-    rows.map(mapAdminGalleryPhotoListRow),
-    rows[0]?.total_count ?? 0,
-    p,
-  );
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
-async function fetchDetail(id: string, admin: boolean) {
-  let q = supabase.from("galleries").select(SELECT).eq("id", requireUuid(id));
-  if (!admin)
-    q = q
-      .eq("status", "published")
-      .lte("published_at", new Date().toISOString());
-  const { data, error } = await q.maybeSingle();
-  if (error) throw error;
-  return data ? mapGallery(data as Joined) : null;
+async function fetchDetail(
+  id: string,
+  _admin: boolean,
+): Promise<GalleryDetail | null> {
+  requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 export function galleriesQueryOptions(p: GalleryListParams = {}) {
   const r = resolveParams(p);

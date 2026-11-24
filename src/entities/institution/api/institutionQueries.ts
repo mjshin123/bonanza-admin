@@ -2,9 +2,6 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   CONTENT_QUERY_OPTIONS,
-  mapFile,
-  pageRange,
-  pageResult,
   requireUuid,
   resolvePageParams,
   type FileDto,
@@ -12,8 +9,6 @@ import {
   type PageParams,
   type PageResult,
 } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
-import type { Tables } from "@shared/api/supabase";
 
 export type InstitutionDto = {
   id: string;
@@ -24,6 +19,8 @@ export type InstitutionDto = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  createdByLogin?: string | null;
+  updatedByLogin?: string | null;
 };
 export type InstitutionSummary = Pick<
   InstitutionDto,
@@ -36,26 +33,6 @@ export type InstitutionListParams = PageParams & {
 export type AdminInstitutionListParams = InstitutionListParams & {
   isActive?: boolean;
 };
-
-type InstitutionJoinedRow = Tables<"institutions"> & {
-  logo: Tables<"files"> | null;
-};
-
-const SELECT =
-  "id,institution_type,name,logo_file_id,display_order,is_active,created_at,updated_at,logo:files(id,file_kind,bucket_name,storage_path,original_name,mime_type,size_bytes,width_px,height_px,alt_text,created_at,updated_at)";
-
-export function mapInstitution(row: InstitutionJoinedRow): InstitutionDto {
-  return {
-    id: row.id,
-    institutionType: row.institution_type as InstitutionType,
-    name: row.name,
-    logo: row.logo ? mapFile(row.logo) : null,
-    displayOrder: row.display_order,
-    isActive: row.is_active,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
 
 function resolveParams(params: AdminInstitutionListParams = {}) {
   const page = resolvePageParams(params);
@@ -79,41 +56,18 @@ export const institutionQueryKeys = {
 };
 
 async function fetchList(
-  params: ReturnType<typeof resolveParams>,
-  admin: boolean,
+  _params: ReturnType<typeof resolveParams>,
+  _admin: boolean,
 ): Promise<PageResult<InstitutionDto>> {
-  const { from, to } = pageRange(params);
-  let query = supabase
-    .from("institutions")
-    .select(SELECT, { count: "exact" })
-    .order("display_order")
-    .order("name")
-    .order("id")
-    .range(from, to);
-  if (!admin) query = query.eq("is_active", true);
-  if (params.institutionType)
-    query = query.eq("institution_type", params.institutionType);
-  if (params.q) query = query.ilike("name", `%${params.q}%`);
-  if (admin && params.isActive !== undefined)
-    query = query.eq("is_active", params.isActive);
-  const { data, error, count } = await query;
-  if (error) throw error;
-  return pageResult(
-    data.map((row) => mapInstitution(row as InstitutionJoinedRow)),
-    count,
-    params,
-  );
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
-async function fetchDetail(id: string, admin: boolean) {
-  let query = supabase
-    .from("institutions")
-    .select(SELECT)
-    .eq("id", requireUuid(id));
-  if (!admin) query = query.eq("is_active", true);
-  const { data, error } = await query.maybeSingle();
-  if (error) throw error;
-  return data ? mapInstitution(data as InstitutionJoinedRow) : null;
+async function fetchDetail(
+  id: string,
+  _admin: boolean,
+): Promise<InstitutionDto | null> {
+  requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export function institutionsQueryOptions(params: InstitutionListParams = {}) {

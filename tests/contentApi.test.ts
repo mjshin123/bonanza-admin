@@ -70,7 +70,7 @@ describe("content API 입력 정규화", () => {
 });
 
 describe("파일 DTO와 오류 매핑", () => {
-  it("파일의 실제 bucket을 사용해 공개 URL을 만든다", () => {
+  it("로컬 정적 경로로 파일 URL을 만든다", () => {
     const file = mapFile({
       alt_text: null,
       bucket_name: "custom-bucket",
@@ -86,9 +86,7 @@ describe("파일 DTO와 오류 매핑", () => {
       width_px: 300,
     });
 
-    expect(file.url).toContain(
-      "/storage/v1/object/public/custom-bucket/images/sample.png",
-    );
+    expect(file.url).toBe("/assets/images/sample.png");
   });
 
   it.each([

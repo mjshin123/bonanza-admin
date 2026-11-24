@@ -46,6 +46,35 @@ describe("콘텐츠 command payload", () => {
     ).toThrow("institutionId");
   });
 
+  it("보도자료의 계열사를 command에 포함하고 누락을 차단한다", () => {
+    expect(
+      buildContentPostCommand({
+        affiliate: "보난자팩토리",
+        category: "association_news",
+        content: "본문",
+        title: "보도자료",
+      }).command,
+    ).toEqual(expect.objectContaining({ affiliate: "보난자팩토리" }));
+    expect(() =>
+      buildContentPostCommand({
+        category: "association_news",
+        content: "본문",
+        title: "보도자료",
+      }),
+    ).toThrow("계열사");
+  });
+
+  it("홍보영상의 언어별 영상 역할을 보존한다", () => {
+    expect(
+      buildContentPostCommand({
+        category: "promotion_video",
+        content: "소개",
+        files: [{ fileId: FILE_ID, role: "video_en" }],
+        title: "Promotion video",
+      }).files,
+    ).toEqual([{ fileId: FILE_ID, role: "video_en" }]);
+  });
+
   it("세미나 시작 일시를 검증한다", () => {
     expect(() =>
       buildSeminarCommand({

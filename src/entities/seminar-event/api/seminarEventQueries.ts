@@ -1,6 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { supabase } from "@shared/api/supabase";
 import type { Tables } from "@shared/api/supabase";
 
 type Board = Tables<"boards">;
@@ -55,28 +54,6 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
 
-const SEMINAR_EVENT_SELECT = `
-  *,
-  post:posts!inner (
-    id,
-    title,
-    content,
-    thumbnail_path,
-    tags,
-    is_pinned,
-    is_published,
-    published_at,
-    created_at,
-    updated_at,
-    files:post_files (*),
-    board:boards!inner (
-      id,
-      code,
-      name
-    )
-  )
-`;
-
 export const seminarEventQueryKeys = {
   all: ["seminar-events"] as const,
   adminList: (params: ResolvedSeminarEventListParams) =>
@@ -112,86 +89,21 @@ function resolveListParams(
 }
 
 async function fetchSeminarEventList(
-  params: ResolvedSeminarEventListParams,
+  _params: ResolvedSeminarEventListParams,
 ): Promise<SeminarEventListResult> {
-  const from = (params.page - 1) * params.pageSize;
-  const to = from + params.pageSize - 1;
-  const now = new Date().toISOString();
-
-  let query = supabase
-    .from("seminar_events")
-    .select(SEMINAR_EVENT_SELECT, { count: "exact" })
-    .eq("post.is_published", true)
-    .eq("post.board.is_active", true)
-    .eq("post.board.code", "seminar");
-
-  if (params.timing === "upcoming") {
-    query = query.gte("starts_at", now).order("starts_at", {
-      ascending: true,
-    });
-  } else if (params.timing === "past") {
-    query = query.lt("starts_at", now).order("starts_at", {
-      ascending: false,
-    });
-  } else {
-    query = query.order("starts_at", { ascending: false });
-  }
-
-  const { data, error, count } = await query.range(from, to);
-
-  if (error) {
-    throw error;
-  }
-
-  return {
-    items: data,
-    total: count ?? 0,
-    page: params.page,
-    pageSize: params.pageSize,
-  };
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 async function fetchSeminarEventDetail(
-  postId: string,
+  _postId: string,
 ): Promise<SeminarEventListItem | null> {
-  const { data, error } = await supabase
-    .from("seminar_events")
-    .select(SEMINAR_EVENT_SELECT)
-    .eq("post_id", postId)
-    .eq("post.is_published", true)
-    .eq("post.board.is_active", true)
-    .eq("post.board.code", "seminar")
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 async function fetchAdminSeminarEventList(
-  params: ResolvedSeminarEventListParams,
+  _params: ResolvedSeminarEventListParams,
 ): Promise<SeminarEventListResult> {
-  const from = (params.page - 1) * params.pageSize;
-  const to = from + params.pageSize - 1;
-  const { data, error, count } = await supabase
-    .from("seminar_events")
-    .select(SEMINAR_EVENT_SELECT, { count: "exact" })
-    .eq("post.board.code", "seminar")
-    .order("starts_at", { ascending: false })
-    .range(from, to);
-
-  if (error) {
-    throw error;
-  }
-
-  return {
-    items: data,
-    total: count ?? 0,
-    page: params.page,
-    pageSize: params.pageSize,
-  };
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export function seminarEventListQueryOptions(

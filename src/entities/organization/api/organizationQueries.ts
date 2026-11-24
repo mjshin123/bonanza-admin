@@ -1,15 +1,19 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { supabase } from "@shared/api/supabase";
-import type { Tables } from "@shared/api/supabase";
-
 export const ORGANIZATION_TYPES = [
   "member",
   "domestic_partner",
   "international_partner",
 ] as const;
 
-export type Organization = Tables<"organizations">;
+export type Organization = {
+  id: string;
+  name: string;
+  logo_path: string | null;
+  organization_type: (typeof ORGANIZATION_TYPES)[number];
+  is_active: boolean;
+  sort_order: number;
+};
 export type OrganizationType = (typeof ORGANIZATION_TYPES)[number];
 
 export type OrganizationListFilters = {
@@ -25,43 +29,15 @@ export const organizationQueryKeys = {
 };
 
 async function fetchOrganizations(
-  filters: OrganizationListFilters,
+  _filters: OrganizationListFilters,
 ): Promise<Organization[]> {
-  let query = supabase
-    .from("organizations")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
-
-  if (filters.type) {
-    query = query.eq("organization_type", filters.type);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 async function fetchOrganizationById(
-  id: string,
+  _id: string,
 ): Promise<Organization | null> {
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("*")
-    .eq("id", id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export function organizationsQueryOptions(

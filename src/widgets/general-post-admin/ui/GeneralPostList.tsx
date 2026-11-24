@@ -1,7 +1,14 @@
 import { useMemo, useState, type ReactNode } from "react";
 
 import type { LegacyAdminPostListItem } from "@entities/post";
-import { Button, Card, Input, Notice, Pagination } from "@shared/ui";
+import {
+  BulkActionBar,
+  Button,
+  Card,
+  Input,
+  Notice,
+  Pagination,
+} from "@shared/ui";
 
 import { formatPostDate } from "../model/generalPostForm";
 
@@ -220,14 +227,6 @@ export function GeneralPostList({
         <div className="general-admin-list-category">{categoryControl}</div>
         <div className="general-admin-list-actions">
           <Button onClick={onCreate}>게시물 작성</Button>
-          <Button
-            disabled={selectedPostIds.length === 0}
-            variant="ghost"
-            onClick={onDeleteSelected}
-          >
-            선택 삭제
-            {selectedPostIds.length > 0 ? ` (${selectedPostIds.length})` : ""}
-          </Button>
         </div>
       </div>
 
@@ -295,6 +294,17 @@ export function GeneralPostList({
         <Card className="general-post-empty-card">
           <span>등록된 게시물이 없습니다</span>
         </Card>
+      ) : null}
+
+      {pagedItems.length > 0 ? (
+        <BulkActionBar
+          selectedCount={selectedPostIds.length}
+          emptyHint="게시글을 삭제하려면 원하는 게시글을 선택해 주세요."
+        >
+          <Button size="sm" variant="danger" onClick={onDeleteSelected}>
+            선택 삭제
+          </Button>
+        </BulkActionBar>
       ) : null}
 
       {pagedItems.length > 0 ? (

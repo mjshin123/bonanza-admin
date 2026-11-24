@@ -1,0 +1,3 @@
+﻿vite v8.2.1 building client environment for production...
+[2K
+transforming...✓ 405 modules transformed.

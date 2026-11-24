@@ -1,15 +1,15 @@
-import type { User } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 
 import {
   getCurrentAdminUser,
   subscribeToAdminAuthState,
+  type AdminUser,
 } from "../api/adminAuth";
 
 type AdminSessionState = {
   error: Error | null;
   isLoading: boolean;
-  user: User | null;
+  user: AdminUser | null;
 };
 
 export function useAdminSession(): AdminSessionState {

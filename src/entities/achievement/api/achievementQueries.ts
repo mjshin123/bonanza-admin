@@ -1,7 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { CONTENT_QUERY_OPTIONS } from "@shared/api/content";
-import { supabase } from "@shared/api/supabase";
 
 export type AchievementMetricDto = {
   id: string;
@@ -36,37 +35,7 @@ export const achievementQueryKeys = {
 };
 
 async function fetchAchievementSections(): Promise<AchievementSectionDto[]> {
-  const { data, error } = await supabase
-    .from("achievement_sections")
-    .select("*, achievement_metrics(*)")
-    .order("position")
-    .order("position", { referencedTable: "achievement_metrics" });
-  if (error) throw error;
-
-  return data.map((section) => ({
-    id: section.id,
-    sectionKey: section.section_key,
-    title: section.title,
-    titleEn: section.title_en,
-    source: section.source,
-    sourceEn: section.source_en,
-    position: section.position,
-    updatedAt: section.updated_at,
-    metrics: (section.achievement_metrics ?? []).map((metric) => ({
-      id: metric.id,
-      metricKey: metric.metric_key,
-      label: metric.label,
-      labelEn: metric.label_en,
-      displayValue: metric.display_value,
-      displayValueEn: metric.display_value_en,
-      unit: metric.unit,
-      unitEn: metric.unit_en,
-      counterTarget: metric.counter_target,
-      position: metric.position,
-      showOnHome: metric.show_on_home,
-      updatedAt: metric.updated_at,
-    })),
-  }));
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
 export const achievementSectionsQueryOptions = () =>
