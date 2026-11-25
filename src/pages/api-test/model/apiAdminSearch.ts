@@ -1,9 +1,12 @@
 export type AdminSection =
   | "achievements"
+  | "admin-accounts"
   | "awards"
   | "dashboard"
   | "institutions"
   | "history"
+  | "notice-popups"
+  | "highlights"
   | "privacy-policies"
   | "posts"
 
@@ -16,10 +19,13 @@ export type ApiAdminSearch = {
 
 const SECTIONS = new Set<AdminSection>([
   "achievements",
+  "admin-accounts",
   "awards",
   "dashboard",
   "institutions",
   "history",
+  "notice-popups",
+  "highlights",
   "privacy-policies",
   "posts",
 ]);

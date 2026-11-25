@@ -1,5 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import type { ImageCrop } from "@shared/lib";
+
 import type { InstitutionSummary } from "@entities/institution";
 import {
   CONTENT_QUERY_OPTIONS,
@@ -18,6 +20,8 @@ export type PostFileDto = {
   file: FileDto;
   role: PostFileRole;
   showInGallery: boolean;
+  /** 목록 썸네일에 보일 자르기 영역(대표 이미지에만 사용) */
+  crop?: ImageCrop | null;
   sortOrder: number;
   createdAt: string;
 };
@@ -28,6 +32,7 @@ export type ContentPostListItem = {
   title: string;
   institution: InstitutionSummary | null;
   cover: FileDto | null;
+  coverCrop?: ImageCrop | null;
   isPinned: boolean;
   publishedAt: string | null;
 };

@@ -1,1 +1,1 @@
-export { saveAchievementHighlightMutationOptions, moveAchievementHighlightMutationOptions, deleteAchievementHighlightMutationOptions, type SaveAchievementHighlightInput } from "./api/achievementHighlightMutations";
+export { saveAchievementHighlightMutationOptions, moveAchievementHighlightMutationOptions, deleteAchievementHighlightMutationOptions, setAchievementHighlightsVisibilityMutationOptions, type SaveAchievementHighlightInput } from "./api/achievementHighlightMutations";

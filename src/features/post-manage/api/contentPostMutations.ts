@@ -11,11 +11,14 @@ import {
   type PostFileRole,
 } from "@shared/api/content";
 import type { Json } from "@shared/api/supabase";
+import type { ImageCrop } from "@shared/lib";
 
 export type SavePostFileInput = {
   fileId: string;
   role: PostFileRole;
   showInGallery?: boolean;
+  /** 대표 이미지가 목록에서 보일 자르기 영역 */
+  crop?: ImageCrop | null;
 };
 
 export type CreateContentPostInput = {

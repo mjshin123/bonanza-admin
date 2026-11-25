@@ -45,6 +45,8 @@ import {
   SectionTitle,
   StatusBadge,
   TableShell,
+  ThumbCell,
+  ThumbHeader,
 } from "./AdminCommon";
 
 type SelectedResourceFile = {
@@ -546,6 +548,7 @@ export function ResourceSection({
                   onChange={(event) => toggleSelectAll(event.target.checked)}
                 />
               </th>
+              <ThumbHeader />
               <th>제목</th>
               <th>파일</th>
               <th>상태</th>
@@ -567,6 +570,7 @@ export function ResourceSection({
                     }
                   />
                 </td>
+                <ThumbCell url={item.cover?.url} />
                 <td>
                   <button
                     className="content-admin-table-title-button"

@@ -15,8 +15,9 @@ import {
   getErrorMessage,
   useEditorDirtyTracker,
   type AuditFields,
+  type ImageCrop,
 } from "@shared/lib";
-import { Badge, Button, Card, Notice, Pagination } from "@shared/ui";
+import { Badge, Button, Card, CroppedImage, Notice, Pagination } from "@shared/ui";
 
 import {
   resolveDisplayStatus,
@@ -393,5 +394,33 @@ export function EditorCard({
         <AuditInfo audit={audit} />
       </form>
     </Card>
+  );
+}
+
+/** 목록 표의 이미지 열 머리글. 체크박스 열 바로 다음에 둔다. */
+export function ThumbHeader() {
+  return <th aria-label="이미지" className="content-admin-thumb-col" />;
+}
+
+/** 목록 표의 이미지 열. 이미지가 없으면 칸을 비워 두되 열 폭은 유지해 제목 위치를 맞춘다. */
+export function ThumbCell({
+  url,
+  crop,
+  fit = "cover",
+}: {
+  url?: string | null;
+  /** 목록에 보일 자르기 영역. 없으면 가운데 기준 */
+  crop?: ImageCrop | null;
+  /** 로고처럼 잘리면 안 되는 이미지는 contain */
+  fit?: "cover" | "contain";
+}) {
+  return (
+    <td className="content-admin-thumb-col">
+      {url && fit === "contain" ? (
+        <img alt="" className="content-admin-table-thumb is-contain" src={url} />
+      ) : url ? (
+        <CroppedImage className="content-admin-table-thumb" crop={crop} src={url} />
+      ) : null}
+    </td>
   );
 }

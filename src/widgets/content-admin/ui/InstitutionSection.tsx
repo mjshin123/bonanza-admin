@@ -19,7 +19,7 @@ import { useOrderDraft, lastEditorLogin } from "@shared/lib";
 import { Badge, BulkActionBar, Button, Input, OrderSaveBar, confirmDialog, alertDialog } from "@shared/ui";
 
 import { useDebouncedValue } from "../model/adminContent";
-import { PageGuide, EditorCard, Field, FileUpload, FilterBar, FormActions, MutationMessage, NativeSelect, Pager, SectionTabs, SectionTitle, TableShell, DemoNotice } from "./AdminCommon";
+import { PageGuide, EditorCard, Field, FileUpload, FilterBar, FormActions, MutationMessage, NativeSelect, Pager, SectionTabs, SectionTitle, TableShell, ThumbCell, ThumbHeader, DemoNotice } from "./AdminCommon";
 
 const pageSize = 100;
 type InstitutionType = "member" | "partner";
@@ -42,7 +42,7 @@ const demoInstitutions: InstitutionDto[] = [
     id: "demo-finance-1",
     institutionType: "member",
     name: "KB국민은행",
-    logo: null,
+    logo: { id: "demo-file-logo", fileKind: "image", originalName: "logo.svg", mimeType: "image/svg+xml", sizeBytes: 1024, widthPx: 640, heightPx: 400, altText: null, url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='400'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='#0ea5e9'/%3E%3Cstop offset='1' stop-color='#1d4ed8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='640' height='400' fill='url(#g)'/%3E%3Ctext x='320' y='215' font-size='56' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3ELOGO%3C/text%3E%3C/svg%3E", createdAt: "2026-10-10T01:20:00.000Z", updatedAt: "2026-10-10T01:20:00.000Z" },
     displayOrder: 0,
     isActive: true,
     createdAt: "2026-09-05T02:00:00.000Z",
@@ -242,27 +242,6 @@ function InstitutionEditor({
       <MutationMessage error={mutation.error} />
       <FormActions isPending={mutation.isPending} onCancel={onClose} />
     </EditorCard>
-  );
-}
-
-function InstitutionLogo({ item }: { item: InstitutionDto }) {
-  if (item.logo) {
-    return (
-      <img
-        alt={`${item.name} 로고`}
-        className="content-admin-logo-thumb"
-        src={item.logo.url}
-      />
-    );
-  }
-
-  return (
-    <span
-      aria-label={`${item.name} 로고 이미지 없음`}
-      className="content-admin-logo-thumb content-admin-logo-placeholder"
-    >
-      이미지 없음
-    </span>
   );
 }
 
@@ -587,6 +566,7 @@ export function InstitutionSection({
                   }
                 />
               </th>
+              <ThumbHeader />
               <th>기관 로고</th>
               <th>노출 상태</th>
               <th>순서</th>
@@ -608,6 +588,7 @@ export function InstitutionSection({
                     }
                   />
                 </td>
+                <ThumbCell fit="contain" url={item.logo?.url} />
                 <td>
                   <button
                     className="content-admin-table-title-button"
@@ -617,7 +598,6 @@ export function InstitutionSection({
                       setEditorOpen(true);
                     }}
                   >
-                    <InstitutionLogo item={item} />
                     <div className="content-admin-table-title">
                       <strong>{item.name}</strong>
                     </div>

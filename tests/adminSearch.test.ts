@@ -7,7 +7,6 @@ describe("관리자 화면 검색 파라미터", () => {
     "institutions",
     "posts",
     "resources",
-    "seminars",
     "galleries",
     "history",
   ])("콘텐츠 관리 섹션 %s를 허용한다", (section) => {

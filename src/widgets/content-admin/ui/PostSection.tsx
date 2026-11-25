@@ -20,8 +20,8 @@ import {
   updateContentPostMutationOptions,
 } from "@features/post-manage";
 import { isDemoMode as isGlobalDemoMode, type ContentStatus, type FileDto, type PostCategory, type PostFileRole } from "@shared/api/content";
-import { lastEditorLogin } from "@shared/lib";
-import { BulkActionBar, Button, Input, confirmDialog, alertDialog } from "@shared/ui";
+import { lastEditorLogin, type ImageCrop } from "@shared/lib";
+import { BulkActionBar, Button, ImageCropper, Input, confirmDialog, alertDialog } from "@shared/ui";
 
 import {
   endOfDayIso,
@@ -34,7 +34,7 @@ import {
   useBackNavCloses,
   useDebouncedValue,
 } from "../model/adminContent";
-import { PageGuide, Checkbox, EditorCard, Field, FileUpload, FilterBar, MutationMessage, NativeSelect, Pager, SectionTabs, SectionTitle, StatusBadge, TableShell, DemoNotice } from "./AdminCommon";
+import { PageGuide, Checkbox, EditorCard, Field, FileUpload, FilterBar, MutationMessage, NativeSelect, Pager, SectionTabs, SectionTitle, StatusBadge, TableShell, ThumbCell, ThumbHeader, DemoNotice } from "./AdminCommon";
 
 const EMPTY_ID = "00000000-0000-4000-8000-000000000000";
 const CATEGORIES: Array<{ value: PostCategory; label: string }> = [
@@ -48,6 +48,7 @@ type SelectedPostFile = {
   file: FileDto;
   role: PostFileRole;
   showInGallery: boolean;
+  crop?: ImageCrop | null;
 };
 type PostFormState = {
   title: string;
@@ -68,7 +69,8 @@ const demoPosts: AdminContentPostListItem[] = [
     category: "notice",
     title: "개인정보처리방침 개정 안내 (시행 2026.07.15)",
     institution: null,
-    cover: null,
+    cover: { id: "demo-file-post-cover", fileKind: "image", originalName: "test-image-5.png", mimeType: "image/png", sizeBytes: 1024, widthPx: null, heightPx: null, altText: null, url: "/demo/test-image-5.png", createdAt: "2026-10-10T01:20:00.000Z", updatedAt: "2026-10-10T01:20:00.000Z" },
+    coverCrop: null,
     isPinned: true,
     publishedAt: "2026-06-30T00:00:00.000Z",
     status: "published",
@@ -83,7 +85,8 @@ const demoPosts: AdminContentPostListItem[] = [
     category: "notice",
     title: "서비스 정기 점검에 따른 일시 중단 안내",
     institution: null,
-    cover: null,
+    cover: { id: "demo-file-post-1", fileKind: "image", originalName: "test-image-1.jpg", mimeType: "image/jpeg", sizeBytes: 1024, widthPx: null, heightPx: null, altText: null, url: "/demo/test-image-1.jpg", createdAt: "2026-10-10T01:20:00.000Z", updatedAt: "2026-10-10T01:20:00.000Z" },
+    coverCrop: { x: 0, y: 0.12, width: 1, height: 0.35 },
     isPinned: false,
     publishedAt: "2026-06-10T00:00:00.000Z",
     status: "published",
@@ -113,7 +116,7 @@ const demoPosts: AdminContentPostListItem[] = [
     category: "association_news",
     title: "보난자팩토리, 시리즈A 투자 유치로 컴플라이언스 사업 확대",
     institution: null,
-    cover: null,
+    cover: { id: "demo-file-post-3", fileKind: "image", originalName: "test-image-3.jpg", mimeType: "image/jpeg", sizeBytes: 1024, widthPx: null, heightPx: null, altText: null, url: "/demo/test-image-3.jpg", createdAt: "2026-10-10T01:20:00.000Z", updatedAt: "2026-10-10T01:20:00.000Z" },
     isPinned: true,
     publishedAt: "2026-06-24T00:00:00.000Z",
     status: "published",
@@ -128,7 +131,8 @@ const demoPosts: AdminContentPostListItem[] = [
     category: "association_news",
     title: "아기유니콘 200 기업 선정, 기술 경쟁력 인정받아",
     institution: null,
-    cover: null,
+    cover: { id: "demo-file-post-2", fileKind: "image", originalName: "test-image-2.png", mimeType: "image/png", sizeBytes: 1024, widthPx: null, heightPx: null, altText: null, url: "/demo/test-image-2.png", createdAt: "2026-10-10T01:20:00.000Z", updatedAt: "2026-10-10T01:20:00.000Z" },
+    coverCrop: { x: 0.1, y: 0, width: 0.802, height: 1 },
     isPinned: false,
     publishedAt: "2026-05-12T00:00:00.000Z",
     status: "published",
@@ -143,7 +147,8 @@ const demoPosts: AdminContentPostListItem[] = [
     category: "association_news",
     title: "국내 주요 거래소와 이상거래 탐지 협력 체결",
     institution: null,
-    cover: null,
+    cover: { id: "demo-file-post-4", fileKind: "image", originalName: "test-image-4.jpg", mimeType: "image/jpeg", sizeBytes: 1024, widthPx: null, heightPx: null, altText: null, url: "/demo/test-image-4.jpg", createdAt: "2026-10-10T01:20:00.000Z", updatedAt: "2026-10-10T01:20:00.000Z" },
+    coverCrop: { x: 0, y: 0.18, width: 1, height: 0.5 },
     isPinned: false,
     publishedAt: "2026-04-03T00:00:00.000Z",
     status: "published",
@@ -288,6 +293,7 @@ function PostEditor({
         file: entry.file,
         role: entry.role,
         showInGallery: entry.showInGallery,
+        crop: entry.crop ?? null,
       })),
     );
   }, [detailQuery.data]);
@@ -357,6 +363,7 @@ function PostEditor({
             ? ("cover" as const)
             : ("content" as const),
         showInGallery: entry.showInGallery,
+        crop: !isPromotionVideo && index === 0 ? (entry.crop ?? null) : null,
       })),
     };
     try {
@@ -610,6 +617,25 @@ function PostEditor({
           ))}
         </div>
       </Field>
+      {files[0] ? (
+        <Field
+          label="목록 썸네일 (대표 이미지)"
+          wide
+          hint="뉴스룸 목록에는 이 영역이 잘려서 보이고, 상세 페이지에는 원본 비율로 보입니다."
+        >
+          <ImageCropper
+            src={files[0].file.url}
+            value={files[0].crop}
+            onChange={(crop) =>
+              setFiles((current) =>
+                current.map((entry, index) =>
+                  index === 0 ? { ...entry, crop } : entry,
+                ),
+              )
+            }
+          />
+        </Field>
+      ) : null}
       </div>
       </>}
       <MutationMessage error={mutation.error} />
@@ -1018,6 +1044,7 @@ export function PostSection({
                   onChange={(event) => toggleSelectAll(event.target.checked)}
                 />
               </th>
+              <ThumbHeader />
               <th>제목</th>
               {category === "association_news" ? <th>계열사</th> : null}
               <th>상태</th>
@@ -1040,6 +1067,7 @@ export function PostSection({
                     }
                   />
                 </td>
+                <ThumbCell crop={item.coverCrop} url={item.cover?.url} />
                 <td>
                   <button
                     className="content-admin-table-title-button"

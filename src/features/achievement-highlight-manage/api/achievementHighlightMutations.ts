@@ -1,4 +1,5 @@
 import { mutationOptions } from "@tanstack/react-query";
+import type { ImageCrop } from "@shared/lib";
 import { requireExpectedUpdatedAt, requireUuid } from "@shared/api/content";
 
 export type SaveAchievementHighlightInput = {
@@ -8,6 +9,8 @@ export type SaveAchievementHighlightInput = {
   content: string;
   occurredOn: string;
   imageFileId: string | null;
+  imageCrop?: ImageCrop | null;
+  isVisible: boolean;
 };
 
 function text(value: string, label: string, max: number) {
@@ -32,6 +35,11 @@ async function move(input: { id: string; direction: -1 | 1 }): Promise<void> {
   throw new Error("백엔드가 아직 연결되지 않았습니다.");
 }
 
+async function setVisibility(input: { ids: string[]; isVisible: boolean }): Promise<void> {
+  for (const id of input.ids) requireUuid(id);
+  throw new Error("백엔드가 아직 연결되지 않았습니다.");
+}
+
 async function remove(id: string): Promise<void> {
   requireUuid(id);
   throw new Error("백엔드가 아직 연결되지 않았습니다.");
@@ -39,4 +47,5 @@ async function remove(id: string): Promise<void> {
 
 export const saveAchievementHighlightMutationOptions = () => mutationOptions({ mutationKey: ["achievement-highlights", "save"], mutationFn: save });
 export const moveAchievementHighlightMutationOptions = () => mutationOptions({ mutationKey: ["achievement-highlights", "move"], mutationFn: move });
+export const setAchievementHighlightsVisibilityMutationOptions = () => mutationOptions({ mutationKey: ["achievement-highlights", "visibility"], mutationFn: setVisibility });
 export const deleteAchievementHighlightMutationOptions = () => mutationOptions({ mutationKey: ["achievement-highlights", "delete"], mutationFn: remove });

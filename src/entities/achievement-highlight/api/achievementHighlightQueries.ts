@@ -1,4 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
+
+import type { ImageCrop } from "@shared/lib";
 import { CONTENT_QUERY_OPTIONS } from "@shared/api/content";
 
 export type AchievementHighlightDto = {
@@ -8,6 +10,8 @@ export type AchievementHighlightDto = {
   occurredOn: string;
   imageFileId: string | null;
   imageUrl: string | null;
+  imageCrop?: ImageCrop | null;
+  isVisible: boolean;
   position: number;
   updatedAt: string;
   createdAt?: string;

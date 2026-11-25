@@ -2,6 +2,8 @@ export { Badge } from "./badge";
 export { BulkActionBar, OrderSaveBar } from "./bulk-action-bar";
 export { Button } from "./button";
 export { Card } from "./card";
+export { CroppedImage } from "./cropped-image";
+export { ImageCropper } from "./image-cropper";
 export { ImagePlaceholder } from "./image-placeholder";
 export { Input } from "./input";
 export { LogoMarquee } from "./logo-marquee";

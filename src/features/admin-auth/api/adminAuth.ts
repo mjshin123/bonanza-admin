@@ -1,29 +1,63 @@
 import { mutationOptions } from "@tanstack/react-query";
 
-export type AdminUser = { id: string; email: string };
+import {
+  AdminAuthError,
+  completeInitialPasswordChange,
+  DEMO_SEED_LOGIN_ID,
+  DEMO_SEED_PASSWORD,
+  getAdminSessionUser,
+  resetDemoAdminAccounts,
+  signInAdminAccount,
+  signOutAdminAccount,
+  subscribeAdminSession,
+  type AdminSessionUser,
+  type AdminSignInResult,
+} from "@entities/admin-account";
+
+export type AdminUser = AdminSessionUser;
+export type { AdminSignInResult };
 
 export type AdminCredentials = {
-  email: string;
+  loginId: string;
   password: string;
 };
 
+export type ChangeInitialPasswordInput = {
+  loginId: string;
+  initialPassword: string;
+  newPassword: string;
+};
+
+export const demoAdminAccount = {
+  loginId: DEMO_SEED_LOGIN_ID,
+  password: DEMO_SEED_PASSWORD,
+};
+export { AdminAuthError, resetDemoAdminAccounts };
+
 export async function getCurrentAdminUser(): Promise<AdminUser | null> {
-  return null;
+  return getAdminSessionUser();
 }
 
 export function subscribeToAdminAuthState(
   listener: (user: AdminUser | null) => void,
 ) {
-  queueMicrotask(() => listener(null));
-  return () => undefined;
+  return subscribeAdminSession(listener);
 }
 
-async function signInAdmin(_credentials: AdminCredentials): Promise<AdminUser> {
-  throw new Error("백엔드가 아직 연결되지 않았습니다.");
+async function signInAdmin(
+  credentials: AdminCredentials,
+): Promise<AdminSignInResult> {
+  return signInAdminAccount(credentials);
 }
 
 async function signOutAdmin(): Promise<void> {
-  return;
+  signOutAdminAccount();
+}
+
+async function changeInitialPassword(
+  input: ChangeInitialPasswordInput,
+): Promise<AdminUser> {
+  return completeInitialPasswordChange(input);
 }
 
 export function adminSignInMutationOptions() {
@@ -37,5 +71,12 @@ export function adminSignOutMutationOptions() {
   return mutationOptions({
     mutationKey: ["admin-auth", "sign-out"],
     mutationFn: signOutAdmin,
+  });
+}
+
+export function adminChangeInitialPasswordMutationOptions() {
+  return mutationOptions({
+    mutationKey: ["admin-auth", "change-initial-password"],
+    mutationFn: changeInitialPassword,
   });
 }

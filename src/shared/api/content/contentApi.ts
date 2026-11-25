@@ -18,7 +18,6 @@ export type ResourceCategory =
   | "annual_report";
 /** 홍보영상은 언어별 영상 파일을 별도 역할로 전달한다. */
 export type PostFileRole = "cover" | "content" | "video_ko" | "video_en";
-export type SeminarTiming = "all" | "upcoming" | "past";
 
 export type PageParams = { page?: number; pageSize?: number };
 export type PageResult<T> = {

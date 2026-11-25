@@ -1,10 +1,14 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import {
+  adminChangeInitialPasswordMutationOptions,
   adminSignInMutationOptions,
   adminSignOutMutationOptions,
+  AdminAuthError,
+  demoAdminAccount,
+  resetDemoAdminAccounts,
   useAdminSession,
   type AdminUser,
 } from "@features/admin-auth";
@@ -14,6 +18,9 @@ import { getErrorMessage, useEditorDirty } from "@shared/lib";
 import { Button, Card, Input, Notice, UnsavedChangesModal } from "@shared/ui";
 import { AnalyticsDashboard } from "@widgets/analytics-dashboard";
 import {
+  AdminAccountSection,
+  NoticePopupSection,
+  AchievementHighlightSection,
   AchievementSection,
   AwardSection,
   HistorySection,
@@ -33,7 +40,8 @@ const NAV_ITEMS: Array<{
     | "document"
     | "history"
     | "trophy"
-    | "award";
+    | "award"
+    | "popup";
   label: string;
   children?: Array<{ label: string; tab: string }>;
 }> = [
@@ -56,7 +64,16 @@ const NAV_ITEMS: Array<{
     section: "history",
     icon: "history",
     label: "연혁",
-    children: [{ label: "전체", tab: "all" }, { label: "주요 성과", tab: "featured" }],
+  },
+  {
+    section: "highlights",
+    icon: "trophy",
+    label: "주요 성과",
+  },
+  {
+    section: "notice-popups",
+    icon: "popup",
+    label: "공지 팝업",
   },
   {
     section: "achievements",
@@ -80,11 +97,16 @@ const NAV_ITEMS: Array<{
     icon: "document",
     label: "개인정보처리방침",
   },
+  {
+    section: "admin-accounts",
+    icon: "users",
+    label: "관리자 계정",
+  },
 ];
 
 const manualLoginSkipUser: AdminUser = {
   id: "manual-skip-admin",
-  email: "test-skip@local.bypass",
+  loginId: "test-skip",
 };
 
 type MenuIconName = (typeof NAV_ITEMS)[number]["icon"];
@@ -125,6 +147,12 @@ function MenuIcon({ name }: { name: MenuIconName }) {
         <path d="M8 4h8v4a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 12v5M8 21h8M9 17h6" />
       </svg>
     );
+  if (name === "popup")
+    return (
+      <svg {...sharedProps}>
+        <path d="M4 5h16v14H4zM4 9h16M8 14h8" />
+      </svg>
+    );
   if (name === "award")
     return (
       <svg {...sharedProps}>
@@ -140,6 +168,12 @@ function MenuIcon({ name }: { name: MenuIconName }) {
   );
 }
 
+function authErrorMessage(error: unknown) {
+  if (error instanceof AdminAuthError || error instanceof RangeError)
+    return getErrorMessage(error);
+  return "일시적인 문제로 처리하지 못했습니다. 잠시 후 다시 시도해 주세요. 문제가 계속되면 관리자에게 문의해 주세요.";
+}
+
 function LoginScreen({
   sessionError,
   isSessionLoading,
@@ -150,15 +184,74 @@ function LoginScreen({
   onSkipLogin: () => void;
 }) {
   const signInMutation = useMutation(adminSignInMutationOptions());
-  const [email, setEmail] = useState("");
+  const changeMutation = useMutation(adminChangeInitialPasswordMutationOptions());
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
+  const [isChangingPassword, setChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isCapsLockOn, setCapsLockOn] = useState(false);
+  const trackCapsLock = (event: KeyboardEvent<HTMLInputElement>) =>
+    setCapsLockOn(event.getModifierState("CapsLock"));
+  const capsLockHint = isCapsLockOn ? "Caps Lock이 켜져 있습니다." : undefined;
+  const clearError = (field: string) =>
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   const handleSignIn = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const errors: Record<string, string> = {};
+    if (!loginId.trim()) errors.loginId = "아이디를 입력해 주세요.";
+    if (!password) errors.password = "비밀번호를 입력해 주세요.";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) return;
     signInMutation.mutate(
-      { email, password },
-      { onSuccess: () => setPassword("") },
+      { loginId, password },
+      {
+        onSuccess: (result) => {
+          if (result.status === "password-change-required") {
+            setChangingPassword(true);
+            return;
+          }
+          setPassword("");
+        },
+      },
     );
   };
+  const handleChangePassword = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const errors: Record<string, string> = {};
+    if (!newPassword) errors.newPassword = "변경할 비밀번호를 입력해 주세요.";
+    if (!confirmPassword) errors.confirmPassword = "비밀번호를 한 번 더 입력해 주세요.";
+    else if (newPassword && newPassword !== confirmPassword)
+      errors.confirmPassword = "입력한 두 비밀번호가 서로 다릅니다. 다시 확인해 주세요.";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) return;
+    changeMutation.mutate({
+      loginId,
+      initialPassword: password,
+      newPassword,
+    });
+  };
+  const backToSignIn = () => {
+    setChangingPassword(false);
+    setPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setFieldErrors({});
+    signInMutation.reset();
+    changeMutation.reset();
+  };
+  const signInError = signInMutation.error;
+  const restrictedCode =
+    signInError instanceof AdminAuthError &&
+    (signInError.code === "locked" || signInError.code === "suspended")
+      ? signInError.code
+      : null;
   return (
     <main className="api-admin-login-page">
       <div className="api-admin-login-shell">
@@ -167,32 +260,90 @@ function LoginScreen({
         </div>
         <div className="api-admin-login-heading">
           <span>BONANZA FACTORY CONTENT MANAGEMENT</span>
-          <h1>관리자 로그인</h1>
-          <p>콘텐츠 등록과 수정을 위해 관리자 계정으로 로그인해주세요.</p>
+          <h1>{isChangingPassword ? "비밀번호 변경" : "관리자 로그인"}</h1>
+          <p>
+            {isChangingPassword
+              ? "변경할 비밀번호를 입력해 주세요."
+              : "콘텐츠 등록과 수정을 위해 관리자 계정으로 로그인해주세요."}
+          </p>
         </div>
         <Card className="api-admin-login-card" padding="clamp(22px, 5vw, 32px)">
-          {isSessionLoading ? (
+          {isChangingPassword ? (
+            <form
+              noValidate
+              className="api-admin-login-form"
+              onSubmit={handleChangePassword}
+            >
+              <Input
+                autoComplete="new-password"
+                error={fieldErrors.newPassword}
+                hint={capsLockHint ?? "영문과 숫자를 포함해 8자 이상 입력해 주세요."}
+                label="비밀번호"
+                type="password"
+                value={newPassword}
+                onChange={(event) => {
+                  setNewPassword(event.target.value);
+                  clearError("newPassword");
+                }}
+                onKeyDown={trackCapsLock}
+                onKeyUp={trackCapsLock}
+              />
+              <Input
+                autoComplete="new-password"
+                error={fieldErrors.confirmPassword}
+                label="비밀번호 재입력"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => {
+                  setConfirmPassword(event.target.value);
+                  clearError("confirmPassword");
+                }}
+                onKeyDown={trackCapsLock}
+                onKeyUp={trackCapsLock}
+              />
+              <Button
+                disabled={changeMutation.isPending}
+                fullWidth
+                size="lg"
+                type="submit"
+              >
+                {changeMutation.isPending ? "변경 중..." : "비밀번호 변경"}
+              </Button>
+              <Button fullWidth type="button" variant="ghost" onClick={backToSignIn}>
+                로그인으로 돌아가기
+              </Button>
+            </form>
+          ) : isSessionLoading ? (
             <p className="api-admin-loading">
               관리자 세션을 확인하고 있습니다.
             </p>
           ) : (
-            <form className="api-admin-login-form" onSubmit={handleSignIn}>
+            <form noValidate className="api-admin-login-form" onSubmit={handleSignIn}>
               <Input
-                required
                 autoComplete="username"
-                label="이메일"
-                placeholder="admin@example.com"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                error={fieldErrors.loginId}
+                label="아이디"
+                placeholder="아이디를 입력해 주세요"
+                type="text"
+                value={loginId}
+                onChange={(event) => {
+                  setLoginId(event.target.value);
+                  clearError("loginId");
+                }}
               />
               <Input
-                required
                 autoComplete="current-password"
+                error={fieldErrors.password}
+                hint={capsLockHint}
                 label="비밀번호"
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  clearError("password");
+                }}
+                onKeyDown={trackCapsLock}
+                onKeyUp={trackCapsLock}
               />
               <Button
                 disabled={signInMutation.isPending}
@@ -204,14 +355,28 @@ function LoginScreen({
               </Button>
             </form>
           )}
-          {signInMutation.error ? (
-            <Notice tone="danger" title="로그인하지 못했습니다.">
-              {getErrorMessage(signInMutation.error)}
+          {changeMutation.error ? (
+            <Notice tone="danger" title="비밀번호를 변경하지 못했습니다.">
+              {authErrorMessage(changeMutation.error)}
+            </Notice>
+          ) : null}
+          {signInError ? (
+            <Notice
+              tone={restrictedCode ? "warning" : "danger"}
+              title={
+                restrictedCode === "locked"
+                  ? "계정이 잠겼습니다."
+                  : restrictedCode === "suspended"
+                    ? "정지된 계정입니다."
+                    : "로그인하지 못했습니다."
+              }
+            >
+              {authErrorMessage(signInError)}
             </Notice>
           ) : null}
           {sessionError ? (
-            <Notice tone="danger" title="세션을 확인하지 못했습니다.">
-              {sessionError.message}
+            <Notice tone="danger" title="로그인 상태를 확인하지 못했습니다.">
+              페이지를 새로고침한 뒤 다시 시도해 주세요. 문제가 계속되면 관리자에게 문의해 주세요.
             </Notice>
           ) : null}
         </Card>
@@ -225,8 +390,16 @@ function LoginScreen({
             </Button>
           }
         >
-          실제 계정 없이 운영 화면을 확인하려면 아래 버튼으로 로그인을
-          건너뛸 수 있습니다. 테스트 목적으로만 사용하세요.
+          실제 계정 없이 운영 화면을 확인하려면 "테스트용 로그인 건너뛰기"로 로그인을
+          건너뛸 수 있습니다. 초기 비밀번호 변경을 테스트하려면 아이디{" "}
+          <strong>{demoAdminAccount.loginId}</strong>, 비밀번호{" "}
+          <strong>{demoAdminAccount.password}</strong>로 로그인하세요. 변경한
+          뒤 다시 테스트하려면 "테스트 계정 초기화"를 누르세요.
+          <div style={{ marginTop: "8px" }}>
+            <Button size="sm" variant="ghost" onClick={resetDemoAdminAccounts}>
+              테스트 계정 초기화
+            </Button>
+          </div>
         </Notice>
       </div>
     </main>
@@ -258,6 +431,8 @@ function Workspace({
 }) {
   if (section === "dashboard") return <AnalyticsDashboard />;
   if (section === "achievements") return <AchievementSection initialTab={tab === "home" ? "home" : "company"} onTabChange={onTabChange} />;
+  if (section === "admin-accounts") return <AdminAccountSection onEditorOpenChange={onDetailOpenChange} />;
+  if (section === "notice-popups") return <NoticePopupSection onEditorOpenChange={onDetailOpenChange} />;
   if (section === "awards") return <AwardSection onEditorOpenChange={onDetailOpenChange} />;
   if (section === "institutions") return <InstitutionSection key={tab} initialTab={tab === "partner" ? "partner" : "member"} onEditorOpenChange={onDetailOpenChange} onTabChange={onTabChange} onOrderDirtyChange={onOrderDirtyChange} confirmLeave={confirmLeave} />;
   if (section === "posts")
@@ -272,7 +447,8 @@ function Workspace({
       />
     );
   if (section === "privacy-policies") return <PrivacyPolicySection onEditorOpenChange={onDetailOpenChange} />;
-  if (section === "history") return <HistorySection initialTab={tab === "featured" ? "featured" : "all"} onEditorOpenChange={onDetailOpenChange} onTabChange={onTabChange} onOrderDirtyChange={onOrderDirtyChange} confirmLeave={confirmLeave} />;
+  if (section === "history") return <HistorySection onEditorOpenChange={onDetailOpenChange} />;
+  if (section === "highlights") return <AchievementHighlightSection onOrderDirtyChange={onOrderDirtyChange} />;
   return <AnalyticsDashboard />;
 }
 
@@ -356,7 +532,7 @@ export function ApiTestPage() {
               B
             </span>
             <div className="api-admin-account-copy">
-              <strong>{currentUser.email ?? currentUser.id}</strong>
+              <strong>{currentUser.loginId}</strong>
               <span>관리자 계정</span>
             </div>
             <Button
@@ -379,7 +555,7 @@ export function ApiTestPage() {
                 <strong>{activeNavItem?.label ?? "관리자"}</strong>
               </p>
               <div className="api-admin-mobile-account">
-                <span>{currentUser.email ?? currentUser.id}</span>
+                <span>{currentUser.loginId}</span>
                 <Button
                   disabled={signOutMutation.isPending}
                   size="sm"

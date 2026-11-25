@@ -22,6 +22,7 @@ export type ResourceListItem = {
   category: ResourceCategory;
   title: string;
   fileCount: number;
+  cover?: FileDto | null;
   publishedAt: string | null;
 };
 export type ResourceDetail = ResourceListItem & {

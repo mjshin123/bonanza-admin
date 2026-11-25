@@ -11,11 +11,6 @@ import {
   resourcesQueryOptions,
 } from "@entities/resource";
 import {
-  adminSeminarsQueryOptions,
-  mapSeminarListRow,
-  seminarsQueryOptions,
-} from "@entities/seminar";
-import {
   adminGalleriesQueryOptions,
   adminGalleryPhotosQueryOptions,
   galleriesQueryOptions,
@@ -64,8 +59,6 @@ describe("v2 Query key", () => {
 
     expect(resourcesQueryOptions().queryKey[1]).toBe("public");
     expect(adminResourcesQueryOptions().queryKey[1]).toBe("admin");
-    expect(seminarsQueryOptions().queryKey[1]).toBe("public");
-    expect(adminSeminarsQueryOptions().queryKey[1]).toBe("admin");
     expect(galleriesQueryOptions().queryKey[1]).toBe("public");
     expect(adminGalleriesQueryOptions().queryKey[1]).toBe("admin");
     expect(adminGalleryPhotosQueryOptions({ q: "  제목  " }).queryKey).toEqual([
@@ -180,23 +173,6 @@ describe("목록 RPC DTO 매핑", () => {
       },
       false,
     );
-    const seminar = mapSeminarListRow(
-      {
-        created_at: NOW,
-        ends_at: NOW,
-        id: ID,
-        introduction: "소개",
-        location: "서울",
-        poster: FILE_JSON,
-        published_at: NOW,
-        starts_at: NOW,
-        status: "published",
-        title: "세미나",
-        total_count: 1,
-        updated_at: NOW,
-      },
-      false,
-    );
     const gallery = mapGalleryListRow(
       {
         cover_image: FILE_JSON,
@@ -218,7 +194,6 @@ describe("목록 RPC DTO 매핑", () => {
       false,
     );
     expect(resource.fileCount).toBe(3);
-    expect(seminar.poster?.id).toBe(ID);
     expect(gallery.itemCount).toBe(4);
     expect(gallery.sourceType).toBe("post");
     expect(gallery.sourceId).toBe(ID);
